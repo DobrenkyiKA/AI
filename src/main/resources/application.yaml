@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: ai
+  ai:
+    provider: google
+
+    google:
+      project-id: gen-lang-client-0921786242
+      gemini:
+
+
+        api-key: ${GEMINI_FLASH_3_API_KEY}
+        model: gemini-3-flash-preview
