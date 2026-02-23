@@ -1,0 +1,7 @@
+package com.kdob.piq.ai.api.dto
+
+data class Step1ResultResponse(
+    val pipelineId: String,
+    val status: String,
+    val questions: List<Map<String, String>>
+)
