@@ -1,6 +1,6 @@
 package com.kdob.piq.ai
 
-import com.kdob.piq.ai.storage.PipelineArtifactProperties
+import com.kdob.piq.ai.infrastructure.storage.PipelineArtifactProperties
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication

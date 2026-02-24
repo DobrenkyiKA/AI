@@ -1,15 +1,14 @@
 package com.kdob.piq.ai.application.service
 
-import com.kdob.piq.ai.domain.Pipeline
-import com.kdob.piq.ai.domain.PipelineStatus
-import com.kdob.piq.ai.domain.TopicDefinition
-import com.kdob.piq.ai.persistence.PipelineRepository
-import com.kdob.piq.ai.storage.ArtifactStorage
-import com.kdob.piq.ai.application.validation.TopicDefinitionValidator
+import com.kdob.piq.ai.domain.model.Pipeline
+import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.model.TopicDefinition
+import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.yaml.snakeyaml.Yaml
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 
 @Service

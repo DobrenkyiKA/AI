@@ -1,18 +1,15 @@
 package com.kdob.piq.ai.application.service
 
-import com.kdob.piq.ai.application.GeminiQuestionGenerator
-import com.kdob.piq.ai.client.quesiton.QuestionCatalogHttpClient
-import com.kdob.piq.ai.domain.GeneratedQuestion
-import com.kdob.piq.ai.domain.PipelineStatus
-import com.kdob.piq.ai.domain.TopicDefinition
-import com.kdob.piq.ai.domain.TopicMeta
-import com.kdob.piq.ai.persistence.PipelineRepository
-import com.kdob.piq.ai.storage.ArtifactStorage
-import com.kdob.piq.ai.application.validation.GeneratedQuestionValidator
+import com.kdob.piq.ai.domain.model.GeneratedQuestion
+import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.model.TopicDefinition
+import com.kdob.piq.ai.domain.model.TopicMeta
+import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogHttpClient
+import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.yaml.snakeyaml.Yaml
 import java.util.*
-import kotlin.collections.joinToString
 
 
 @Service

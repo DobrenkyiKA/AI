@@ -1,0 +1,35 @@
+pipeline:
+  id: java-core-interview-v1
+  createdBy: admin
+  createdAt: 2026-02-23
+
+topics:
+  - key: java-gc
+    title: JVM Garbage Collection
+    description: >
+      Memory management in the JVM, including generational garbage collection,
+      stop-the-world pauses, GC algorithms, tuning parameters, and performance
+      trade-offs relevant for backend engineers.
+
+  - key: jvm-memory
+    title: JVM Memory Model
+    description: >
+      JVM memory areas such as heap, stack, metaspace, and the Java Memory Model,
+      including visibility, ordering, and concurrency guarantees.
+
+constraints:
+  targetAudience: backend-engineers
+  experienceLevel: mid-to-senior
+  intendedUsage:
+    - interview
+    - learning
+    - quiz
+
+generation:
+  questionCount: 6
+  avoidRedundancy: true
+  depth: deep
+
+exclusions:
+  - android-runtime
+  - kotlin-specific-jvm-behavior
