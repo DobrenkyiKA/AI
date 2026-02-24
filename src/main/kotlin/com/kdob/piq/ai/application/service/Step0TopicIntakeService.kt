@@ -1,14 +1,12 @@
 package com.kdob.piq.ai.application.service
 
-import com.kdob.piq.ai.domain.model.Pipeline
-import com.kdob.piq.ai.domain.model.PipelineStatus
-import com.kdob.piq.ai.domain.model.TopicDefinition
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
 import org.springframework.stereotype.Service
-import org.yaml.snakeyaml.Yaml
-import java.time.Instant
-import java.util.*
 
 
 @Service
@@ -17,28 +15,20 @@ class Step0TopicIntakeService(
     private val artifactStorage: ArtifactStorage
 ) {
 
-    fun intake(yamlContent: String): Pipeline {
+    private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
-        val yaml = Yaml()
-        val definition =
-            yaml.loadAs(yamlContent, TopicDefinition::class.java)
+    fun intake(yamlContent: String) {
 
-        TopicDefinitionValidator.validate(definition)
+        val pipeline = yamlMapper.readValue(yamlContent, PipelineDefinitionForm::class.java)
 
-        val pipeline = Pipeline(
-            id = UUID.randomUUID(),
-            name = definition.pipeline.id,
-            status = PipelineStatus.WAITING_FOR_APPROVAL,
-            createdAt = Instant.now()
-        )
+        PipelineValidator.validate(pipeline)
 
         repository.save(pipeline)
 
         artifactStorage.saveStep0Artifact(
-            pipelineId = pipeline.id,
+            pipelineName = pipeline.name,
             yaml = yamlContent
         )
 
-        return pipeline
     }
 }

@@ -1,7 +1,9 @@
 package com.kdob.piq.ai.infrastructure.storage
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.domain.model.GeneratedQuestion
-import org.yaml.snakeyaml.Yaml
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -10,8 +12,10 @@ class Step1ArtifactStorage(
     private val rootDir: Path
 ) {
 
+    private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+
     fun save(
-        pipelineId: UUID,
+        pipelineId: Long,
         questions: List<GeneratedQuestion>
     ): Path {
 
@@ -20,9 +24,8 @@ class Step1ArtifactStorage(
 
         val artifactPath = pipelineDir.resolve("step-1-questions.generated.yaml")
 
-        val yaml = Yaml()
         val content = mapOf("questions" to questions)
-        Files.writeString(artifactPath, yaml.dump(content))
+        Files.writeString(artifactPath, yamlMapper.writeValueAsString(content))
 
         return artifactPath
     }

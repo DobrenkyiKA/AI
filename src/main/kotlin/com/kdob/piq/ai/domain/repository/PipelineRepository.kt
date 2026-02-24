@@ -1,13 +1,14 @@
 package com.kdob.piq.ai.domain.repository
 
-import com.kdob.piq.ai.domain.model.Pipeline
 import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
 import java.util.*
 
 
 interface PipelineRepository {
 
-    fun save(pipeline: Pipeline)
-    fun findById(id: UUID): Pipeline?
-    fun updateStatus(id: UUID, status: PipelineStatus)
+    fun save(pipeline: PipelineDefinitionForm)
+    fun findById(id: Long): PipelineEntity?
+    fun updateStatus(id: Long, status: PipelineStatus)
 }
