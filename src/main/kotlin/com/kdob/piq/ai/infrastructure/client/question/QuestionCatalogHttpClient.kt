@@ -22,7 +22,7 @@ class QuestionCatalogHttpClient(
             .uri { uriBuilder ->
                 uriBuilder
                     .path("/question-prompts")
-                    .queryParam("topicKeys", topicKeys)
+                    .queryParam("topicKeys", *topicKeys.toTypedArray())
                     .build()
             }
             .retrieve()
