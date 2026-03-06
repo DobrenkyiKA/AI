@@ -3,7 +3,6 @@ package com.kdob.piq.ai.infrastructure.storage
 import org.springframework.stereotype.Component
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
 
 @Component
 class ArtifactStorage(
@@ -21,8 +20,8 @@ class ArtifactStorage(
         Files.writeString(dir.resolve("step-0-topic.yaml"), yaml)
     }
 
-    fun loadStep0Artifact(pipelineId: Long): String =
-        Files.readString(rootDir.resolve("pipeline-$pipelineId/step-0-topic.yaml"))
+    fun loadStep0Artifact(pipelineName: String): String =
+        Files.readString(rootDir.resolve("pipeline-$pipelineName/step-0-topic.yaml"))
 
     fun saveStep1Questions(pipelineId: Long, yaml: String) {
         Files.writeString(

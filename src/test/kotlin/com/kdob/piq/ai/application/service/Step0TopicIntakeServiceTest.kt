@@ -1,10 +1,16 @@
 package com.kdob.piq.ai.application.service
 
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.step0.Step0TopicIntakeService
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 
 class Step0TopicIntakeServiceTest {
@@ -12,6 +18,9 @@ class Step0TopicIntakeServiceTest {
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
     private val service = Step0TopicIntakeService(repository, artifactStorage)
+    private val yamlMapper = ObjectMapper(YAMLFactory())
+        .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)
+        .registerKotlinModule()
 
     @Test
     fun `should correctly intake YAML with pipeline root`() {
@@ -29,6 +38,9 @@ class Step0TopicIntakeServiceTest {
                     exclusions: []
                     questionCount: 6
         """.trimIndent()
+
+        val pipeline = yamlMapper.readValue(yamlContent, PipelineDefinitionForm::class.java)
+        `when`(repository.save(pipeline)).thenReturn(pipeline.copy(name = "java-core-interview-v1"))
 
         service.intake(yamlContent)
 

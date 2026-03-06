@@ -43,9 +43,9 @@ spring:
         default_batch_fetch_size: 50
 
 content:
-   pipeline:
-     artifacts:
-       root-dir: ./pipeline-artifacts
+  pipeline:
+    artifacts:
+      root-dir: ai/pipeline-artifacts
 
 logging:
   level:

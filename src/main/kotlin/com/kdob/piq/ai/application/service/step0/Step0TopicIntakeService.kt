@@ -25,10 +25,10 @@ class Step0TopicIntakeService(
 
         PipelineValidator.validate(pipeline)
 
-        pipelineRepository.save(pipeline)
+        val savedPipeline = pipelineRepository.save(pipeline)
 
         artifactStorage.saveStep0Artifact(
-            pipelineName = pipeline.name,
+            pipelineName = savedPipeline.name,
             yaml = yamlContent
         )
 
