@@ -1,0 +1,18 @@
+package com.kdob.piq.ai.infrastructure.persistence
+
+import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.persistence.mapping.toDomain
+import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
+import org.springframework.stereotype.Repository
+
+@Repository
+class JpaPipelineRepositoryImpl (
+    private val springDataPipelineRepository: SpringDataPipelineRepository
+): PipelineRepository {
+    override fun save(pipeline: PipelineDefinitionForm) = springDataPipelineRepository.save(pipeline.toEntity()).toDomain()
+    override fun findById(id: Long): PipelineEntity? = springDataPipelineRepository.findById(id).orElse(null)
+    override fun updateStatus(id: Long, status: PipelineStatus) = TODO()
+}

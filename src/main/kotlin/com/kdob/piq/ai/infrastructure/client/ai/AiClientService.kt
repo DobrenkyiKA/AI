@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service
+package com.kdob.piq.ai.infrastructure.client.ai
 
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.stereotype.Service

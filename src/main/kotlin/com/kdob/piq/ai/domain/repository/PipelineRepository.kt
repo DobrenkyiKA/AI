@@ -8,7 +8,7 @@ import java.util.*
 
 interface PipelineRepository {
 
-    fun save(pipeline: PipelineDefinitionForm)
+    fun save(pipeline: PipelineDefinitionForm): PipelineDefinitionForm
     fun findById(id: Long): PipelineEntity?
     fun updateStatus(id: Long, status: PipelineStatus)
 }

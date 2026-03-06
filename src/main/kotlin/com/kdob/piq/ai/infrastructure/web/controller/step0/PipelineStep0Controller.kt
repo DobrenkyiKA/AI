@@ -1,6 +1,6 @@
-package com.kdob.piq.ai.infrastructure.web.controller
+package com.kdob.piq.ai.infrastructure.web.controller.step0
 
-import com.kdob.piq.ai.application.service.Step0TopicIntakeService
+import com.kdob.piq.ai.application.service.step0.Step0TopicIntakeService
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody

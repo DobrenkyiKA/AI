@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service
+package com.kdob.piq.ai.application.service.step1
 
 import com.kdob.piq.ai.domain.model.GeneratedQuestion
 

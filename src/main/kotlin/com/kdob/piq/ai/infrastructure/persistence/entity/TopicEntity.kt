@@ -9,23 +9,22 @@ class TopicEntity(
 
     @Basic(optional = false)
     @Column(nullable = false, unique = true)
-    private var key: String,
+    val key: String,
 
     @Basic(optional = false)
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "pipeline_id", nullable = false)
-    private var pipeline: PipelineEntity,
-
-    @Basic(optional = false)
-    private var title: String,
+    val title: String,
 
     @Basic(optional = false)
     @Column(columnDefinition = "TEXT")
-    private var description: String,
+    val description: String,
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "pipeline_id", nullable = false)
+    val pipeline: PipelineEntity,
 
     @Basic(optional = false)
     @Embedded
-    private var constraints: ConstraintsEntity
+    val constraints: ConstraintsEntity
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "topics_sequence")

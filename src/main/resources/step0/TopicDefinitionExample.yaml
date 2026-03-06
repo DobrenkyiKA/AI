@@ -36,5 +36,3 @@ pipeline:
           - learning
           - quiz
         questionCount: 6
-
-

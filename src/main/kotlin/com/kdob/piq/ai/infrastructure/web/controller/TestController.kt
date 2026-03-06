@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
-import com.kdob.piq.ai.application.service.AiClientService
+import com.kdob.piq.ai.infrastructure.client.ai.AiClientService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
