@@ -9,7 +9,6 @@ import com.kdob.piq.ai.domain.model.GeneratedQuestion
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogHttpClient
-import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.TopicEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
@@ -22,23 +21,19 @@ class Step1QuestionGenerationService(
     private val artifactStorage: ArtifactStorage,
     private val questionCatalogHttpClient: QuestionCatalogHttpClient
 ) {
-
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
     fun generate(pipelineName: String) {
-        val step0Yaml = artifactStorage.loadStep0Artifact(pipelineName)
-        val pipeline = yamlMapper.readValue(step0Yaml, PipelineEntity::class.java)
+        val pipeline = pipelineRepository.findByName(pipelineName)
+            ?: throw IllegalArgumentException("Pipeline not found: $pipelineName")
 
         val topicKeys = pipeline.topics.map { it.key }.toSet()
         val expectedCount = 5//pipeline.questionCount
 
-        // ✅ Fetch existing questions from Question microservice
         val existingPrompts =
             questionCatalogHttpClient.findQuestionPrompts(topicKeys).map { it.prompt.trim().lowercase() }.toSet()
 
-        val prompt = buildPrompt(
-            topics = pipeline.topics, existingQuestions = existingPrompts
-        )
+        val prompt = buildPrompt(pipeline.topics)
 
         val rawOutput = generator.generateQuestions(prompt)
 
@@ -66,18 +61,13 @@ class Step1QuestionGenerationService(
         )
     }
 
-    private fun buildPrompt(
-        topics: MutableSet<TopicEntity>, existingQuestions: Set<String>
-    ): String = """
+    private fun buildPrompt(topics: MutableSet<TopicEntity>): String = """
 You are a senior technical interviewer.
 
-Generate exactly questionCount interview-grade questions.
+Generate exactly questionCount interview-grade questions for each of the following topics.
 
 Topics:
-${topics.joinToString("\n") { "- {it.key}: {it.description}" }}
-
-Do NOT repeat or paraphrase the following questions:
-${existingQuestions.joinToString("\n") { "- $it" }}
+${topics.joinToString("\n") { "- ${it.title}: ${it.description}" }}
 
 Rules:
 - Each question must belong to exactly one topic
@@ -90,3 +80,5 @@ questions:
     prompt: <question text>
 """.trimIndent()
 }
+//Do NOT repeat or paraphrase the following questions:
+//${existingQuestions.joinToString("\n") { "- $it" }}

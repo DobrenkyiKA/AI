@@ -6,13 +6,9 @@ import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 
 @Component
-class QuestionCatalogHttpClient(
-    private val restClient: RestClient
-) : QuestionCatalogClient {
+class QuestionCatalogHttpClient(private val restClient: RestClient) : QuestionCatalogClient {
 
-    override fun findQuestionPrompts(
-        topicKeys: Set<String>
-    ): List<QuestionPromptResponse> {
+    override fun findQuestionPrompts(topicKeys: Set<String>): List<QuestionPromptResponse> {
 
         if (topicKeys.isEmpty()) {
             return emptyList()
