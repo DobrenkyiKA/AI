@@ -118,4 +118,32 @@ class PipelineControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.pipelineName").value(name))
     }
+
+    @Test
+    fun `should run step and return updated response`() {
+        val name = "test-pipeline"
+        val step = 1
+        val entity = PipelineEntity(name = name)
+        `when`(intakeService.findByName(name)).thenReturn(entity)
+
+        mockMvc.perform(post("/pipeline/$name/run/$step"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.pipelineName").value(name))
+        
+        verify(intakeService).runStep(name, step)
+    }
+
+    @Test
+    fun `should run pipeline from step and return updated response`() {
+        val name = "test-pipeline"
+        val step = 0
+        val entity = PipelineEntity(name = name)
+        `when`(intakeService.findByName(name)).thenReturn(entity)
+
+        mockMvc.perform(post("/pipeline/$name/run-from/$step"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.pipelineName").value(name))
+        
+        verify(intakeService).runPipelineFrom(name, step)
+    }
 }

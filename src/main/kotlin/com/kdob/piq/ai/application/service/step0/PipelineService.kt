@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.kdob.piq.ai.application.service.Step1QuestionGenerationService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -19,7 +20,8 @@ import java.time.Instant
 @Service
 class PipelineService(
     private val pipelineRepository: PipelineRepository,
-    private val artifactStorage: ArtifactStorage
+    private val artifactStorage: ArtifactStorage,
+    private val step1QuestionGenerationService: Step1QuestionGenerationService
 ) {
     fun findAll() = pipelineRepository.findAll()
     fun findByName(name: String) = pipelineRepository.findByName(name)
@@ -89,6 +91,23 @@ class PipelineService(
     fun deletePipeline(name: String) {
         pipelineRepository.deleteByName(name)
         artifactStorage.deleteArtifacts(name)
+    }
+
+    @Transactional
+    fun runStep(pipelineName: String, step: Int) {
+        when (step) {
+            1 -> step1QuestionGenerationService.generate(pipelineName)
+            0 -> {} // Step 0 generation is not yet implemented, but we don't throw error to allow pipeline run
+            else -> throw IllegalArgumentException("Run for step $step is not supported yet")
+        }
+    }
+
+    @Transactional
+    fun runPipelineFrom(pipelineName: String, startStep: Int) {
+        val maxStep = 1 // Currently we have steps 0 and 1
+        for (step in startStep..maxStep) {
+            runStep(pipelineName, step)
+        }
     }
 
     private val yamlMapper = ObjectMapper(YAMLFactory())

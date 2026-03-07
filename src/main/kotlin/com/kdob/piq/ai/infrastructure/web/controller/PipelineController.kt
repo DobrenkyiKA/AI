@@ -75,6 +75,24 @@ class PipelineController(
         pipelineService.deletePipeline(pipelineName)
     }
 
+    @PostMapping("/{pipelineName}/run/{step}")
+    fun runStep(
+        @PathVariable pipelineName: String,
+        @PathVariable step: Int
+    ): PipelineResponse {
+        pipelineService.runStep(pipelineName, step)
+        return getPipeline(pipelineName)
+    }
+
+    @PostMapping("/{pipelineName}/run-from/{step}")
+    fun runPipelineFrom(
+        @PathVariable pipelineName: String,
+        @PathVariable step: Int
+    ): PipelineResponse {
+        pipelineService.runPipelineFrom(pipelineName, step)
+        return getPipeline(pipelineName)
+    }
+
     private fun PipelineEntity.toResponse() = PipelineResponse(
         pipelineName = name,
         status = status.name,

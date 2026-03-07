@@ -19,7 +19,8 @@ class PipelineServiceTest {
 
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val service = PipelineService(repository, artifactStorage)
+    private val step1QuestionGenerationService = mock(Step1QuestionGenerationService::class.java)
+    private val service = PipelineService(repository, artifactStorage, step1QuestionGenerationService)
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)
         .registerKotlinModule()
@@ -123,5 +124,42 @@ class PipelineServiceTest {
         assert(existingEntity.artifactStep0?.topics?.first()?.key == "java-gc-v2")
         verify(artifactStorage).saveArtifact(name, 0, yamlContent)
         verify(repository).save(existingEntity)
+    }
+
+    @Test
+    fun `should run step 1`() {
+        val name = "java-core-interview-v1"
+        
+        service.runStep(name, 1)
+        
+        verify(step1QuestionGenerationService).generate(name)
+    }
+
+    @Test
+    fun `should run pipeline from step 0`() {
+        val name = "java-core-interview-v1"
+        
+        service.runPipelineFrom(name, 0)
+        
+        // step 0 generation currently does nothing, but it's called
+        verify(step1QuestionGenerationService).generate(name)
+    }
+
+    @Test
+    fun `should run pipeline from step 1`() {
+        val name = "java-core-interview-v1"
+        
+        service.runPipelineFrom(name, 1)
+        
+        verify(step1QuestionGenerationService).generate(name)
+    }
+
+    @Test
+    fun `should fail for unsupported step run`() {
+        val name = "java-core-interview-v1"
+        
+        assertThrows<IllegalArgumentException> {
+            service.runStep(name, 99)
+        }
     }
 }
