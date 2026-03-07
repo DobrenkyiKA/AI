@@ -9,6 +9,7 @@ import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class Step0TopicIntakeService(
@@ -16,6 +17,12 @@ class Step0TopicIntakeService(
     private val artifactStorage: ArtifactStorage
 ) {
     fun findAll() = pipelineRepository.findAll()
+
+    @Transactional
+    fun deletePipeline(name: String) {
+        pipelineRepository.deleteByName(name)
+        artifactStorage.deleteArtifacts(name)
+    }
 
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)

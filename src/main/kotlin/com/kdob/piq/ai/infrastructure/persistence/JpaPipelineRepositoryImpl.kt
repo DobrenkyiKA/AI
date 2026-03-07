@@ -14,6 +14,9 @@ class JpaPipelineRepositoryImpl (
 ): PipelineRepository {
     override fun findAll(): List<PipelineEntity> = springDataPipelineRepository.findAll()
     override fun save(pipeline: PipelineDefinitionForm) = springDataPipelineRepository.save(pipeline.toEntity()).toDomain()
-    override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name).get(0)
+    override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name).getOrNull(0)
     override fun updateStatus(name: String, status: PipelineStatus) = TODO()
+    override fun deleteByName(name: String) {
+        springDataPipelineRepository.deleteByName(name)
+    }
 }

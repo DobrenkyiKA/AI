@@ -10,4 +10,5 @@ interface PipelineRepository {
     fun save(pipeline: PipelineDefinitionForm): PipelineDefinitionForm
     fun findByName(name: String): PipelineEntity?
     fun updateStatus(name: String, status: PipelineStatus)
+    fun deleteByName(name: String)
 }

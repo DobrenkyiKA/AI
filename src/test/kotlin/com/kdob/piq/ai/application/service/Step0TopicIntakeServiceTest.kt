@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 
 class Step0TopicIntakeServiceTest {
 
@@ -41,6 +42,9 @@ class Step0TopicIntakeServiceTest {
 
         val pipeline = yamlMapper.readValue(yamlContent, PipelineDefinitionForm::class.java)
         `when`(repository.save(pipeline)).thenReturn(pipeline.copy(name = "java-core-interview-v1"))
+        `when`(repository.findByName("java-core-interview-v1")).thenReturn(
+            com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = "java-core-interview-v1")
+        )
 
         service.intake(yamlContent)
 
@@ -66,5 +70,15 @@ class Step0TopicIntakeServiceTest {
         assertThrows<Exception> {
             service.intake(yamlContent)
         }
+    }
+
+    @Test
+    fun `should delete pipeline and its artifacts`() {
+        val name = "java-core-interview-v1"
+
+        service.deletePipeline(name)
+
+        verify(repository).deleteByName(name)
+        verify(artifactStorage).deleteArtifacts(name)
     }
 }

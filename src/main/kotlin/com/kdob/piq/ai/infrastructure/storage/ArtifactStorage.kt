@@ -34,4 +34,11 @@ class ArtifactStorage(
         Files.readString(
             rootDir.resolve("pipeline-$pipelineName/step-1-questions.generated.yaml")
         )
+
+    fun deleteArtifacts(pipelineName: String) {
+        val dir = rootDir.resolve("pipeline-$pipelineName")
+        if (Files.exists(dir)) {
+            dir.toFile().deleteRecursively()
+        }
+    }
 }

@@ -2,7 +2,9 @@ package com.kdob.piq.ai.infrastructure.web.controller.step0
 
 import com.kdob.piq.ai.application.service.step0.Step0TopicIntakeService
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -35,5 +37,10 @@ class PipelineStep0Controller(
             createdAt = created.createdAt,
             updatedAt = created.updatedAt
         )
+    }
+
+    @DeleteMapping("/{pipelineName}")
+    fun deletePipeline(@PathVariable pipelineName: String) {
+        intakeService.deletePipeline(pipelineName)
     }
 }
