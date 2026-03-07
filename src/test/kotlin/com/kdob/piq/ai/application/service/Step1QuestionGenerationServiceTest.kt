@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.application.service
 
-import com.kdob.piq.ai.application.service.step1.GeminiQuestionGenerator
+import com.kdob.piq.ai.application.service.GeminiChat
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -17,7 +17,7 @@ import org.mockito.Mockito.verify
 
 class Step1QuestionGenerationServiceTest {
 
-    private val generator = mock(GeminiQuestionGenerator::class.java)
+    private val generator = mock(GeminiChat::class.java)
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
     private val service = Step1QuestionGenerationService(generator, repository, artifactStorage)
@@ -79,7 +79,7 @@ class Step1QuestionGenerationServiceTest {
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(repository.saveAndFlush(pipeline)).thenReturn(pipeline)
-        `when`(generator.generateQuestions(anyString() ?: "")).thenReturn("""
+        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
             questions:
               - Question 1
               - Question 2

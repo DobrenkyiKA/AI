@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
-import com.kdob.piq.ai.application.service.step0.PipelineService
+import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineArtifactUpdateRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse

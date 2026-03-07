@@ -1,10 +1,10 @@
-package com.kdob.piq.ai.application.service.step0
+package com.kdob.piq.ai.application.service
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.Step1QuestionGenerationService
+import com.kdob.piq.ai.application.service.step0.Step0ArtifactValidator
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -41,7 +41,7 @@ class PipelineService(
                 if (updatedForm.name != name) {
                     throw IllegalArgumentException("Pipeline name mismatch: expected $name but got ${updatedForm.name}")
                 }
-                PipelineValidator.validate(updatedForm)
+                Step0ArtifactValidator.validate(updatedForm)
 
                 existing.artifactStep1 = null
                 artifactStorage.deleteArtifact(name, 1)
@@ -63,6 +63,7 @@ class PipelineService(
                 }
                 artifactStorage.saveArtifact(name, 0, yamlContent)
             }
+
             1 -> {
                 val artifactStep1 = existing.artifactStep1 ?: throw IllegalStateException("Step 1 artifact not found")
                 artifactStep1.status = status
@@ -73,6 +74,7 @@ class PipelineService(
                 }
                 artifactStorage.saveArtifact(name, 1, yamlContent)
             }
+
             else -> throw IllegalArgumentException("Unsupported step: $step")
         }
 
@@ -84,7 +86,12 @@ class PipelineService(
     fun updatePipeline(name: String, yamlContent: String): PipelineEntity {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
-        return updateArtifact(name, 0, yamlContent, existing.artifactStep0?.status ?: ArtifactStatus.PENDING_FOR_APPROVAL)
+        return updateArtifact(
+            name,
+            0,
+            yamlContent,
+            existing.artifactStep0?.status ?: ArtifactStatus.PENDING_FOR_APPROVAL
+        )
     }
 
     @Transactional
@@ -118,7 +125,7 @@ class PipelineService(
 
         val pipeline = yamlMapper.readValue(yamlContent, PipelineDefinitionForm::class.java)
 
-        PipelineValidator.validate(pipeline)
+        Step0ArtifactValidator.validate(pipeline)
 
         val savedPipeline = pipelineRepository.save(pipeline)
 

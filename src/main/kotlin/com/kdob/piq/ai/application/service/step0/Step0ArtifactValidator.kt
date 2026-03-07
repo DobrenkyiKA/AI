@@ -2,7 +2,7 @@ package com.kdob.piq.ai.application.service.step0
 
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
 
-object PipelineValidator {
+object Step0ArtifactValidator {
 
     fun validate(pipeline: PipelineDefinitionForm) {
 

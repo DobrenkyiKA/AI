@@ -3,7 +3,6 @@ package com.kdob.piq.ai.application.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.step1.GeminiQuestionGenerator
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -16,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class Step1QuestionGenerationService(
-    private val generator: GeminiQuestionGenerator,
+    private val generator: GeminiChat,
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
 ) {
@@ -27,9 +26,9 @@ class Step1QuestionGenerationService(
         val pipeline = pipelineRepository.findByName(pipelineName)
             ?: throw IllegalArgumentException("Pipeline not found: $pipelineName")
 
-        val artifactStep0 = pipeline.artifactStep0 
+        val artifactStep0 = pipeline.artifactStep0
             ?: throw IllegalStateException("Step 0 artifact not found for pipeline: $pipelineName")
-        
+
         if (artifactStep0.status != ArtifactStatus.APPROVED) {
             throw IllegalStateException("Step 0 artifact is not APPROVED. Current status: ${artifactStep0.status}")
         }
@@ -40,12 +39,12 @@ class Step1QuestionGenerationService(
         }
 
         val artifactStep1 = ArtifactStep1Entity(pipeline = pipeline)
-        
+
         for (topic in artifactStep0.topics) {
             val prompt = buildPrompt(topic)
-            val rawOutput = generator.generateQuestions(prompt)
+            val rawOutput = generator.executePrompt(prompt)
             val questions = parseQuestions(rawOutput)
-            
+
             val topicWithQuestions = Step1TopicWithQuestionsEntity(
                 key = topic.key,
                 title = topic.title,
@@ -60,9 +59,10 @@ class Step1QuestionGenerationService(
         pipeline.updatedAt = java.time.Instant.now()
         pipelineRepository.save(pipeline)
 
-        val yamlContent = yamlMapper.writeValueAsString(mapOf(
+        val yamlContent = yamlMapper.writeValueAsString(
+            mapOf(
             "pipeline" to pipelineName,
-            "topics" to artifactStep1.topicsWithQuestions.map { 
+            "topics" to artifactStep1.topicsWithQuestions.map {
                 mapOf(
                     "key" to it.key,
                     "title" to it.title,
@@ -101,6 +101,7 @@ questions:
     private fun parseQuestions(rawOutput: String): List<String> {
         val cleaned = rawOutput.trim().removeSurrounding("```yaml", "```").trim()
         val data = yamlMapper.readValue(cleaned, Map::class.java)
+
         @Suppress("UNCHECKED_CAST")
         val questions = data["questions"] as? List<String> ?: emptyList()
         return questions

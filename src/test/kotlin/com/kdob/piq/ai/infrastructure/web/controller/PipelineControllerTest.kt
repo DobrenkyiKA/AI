@@ -1,7 +1,7 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
 import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.application.service.step0.PipelineService
+import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
