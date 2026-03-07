@@ -23,17 +23,16 @@ class PipelineStep1Controller(
 
     @GetMapping("/{pipelineName}/step-1")
     fun getStep1Result(@PathVariable pipelineName: String): Step1ResultResponse {
-
-        val parsed = yamlMapper.readValue(
-            artifactStorage.loadStep1Questions(pipelineName),
-            Map::class.java
-        )
-
-        val questions =
-            parsed["questions"] as List<Map<String, String>>
-
         val pipeline = pipelineRepository.findByName(pipelineName)
             ?: error("Pipeline not found")
+
+        val artifactStep1 = pipeline.artifactStep1 ?: error("Step 1 artifact not found")
+
+        val questions = artifactStep1.topicsWithQuestions.flatMap { topic ->
+            topic.questions.map { q ->
+                mapOf("topicKey" to topic.key, "question" to q)
+            }
+        }
 
         return Step1ResultResponse(
             pipelineName = pipelineName,
@@ -44,7 +43,7 @@ class PipelineStep1Controller(
 
     @PostMapping("/{pipelineName}/step-1/approve")
     fun approveStep1(@PathVariable pipelineName: String) {
-        pipelineRepository.updateStatus(pipelineName, PipelineStatus.APPROVED)
+        pipelineRepository.updateStatus(pipelineName, PipelineStatus.STEP_1_APPROVED)
     }
 
     @PostMapping("/{pipelineName}/step-1")
