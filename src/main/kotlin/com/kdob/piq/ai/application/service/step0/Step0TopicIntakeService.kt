@@ -17,6 +17,7 @@ class Step0TopicIntakeService(
     private val artifactStorage: ArtifactStorage
 ) {
     fun findAll() = pipelineRepository.findAll()
+    fun findByName(name: String) = pipelineRepository.findByName(name)
 
     @Transactional
     fun deletePipeline(name: String) {

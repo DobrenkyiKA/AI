@@ -25,9 +25,7 @@ class Step1QuestionGenerationService(
 
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
-    fun generate(
-        pipelineName: String
-    ) {
+    fun generate(pipelineName: String) {
         val step0Yaml = artifactStorage.loadStep0Artifact(pipelineName)
         val pipeline = yamlMapper.readValue(step0Yaml, PipelineEntity::class.java)
 
