@@ -8,6 +8,7 @@ import com.kdob.piq.ai.application.service.step0.Step0TopicIntakeService
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.`when`
@@ -80,5 +81,46 @@ class Step0TopicIntakeServiceTest {
 
         verify(repository).deleteByName(name)
         verify(artifactStorage).deleteArtifacts(name)
+    }
+
+    @Test
+    fun `should load pipeline artifact`() {
+        val name = "java-core-interview-v1"
+        val expectedYaml = "pipeline: name: $name"
+        `when`(artifactStorage.loadStep0Artifact(name)).thenReturn(expectedYaml)
+
+        val result = service.getPipelineArtifact(name)
+
+        assertEquals(expectedYaml, result)
+    }
+
+    @Test
+    fun `should update pipeline and its artifacts`() {
+        val name = "java-core-interview-v1"
+        val yamlContent = """
+            pipeline:
+              name: java-core-interview-v1
+              topics:
+                - key: java-gc-v2
+                  title: JVM Garbage Collection v2
+                  description: Updated memory management
+                  constraints:
+                    targetAudience: backend-engineers
+                    experienceLevel: mid-to-senior
+                    intendedUsage: [interview]
+                    exclusions: []
+                    questionCount: 8
+        """.trimIndent()
+
+        val existingEntity = com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = name)
+        `when`(repository.findByName(name)).thenReturn(existingEntity)
+        `when`(repository.save(existingEntity)).thenReturn(existingEntity)
+
+        service.updatePipeline(name, yamlContent)
+
+        assert(existingEntity.topics.size == 1)
+        assert(existingEntity.topics.first().key == "java-gc-v2")
+        verify(artifactStorage).saveStep0Artifact(name, yamlContent)
+        verify(repository).save(existingEntity)
     }
 }

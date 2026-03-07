@@ -65,4 +65,29 @@ class PipelineControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.pipelineName").value(name))
     }
+
+    @Test
+    fun `should return artifact content`() {
+        val name = "test-pipeline"
+        val yaml = "pipeline: { name: 'test-pipeline' }"
+        `when`(intakeService.getPipelineArtifact(name)).thenReturn(yaml)
+
+        mockMvc.perform(get("/pipeline/$name/artifact"))
+            .andExpect(status().isOk)
+            .andExpect(content().string(yaml))
+    }
+
+    @Test
+    fun `should update pipeline and return updated response`() {
+        val name = "test-pipeline"
+        val yaml = "pipeline: { name: 'test-pipeline', topics: [] }"
+        val entity = PipelineEntity(name = name)
+        `when`(intakeService.updatePipeline(name, yaml)).thenReturn(entity)
+
+        mockMvc.perform(put("/pipeline/$name")
+            .contentType(MediaType.TEXT_PLAIN)
+            .content(yaml))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.pipelineName").value(name))
+    }
 }

@@ -7,6 +7,7 @@ import com.kdob.piq.ai.infrastructure.persistence.mapping.toDomain
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
 import org.springframework.stereotype.Repository
+import java.time.Instant
 
 @Repository
 class JpaPipelineRepositoryImpl (
@@ -14,8 +15,14 @@ class JpaPipelineRepositoryImpl (
 ): PipelineRepository {
     override fun findAll(): List<PipelineEntity> = springDataPipelineRepository.findAll()
     override fun save(pipeline: PipelineDefinitionForm) = springDataPipelineRepository.save(pipeline.toEntity()).toDomain()
+    override fun save(pipeline: PipelineEntity): PipelineEntity = springDataPipelineRepository.save(pipeline)
     override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name).getOrNull(0)
-    override fun updateStatus(name: String, status: PipelineStatus) = TODO()
+    override fun updateStatus(name: String, status: PipelineStatus) {
+        val pipeline = findByName(name) ?: throw RuntimeException("Pipeline not found")
+        pipeline.status = status
+        pipeline.updatedAt = Instant.now()
+        springDataPipelineRepository.save(pipeline)
+    }
     override fun deleteByName(name: String) {
         springDataPipelineRepository.deleteByName(name)
     }

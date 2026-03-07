@@ -32,10 +32,10 @@ class PipelineEntity(
 
     @Basic(optional = false)
     @Column(name = "updated_at", nullable = false)
-    val updatedAt: Instant = Instant.now()
+    var updatedAt: Instant = Instant.now()
 
     @Basic(optional = false)
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    val status: PipelineStatus = PipelineStatus.WAITING_FOR_APPROVAL
+    var status: PipelineStatus = PipelineStatus.WAITING_FOR_APPROVAL
 }

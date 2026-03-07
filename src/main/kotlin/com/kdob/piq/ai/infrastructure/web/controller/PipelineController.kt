@@ -25,6 +25,19 @@ class PipelineController(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Pipeline not found")
     }
 
+    @GetMapping("/{pipelineName}/artifact")
+    fun getPipelineArtifact(@PathVariable pipelineName: String): String {
+        return intakeService.getPipelineArtifact(pipelineName)
+    }
+
+    @PutMapping("/{pipelineName}")
+    fun updatePipeline(
+        @PathVariable pipelineName: String,
+        @RequestBody yaml: String
+    ): PipelineResponse {
+        return intakeService.updatePipeline(pipelineName, yaml).toResponse()
+    }
+
     @PostMapping
     fun createPipeline(@RequestBody yaml: String): ResponseEntity<PipelineResponse> {
         val created = intakeService.intake(yaml)
