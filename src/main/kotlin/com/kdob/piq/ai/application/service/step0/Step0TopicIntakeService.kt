@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
@@ -35,8 +36,9 @@ class Step0TopicIntakeService(
             ?: throw NoSuchElementException("Pipeline not found: $name")
 
         // Update topics
-        existing.topics.clear()
-        existing.topics.addAll(updatedForm.topics.map { it.toEntity(existing) })
+        val artifactStep0 = existing.artifactStep0 ?: ArtifactStep0Entity(pipeline = existing).also { existing.artifactStep0 = it }
+        artifactStep0.topics.clear()
+        artifactStep0.topics.addAll(updatedForm.topics.map { it.toEntity(artifactStep0) })
 
         existing.updatedAt = java.time.Instant.now()
 

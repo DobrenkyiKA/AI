@@ -44,7 +44,7 @@ class PipelineStep1Controller(
 
     @PostMapping("/{pipelineName}/step-1/approve")
     fun approveStep1(@PathVariable pipelineName: String) {
-        pipelineRepository.updateStatus(pipelineName, PipelineStatus.STEP_1_APPROVED)
+        pipelineRepository.updateStatus(pipelineName, PipelineStatus.APPROVED)
     }
 
     @PostMapping("/{pipelineName}/step-1")

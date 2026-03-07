@@ -19,8 +19,8 @@ class TopicEntity(
     val description: String,
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "pipeline_id", nullable = false)
-    val pipeline: PipelineEntity,
+    @JoinColumn(name = "artifact_step_0_id", nullable = false)
+    val artifactStep0: ArtifactStep0Entity,
 
     @Basic(optional = false)
     @Embedded

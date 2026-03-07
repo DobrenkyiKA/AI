@@ -12,9 +12,8 @@ class PipelineEntity(
     @Column(name = "name", nullable = false, unique = true)
     val name: String,
 
-    @Basic(optional = false)
-    @OneToMany(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val topics: MutableSet<TopicEntity> = mutableSetOf()
+    @OneToOne(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
+    var artifactStep0: ArtifactStep0Entity? = null
 
 ) : BaseEntity() {
     @Id

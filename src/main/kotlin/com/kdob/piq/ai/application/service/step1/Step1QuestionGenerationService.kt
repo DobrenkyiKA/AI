@@ -27,13 +27,15 @@ class Step1QuestionGenerationService(
         val pipeline = pipelineRepository.findByName(pipelineName)
             ?: throw IllegalArgumentException("Pipeline not found: $pipelineName")
 
-        val topicKeys = pipeline.topics.map { it.key }.toSet()
+        val artifactStep0 = pipeline.artifactStep0 ?: throw IllegalStateException("Step 0 artifact not found for pipeline: $pipelineName")
+        val topics = artifactStep0.topics
+        val topicKeys = topics.map { it.key }.toSet()
         val expectedCount = 5//pipeline.questionCount
 
         val existingPrompts =
             questionCatalogHttpClient.findQuestionPrompts(topicKeys).map { it.prompt.trim().lowercase() }.toSet()
 
-        val prompt = buildPrompt(pipeline.topics)
+        val prompt = buildPrompt(topics)
 
         val rawOutput = generator.generateQuestions(prompt)
 

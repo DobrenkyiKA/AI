@@ -118,8 +118,8 @@ class Step0TopicIntakeServiceTest {
 
         service.updatePipeline(name, yamlContent)
 
-        assert(existingEntity.topics.size == 1)
-        assert(existingEntity.topics.first().key == "java-gc-v2")
+        assert(existingEntity.artifactStep0?.topics?.size == 1)
+        assert(existingEntity.artifactStep0?.topics?.first()?.key == "java-gc-v2")
         verify(artifactStorage).saveStep0Artifact(name, yamlContent)
         verify(repository).save(existingEntity)
     }
