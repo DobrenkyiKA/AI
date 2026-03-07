@@ -1,6 +1,10 @@
 package com.kdob.piq.ai.infrastructure.web.dto
 
+import java.time.Instant
+
 data class PipelineResponse(
-    val pipelineKey: String,
-    val status: String
+    val pipelineName: String,
+    val status: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )
