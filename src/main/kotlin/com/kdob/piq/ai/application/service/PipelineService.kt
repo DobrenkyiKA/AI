@@ -1,6 +1,5 @@
 package com.kdob.piq.ai.application.service
 
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -12,7 +11,7 @@ import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
+import com.kdob.piq.ai.infrastructure.web.dto.Step0ArtifactForm
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -37,10 +36,7 @@ class PipelineService(
 
         when (step) {
             0 -> {
-                val updatedForm = yamlMapper.readValue(yamlContent, PipelineDefinitionForm::class.java)
-                if (updatedForm.name != name) {
-                    throw IllegalArgumentException("Pipeline name mismatch: expected $name but got ${updatedForm.name}")
-                }
+                val updatedForm = yamlMapper.readValue(yamlContent, Step0ArtifactForm::class.java)
                 Step0ArtifactValidator.validate(updatedForm)
 
                 existing.artifactStep1 = null
@@ -139,6 +135,5 @@ class PipelineService(
     }
 
     private val yamlMapper = ObjectMapper(YAMLFactory())
-        .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)
         .registerKotlinModule()
 }

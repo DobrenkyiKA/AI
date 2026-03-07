@@ -25,29 +25,29 @@ class ArtifactStorage(
     }
 
     fun saveArtifact(pipelineName: String, step: Int, yaml: String) {
-        val dir = rootDir.resolve("pipeline-$pipelineName")
+        val dir = rootDir.resolve(pipelineName)
         Files.createDirectories(dir)
         Files.writeString(dir.resolve(getArtifactFileName(step)), yaml)
     }
 
     fun loadArtifact(pipelineName: String, step: Int): String =
-        Files.readString(rootDir.resolve("pipeline-$pipelineName/${getArtifactFileName(step)}"))
+        Files.readString(rootDir.resolve(pipelineName).resolve(getArtifactFileName(step)))
 
     private fun getArtifactFileName(step: Int): String = when (step) {
-        0 -> "step-0-topic.yaml"
-        1 -> "step-1-questions.generated.yaml"
+        0 -> "step-0-topics-artifact.yaml"
+        1 -> "step-1-questions-artifact.yaml"
         else -> throw IllegalArgumentException("Unknown step: $step")
     }
 
     fun deleteArtifacts(pipelineName: String) {
-        val dir = rootDir.resolve("pipeline-$pipelineName")
+        val dir = rootDir.resolve(pipelineName)
         if (Files.exists(dir)) {
             dir.toFile().deleteRecursively()
         }
     }
 
     fun deleteArtifact(pipelineName: String, step: Int) {
-        val dir = rootDir.resolve("pipeline-$pipelineName")
+        val dir = rootDir.resolve(pipelineName)
         val file = dir.resolve(getArtifactFileName(step))
         if (Files.exists(file)) {
             Files.delete(file)

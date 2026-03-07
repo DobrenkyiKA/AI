@@ -2,6 +2,7 @@ package com.kdob.piq.ai.application.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
@@ -19,7 +20,10 @@ class Step1QuestionGenerationService(
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
 ) {
-    private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+    private val yamlMapper = ObjectMapper(
+        YAMLFactory()
+            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+    ).registerKotlinModule()
 
     @Transactional
     fun generate(pipelineName: String) {
@@ -61,7 +65,6 @@ class Step1QuestionGenerationService(
 
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf(
-            "pipeline" to pipelineName,
             "topics" to artifactStep1.topicsWithQuestions.map {
                 mapOf(
                     "key" to it.key,
@@ -70,7 +73,7 @@ class Step1QuestionGenerationService(
                 )
             }
         ))
-        artifactStorage.saveStep1Questions(pipelineName, yamlContent)
+        artifactStorage.saveStep1Questions(pipelineName, yamlContent.trim())
     }
 
     private fun buildPrompt(topic: Step0TopicEntity): String = """

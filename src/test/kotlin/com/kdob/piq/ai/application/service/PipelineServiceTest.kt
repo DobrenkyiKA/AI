@@ -22,7 +22,6 @@ class PipelineServiceTest {
     private val step1QuestionGenerationService = mock(Step1QuestionGenerationService::class.java)
     private val service = PipelineService(repository, artifactStorage, step1QuestionGenerationService)
     private val yamlMapper = ObjectMapper(YAMLFactory())
-        .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)
         .registerKotlinModule()
 
     @Test
@@ -44,6 +43,7 @@ class PipelineServiceTest {
         return if (type == PipelineEntity::class.java) {
             PipelineEntity(name = "dummy") as T
         } else {
+            @Suppress("UNCHECKED_CAST")
             null as T
         }
     }
@@ -80,7 +80,7 @@ class PipelineServiceTest {
     @Test
     fun `should load pipeline artifact`() {
         val name = "java-core-interview-v1"
-        val expectedYaml = "pipeline: name: $name"
+        val expectedYaml = "topics: []"
         `when`(artifactStorage.loadArtifact(name, 0)).thenReturn(expectedYaml)
 
         val result = service.getPipelineArtifact(name)
@@ -92,8 +92,6 @@ class PipelineServiceTest {
     fun `should update pipeline and its artifacts`() {
         val name = "java-core-interview-v1"
         val yamlContent = """
-            pipeline:
-              name: java-core-interview-v1
               topics:
                 - key: java-gc-v2
                   title: JVM Garbage Collection v2
