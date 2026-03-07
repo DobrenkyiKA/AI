@@ -47,19 +47,12 @@ class Step1QuestionGenerationService(
             )
         }
 
-        GeneratedQuestionValidator.validate(
-            generated = questions,
-            expectedCount = expectedCount,
-            existingPrompts = existingPrompts,
-            validTopicKeys = topicKeys
-        )
-
         artifactStorage.saveStep1Questions(
             pipelineName, yamlMapper.writeValueAsString(mapOf("questions" to questions))
         )
 
         pipelineRepository.updateStatus(
-            pipelineName, PipelineStatus.WAITING_FOR_APPROVAL
+            pipelineName, PipelineStatus.PENDING_FOR_ARTIFACT_APPROVAL
         )
     }
 

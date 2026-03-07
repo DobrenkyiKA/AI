@@ -2,7 +2,7 @@ package com.kdob.piq.ai.domain.model
 
 enum class PipelineStatus {
     DRAFT,
-    WAITING_FOR_APPROVAL,
+    PENDING_FOR_ARTIFACT_APPROVAL,
     APPROVED,
     FAILED
 }
