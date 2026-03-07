@@ -1,7 +1,9 @@
 package com.kdob.piq.ai.infrastructure.web.controller.step0
 
 import com.kdob.piq.ai.application.service.step0.Step0TopicIntakeService
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -13,9 +15,22 @@ class PipelineStep0Controller(
     private val intakeService: Step0TopicIntakeService
 ) {
 
+    @GetMapping
+    fun getAllPipelines(): List<PipelineResponse> {
+        return intakeService.findAll().map {
+            PipelineResponse(
+                pipelineKey = it.name,
+                status = it.status.name
+            )
+        }
+    }
+
     @PostMapping("/step-0")
-    fun createPipeline(@RequestBody yaml: String): HttpStatus {
-        intakeService.intake(yaml)
-        return HttpStatus.OK
+    fun createPipeline(@RequestBody yaml: String): PipelineResponse {
+        val created = intakeService.intake(yaml)
+        return PipelineResponse(
+            pipelineKey = created.name,
+            status = created.status.name
+        )
     }
 }

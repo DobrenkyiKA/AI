@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository
 class JpaPipelineRepositoryImpl (
     private val springDataPipelineRepository: SpringDataPipelineRepository
 ): PipelineRepository {
+    override fun findAll(): List<PipelineEntity> = springDataPipelineRepository.findAll()
     override fun save(pipeline: PipelineDefinitionForm) = springDataPipelineRepository.save(pipeline.toEntity()).toDomain()
     override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name).get(0)
     override fun updateStatus(name: String, status: PipelineStatus) = TODO()
