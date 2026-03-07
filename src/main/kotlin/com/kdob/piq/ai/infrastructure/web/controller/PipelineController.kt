@@ -2,6 +2,7 @@ package com.kdob.piq.ai.infrastructure.web.controller
 
 import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineArtifactUpdateRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepResponse
@@ -58,8 +59,8 @@ class PipelineController(
     }
 
     @PostMapping
-    fun createPipeline(@RequestBody yaml: String): ResponseEntity<PipelineResponse> {
-        val created = pipelineService.intake(yaml)
+    fun createPipeline(@RequestBody request: CreatePipelineRequest): ResponseEntity<PipelineResponse> {
+        val created = pipelineService.createPipeline(request.name)
         val location = ServletUriComponentsBuilder
             .fromCurrentRequest()
             .path("/{name}")

@@ -39,5 +39,5 @@ class PipelineEntity(
     @Basic(optional = false)
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    var status: PipelineStatus = PipelineStatus.PENDING_FOR_ARTIFACT_APPROVAL
+    var status: PipelineStatus = PipelineStatus.NEW
 }

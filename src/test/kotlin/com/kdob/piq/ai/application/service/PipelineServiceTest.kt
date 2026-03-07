@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -26,51 +26,44 @@ class PipelineServiceTest {
         .registerKotlinModule()
 
     @Test
-    fun `should correctly intake YAML with pipeline root`() {
-        val yamlContent = """
-            pipeline:
-              name: java-core-interview-v1
-              topics:
-                - key: java-gc
-                  title: JVM Garbage Collection
-                  description: Memory management
-                  constraints:
-                    targetAudience: backend-engineers
-                    experienceLevel: mid-to-senior
-                    intendedUsage: [interview]
-                    exclusions: []
-                    questionCount: 6
-        """.trimIndent()
+    fun `should create pipeline with normalized name`() {
+        val name = "Java Core Interview v1"
+        val expectedNormalized = "Java-Core-Interview-v1"
 
-        val pipeline = yamlMapper.readValue(yamlContent, PipelineDefinitionForm::class.java)
-        `when`(repository.save(pipeline)).thenReturn(pipeline.copy(name = "java-core-interview-v1"))
-        `when`(repository.findByName("java-core-interview-v1")).thenReturn(
-            com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = "java-core-interview-v1")
-        )
+        `when`(repository.findByName(expectedNormalized)).thenReturn(null)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
 
-        service.intake(yamlContent)
+        val result = service.createPipeline(name)
 
-        // No exception means it worked
+        assertEquals(expectedNormalized, result.name)
+        verify(repository).save(any(PipelineEntity::class.java))
+    }
+
+    private fun <T> any(type: Class<T>): T {
+        org.mockito.Mockito.any(type)
+        return if (type == PipelineEntity::class.java) {
+            PipelineEntity(name = "dummy") as T
+        } else {
+            null as T
+        }
     }
 
     @Test
-    fun `should fail to intake YAML without pipeline root`() {
-        val yamlContent = """
-            name: java-core-interview-v1
-            topics:
-                - key: java-gc
-                  title: JVM Garbage Collection
-                  description: Memory management
-                  constraints:
-                    targetAudience: backend-engineers
-                    experienceLevel: mid-to-senior
-                    intendedUsage: [interview]
-                    exclusions: []
-                    questionCount: 6
-        """.trimIndent()
+    fun `should fail to create pipeline with invalid characters`() {
+        val name = "Java Core @ Interview"
 
-        assertThrows<Exception> {
-            service.intake(yamlContent)
+        assertThrows<IllegalArgumentException> {
+            service.createPipeline(name)
+        }
+    }
+
+    @Test
+    fun `should fail to create pipeline with existing name`() {
+        val name = "existing-pipeline"
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name))
+
+        assertThrows<IllegalArgumentException> {
+            service.createPipeline(name)
         }
     }
 

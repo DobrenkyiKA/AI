@@ -25,17 +25,17 @@ class PipelineControllerTest {
 
     @Test
     fun `should create pipeline and return 201 with Location header`() {
-        val yaml = "pipeline: { name: 'test-pipeline' }"
-        val entity = PipelineEntity(name = "test-pipeline")
+        val name = "test-pipeline"
+        val entity = PipelineEntity(name = name)
         
-        `when`(intakeService.intake(yaml)).thenReturn(entity)
+        `when`(intakeService.createPipeline(name)).thenReturn(entity)
 
         mockMvc.perform(post("/pipeline")
-            .contentType(MediaType.TEXT_PLAIN)
-            .content(yaml))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"name\": \"$name\"}"))
             .andExpect(status().isCreated)
             .andExpect(header().string("Location", "http://localhost/pipeline/test-pipeline"))
-            .andExpect(jsonPath("$.pipelineName").value("test-pipeline"))
+            .andExpect(jsonPath("$.pipelineName").value(name))
     }
 
     @Test

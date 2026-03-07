@@ -117,23 +117,28 @@ class PipelineService(
         }
     }
 
+    @Transactional
+    fun createPipeline(name: String): PipelineEntity {
+        val normalizedName = normalizeAndValidateName(name)
+        val pipelineEntity = PipelineEntity(name = normalizedName)
+        return pipelineRepository.save(pipelineEntity)
+    }
+
+    private fun normalizeAndValidateName(name: String): String {
+        if (name.isBlank()) {
+            throw IllegalArgumentException("Pipeline name cannot be empty")
+        }
+        val normalized = name.trim().replace("\\s+".toRegex(), "-")
+        if (!normalized.matches("^[a-zA-Z0-9-]+$".toRegex())) {
+            throw IllegalArgumentException("Pipeline name can only contain alphanumeric characters and '-'")
+        }
+        if (pipelineRepository.findByName(normalized) != null) {
+            throw IllegalArgumentException("Pipeline with name $normalized already exists")
+        }
+        return normalized
+    }
+
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)
         .registerKotlinModule()
-
-    fun intake(yamlContent: String): PipelineEntity {
-
-        val pipeline = yamlMapper.readValue(yamlContent, PipelineDefinitionForm::class.java)
-
-        Step0ArtifactValidator.validate(pipeline)
-
-        val savedPipeline = pipelineRepository.save(pipeline)
-
-        artifactStorage.saveStep0Artifact(
-            pipelineName = savedPipeline.name,
-            yaml = yamlContent
-        )
-
-        return pipelineRepository.findByName(savedPipeline.name)!!
-    }
 }
