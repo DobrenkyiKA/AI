@@ -18,12 +18,6 @@ class JpaPipelineRepositoryImpl (
     override fun save(pipeline: PipelineEntity): PipelineEntity = springDataPipelineRepository.save(pipeline)
     override fun saveAndFlush(pipeline: PipelineEntity): PipelineEntity = springDataPipelineRepository.saveAndFlush(pipeline)
     override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name).getOrNull(0)
-    override fun updateStatus(name: String, status: PipelineStatus) {
-        val pipeline = findByName(name) ?: throw RuntimeException("Pipeline not found")
-        pipeline.status = status
-        pipeline.updatedAt = Instant.now()
-        springDataPipelineRepository.save(pipeline)
-    }
     override fun deleteByName(name: String) {
         springDataPipelineRepository.deleteByName(name)
     }

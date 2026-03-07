@@ -24,8 +24,6 @@ class ArtifactStorage(
         saveArtifact(pipelineName, 1, yaml)
     }
 
-    fun loadStep1Questions(pipelineName: String): String = loadArtifact(pipelineName, 1)
-
     fun saveArtifact(pipelineName: String, step: Int, yaml: String) {
         val dir = rootDir.resolve("pipeline-$pipelineName")
         Files.createDirectories(dir)
