@@ -22,31 +22,29 @@ class PipelineStep1ReviewController(
 
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
-    @GetMapping("/{pipelineId}/step-1")
-    fun getStep1Result(
-        @PathVariable pipelineId: Long
-    ): Step1ResultResponse {
+    @GetMapping("/{pipelineName}/step-1")
+    fun getStep1Result(@PathVariable pipelineName: String): Step1ResultResponse {
 
         val parsed = yamlMapper.readValue(
-            artifactStorage.loadStep1Questions(pipelineId),
+            artifactStorage.loadStep1Questions(pipelineName),
             Map::class.java
-        ) as Map<String, Any>
+        ) 
 
         val questions =
             parsed["questions"] as List<Map<String, String>>
 
-        val pipeline = pipelineRepository.findById(pipelineId)
+        val pipeline = pipelineRepository.findByName(pipelineName)
             ?: error("Pipeline not found")
 
         return Step1ResultResponse(
-            pipelineId = pipelineId.toString(),
+            pipelineName = pipelineName,
             status = pipeline.status.name,
             questions = questions
         )
     }
 
-    @PostMapping("/{pipelineId}/step-1/approve")
-    fun approveStep1(@PathVariable pipelineId: Long) {
-        pipelineRepository.updateStatus(pipelineId, PipelineStatus.APPROVED)
+    @PostMapping("/{pipelineName}/step-1/approve")
+    fun approveStep1(@PathVariable pipelineName: String) {
+        pipelineRepository.updateStatus(pipelineName, PipelineStatus.APPROVED)
     }
 }

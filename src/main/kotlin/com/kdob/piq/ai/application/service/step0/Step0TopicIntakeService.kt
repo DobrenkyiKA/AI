@@ -14,7 +14,6 @@ class Step0TopicIntakeService(
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage
 ) {
-
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)
         .registerKotlinModule()
@@ -31,6 +30,5 @@ class Step0TopicIntakeService(
             pipelineName = savedPipeline.name,
             yaml = yamlContent
         )
-
     }
 }

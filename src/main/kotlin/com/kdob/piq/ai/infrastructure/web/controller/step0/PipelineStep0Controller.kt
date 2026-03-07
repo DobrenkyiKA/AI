@@ -14,12 +14,8 @@ class PipelineStep0Controller(
 ) {
 
     @PostMapping("/step-0")
-    fun createPipeline(
-        @RequestBody yaml: String
-    ): HttpStatus {
-
+    fun createPipeline(@RequestBody yaml: String): HttpStatus {
         intakeService.intake(yaml)
-
         return HttpStatus.OK
     }
 }

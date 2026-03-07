@@ -23,15 +23,15 @@ class ArtifactStorage(
     fun loadStep0Artifact(pipelineName: String): String =
         Files.readString(rootDir.resolve("pipeline-$pipelineName/step-0-topic.yaml"))
 
-    fun saveStep1Questions(pipelineId: Long, yaml: String) {
+    fun saveStep1Questions(pipelineName: String, yaml: String) {
         Files.writeString(
-            rootDir.resolve("pipeline-$pipelineId/step-1-questions.generated.yaml"),
+            rootDir.resolve("pipeline-$pipelineName/step-1-questions.generated.yaml"),
             yaml
         )
     }
 
-    fun loadStep1Questions(pipelineId: Long): String =
+    fun loadStep1Questions(pipelineName: String): String =
         Files.readString(
-            rootDir.resolve("pipeline-$pipelineId/step-1-questions.generated.yaml")
+            rootDir.resolve("pipeline-$pipelineName/step-1-questions.generated.yaml")
         )
 }

@@ -8,6 +8,6 @@ import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
 interface PipelineRepository {
 
     fun save(pipeline: PipelineDefinitionForm): PipelineDefinitionForm
-    fun findById(id: Long): PipelineEntity?
-    fun updateStatus(id: Long, status: PipelineStatus)
+    fun findByName(name: String): PipelineEntity?
+    fun updateStatus(name: String, status: PipelineStatus)
 }

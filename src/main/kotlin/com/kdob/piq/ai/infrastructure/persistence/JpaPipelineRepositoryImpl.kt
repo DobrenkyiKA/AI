@@ -13,6 +13,6 @@ class JpaPipelineRepositoryImpl (
     private val springDataPipelineRepository: SpringDataPipelineRepository
 ): PipelineRepository {
     override fun save(pipeline: PipelineDefinitionForm) = springDataPipelineRepository.save(pipeline.toEntity()).toDomain()
-    override fun findById(id: Long): PipelineEntity? = springDataPipelineRepository.findById(id).orElse(null)
-    override fun updateStatus(id: Long, status: PipelineStatus) = TODO()
+    override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name).get(0)
+    override fun updateStatus(name: String, status: PipelineStatus) = TODO()
 }
