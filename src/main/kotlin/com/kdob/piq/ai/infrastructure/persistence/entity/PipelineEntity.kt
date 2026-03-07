@@ -13,7 +13,10 @@ class PipelineEntity(
     val name: String,
 
     @OneToOne(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
-    var artifactStep0: ArtifactStep0Entity? = null
+    var artifactStep0: ArtifactStep0Entity? = null,
+
+    @OneToOne(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
+    var artifactStep1: ArtifactStep1Entity? = null
 
 ) : BaseEntity() {
     @Id

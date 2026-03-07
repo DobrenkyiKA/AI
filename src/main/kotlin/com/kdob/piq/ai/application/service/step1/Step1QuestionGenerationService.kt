@@ -65,7 +65,7 @@ Rules:
 
 questions:
   - topicKey: <topic key>
-    prompt: <question text>
+    question: <question text>
 """.trimIndent()
 }
 //Do NOT repeat or paraphrase the following questions:
