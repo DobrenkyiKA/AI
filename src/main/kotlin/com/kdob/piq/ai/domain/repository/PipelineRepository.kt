@@ -9,6 +9,7 @@ interface PipelineRepository {
     fun findAll(): List<PipelineEntity>
     fun save(pipeline: PipelineDefinitionForm): PipelineDefinitionForm
     fun save(pipeline: PipelineEntity): PipelineEntity
+    fun saveAndFlush(pipeline: PipelineEntity): PipelineEntity
     fun findByName(name: String): PipelineEntity?
     fun updateStatus(name: String, status: PipelineStatus)
     fun deleteByName(name: String)

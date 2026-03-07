@@ -78,6 +78,7 @@ class Step1QuestionGenerationServiceTest {
         pipeline.artifactStep0 = artifactStep0
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
+        `when`(repository.saveAndFlush(pipeline)).thenReturn(pipeline)
         `when`(generator.generateQuestions(anyString() ?: "")).thenReturn("""
             questions:
               - Question 1

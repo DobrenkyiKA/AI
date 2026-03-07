@@ -41,10 +41,19 @@ class PipelineService(
                 }
                 PipelineValidator.validate(updatedForm)
 
-                val artifactStep0 = existing.artifactStep0 ?: ArtifactStep0Entity(pipeline = existing).also { existing.artifactStep0 = it }
+                existing.artifactStep1 = null
+                artifactStorage.deleteArtifact(name, 1)
+
+                if (existing.artifactStep0 != null) {
+                    existing.artifactStep0 = null
+                    pipelineRepository.saveAndFlush(existing)
+                }
+
+                val artifactStep0 = ArtifactStep0Entity(pipeline = existing)
                 artifactStep0.status = status
-                artifactStep0.topics.clear()
                 artifactStep0.topics.addAll(updatedForm.topics.map { it.toEntity(artifactStep0) })
+                existing.artifactStep0 = artifactStep0
+
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {

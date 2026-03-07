@@ -115,6 +115,7 @@ class PipelineServiceTest {
         val existingEntity = com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = name)
         `when`(repository.findByName(name)).thenReturn(existingEntity)
         `when`(repository.save(existingEntity)).thenReturn(existingEntity)
+        `when`(repository.saveAndFlush(existingEntity)).thenReturn(existingEntity)
 
         service.updatePipeline(name, yamlContent)
 

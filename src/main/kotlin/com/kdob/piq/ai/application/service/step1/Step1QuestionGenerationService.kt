@@ -34,6 +34,11 @@ class Step1QuestionGenerationService(
             throw IllegalStateException("Step 0 artifact is not APPROVED. Current status: ${artifactStep0.status}")
         }
 
+        if (pipeline.artifactStep1 != null) {
+            pipeline.artifactStep1 = null
+            pipelineRepository.saveAndFlush(pipeline)
+        }
+
         val artifactStep1 = ArtifactStep1Entity(pipeline = pipeline)
         
         for (topic in artifactStep0.topics) {

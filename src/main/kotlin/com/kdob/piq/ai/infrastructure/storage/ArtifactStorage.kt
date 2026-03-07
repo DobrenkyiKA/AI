@@ -47,4 +47,12 @@ class ArtifactStorage(
             dir.toFile().deleteRecursively()
         }
     }
+
+    fun deleteArtifact(pipelineName: String, step: Int) {
+        val dir = rootDir.resolve("pipeline-$pipelineName")
+        val file = dir.resolve(getArtifactFileName(step))
+        if (Files.exists(file)) {
+            Files.delete(file)
+        }
+    }
 }
