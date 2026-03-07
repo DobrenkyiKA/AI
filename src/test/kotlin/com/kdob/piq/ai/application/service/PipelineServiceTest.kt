@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.step0.Step0TopicIntakeService
+import com.kdob.piq.ai.application.service.step0.PipelineService
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineDefinitionForm
@@ -15,11 +15,11 @@ import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 
-class Step0TopicIntakeServiceTest {
+class PipelineServiceTest {
 
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val service = Step0TopicIntakeService(repository, artifactStorage)
+    private val service = PipelineService(repository, artifactStorage)
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true)
         .registerKotlinModule()
@@ -87,7 +87,7 @@ class Step0TopicIntakeServiceTest {
     fun `should load pipeline artifact`() {
         val name = "java-core-interview-v1"
         val expectedYaml = "pipeline: name: $name"
-        `when`(artifactStorage.loadStep0Artifact(name)).thenReturn(expectedYaml)
+        `when`(artifactStorage.loadArtifact(name, 0)).thenReturn(expectedYaml)
 
         val result = service.getPipelineArtifact(name)
 
@@ -120,7 +120,7 @@ class Step0TopicIntakeServiceTest {
 
         assert(existingEntity.artifactStep0?.topics?.size == 1)
         assert(existingEntity.artifactStep0?.topics?.first()?.key == "java-gc-v2")
-        verify(artifactStorage).saveStep0Artifact(name, yamlContent)
+        verify(artifactStorage).saveArtifact(name, 0, yamlContent)
         verify(repository).save(existingEntity)
     }
 }

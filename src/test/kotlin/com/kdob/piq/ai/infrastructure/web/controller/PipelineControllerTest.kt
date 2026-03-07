@@ -1,6 +1,7 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
-import com.kdob.piq.ai.application.service.step0.Step0TopicIntakeService
+import com.kdob.piq.ai.domain.model.ArtifactStatus
+import com.kdob.piq.ai.application.service.step0.PipelineService
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -14,7 +15,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 class PipelineControllerTest {
 
     private lateinit var mockMvc: MockMvc
-    private val intakeService: Step0TopicIntakeService = mock(Step0TopicIntakeService::class.java)
+    private val intakeService: PipelineService = mock(PipelineService::class.java)
     private val controller = PipelineController(intakeService)
 
     @BeforeEach
@@ -75,6 +76,33 @@ class PipelineControllerTest {
         mockMvc.perform(get("/pipeline/$name/artifact"))
             .andExpect(status().isOk)
             .andExpect(content().string(yaml))
+    }
+
+    @Test
+    fun `should return artifact by step`() {
+        val name = "test-pipeline"
+        val yaml = "step content"
+        `when`(intakeService.getArtifact(name, 1)).thenReturn(yaml)
+
+        mockMvc.perform(get("/pipeline/$name/artifact/1"))
+            .andExpect(status().isOk)
+            .andExpect(content().string(yaml))
+    }
+
+    @Test
+    fun `should update artifact by step`() {
+        val name = "test-pipeline"
+        val yaml = "updated step content"
+        val status = ArtifactStatus.APPROVED
+        val entity = PipelineEntity(name = name)
+        
+        `when`(intakeService.updateArtifact(name, 1, yaml, status)).thenReturn(entity)
+
+        mockMvc.perform(put("/pipeline/$name/artifact/1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"content\": \"$yaml\", \"status\": \"$status\"}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.pipelineName").value(name))
     }
 
     @Test
