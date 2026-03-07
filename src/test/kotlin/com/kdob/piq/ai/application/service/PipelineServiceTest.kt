@@ -27,7 +27,7 @@ class PipelineServiceTest {
     @Test
     fun `should create pipeline with normalized name`() {
         val name = "Java Core Interview v1"
-        val expectedNormalized = "Java-Core-Interview-v1"
+        val expectedNormalized = "java-core-interview-v1"
 
         `when`(repository.findByName(expectedNormalized)).thenReturn(null)
         `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }

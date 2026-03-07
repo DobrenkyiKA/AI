@@ -124,9 +124,9 @@ class PipelineService(
         if (name.isBlank()) {
             throw IllegalArgumentException("Pipeline name cannot be empty")
         }
-        val normalized = name.trim().replace("\\s+".toRegex(), "-")
-        if (!normalized.matches("^[a-zA-Z0-9-]+$".toRegex())) {
-            throw IllegalArgumentException("Pipeline name can only contain alphanumeric characters and '-'")
+        val normalized = name.trim().replace("\\s+".toRegex(), "-").lowercase()
+        if (!normalized.matches("^[a-z0-9-]+$".toRegex())) {
+            throw IllegalArgumentException("Pipeline name can only contain lowercase alphanumeric characters and '-'")
         }
         if (pipelineRepository.findByName(normalized) != null) {
             throw IllegalArgumentException("Pipeline with name $normalized already exists")
