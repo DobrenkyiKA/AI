@@ -5,7 +5,7 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "topics")
 @Access(AccessType.FIELD)
-class TopicEntity(
+class Step0TopicEntity(
 
     @Basic(optional = false)
     @Column(nullable = false, unique = true)

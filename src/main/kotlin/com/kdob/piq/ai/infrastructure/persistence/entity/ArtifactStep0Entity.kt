@@ -1,5 +1,6 @@
 package com.kdob.piq.ai.infrastructure.persistence.entity
 
+import com.kdob.piq.ai.domain.model.ArtifactStatus
 import jakarta.persistence.*
 
 @Entity
@@ -12,12 +13,17 @@ class ArtifactStep0Entity(
 
     @Basic(optional = false)
     @OneToMany(mappedBy = "artifactStep0", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val topics: MutableSet<TopicEntity> = mutableSetOf()
+    val topics: MutableSet<Step0TopicEntity> = mutableSetOf()
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "artifacts_step_0_sequence")
     @SequenceGenerator(name = "artifacts_step_0_sequence", sequenceName = "artifacts_step_0_id_sequence", allocationSize = 50)
     var id: Long? = null
+
+    @Basic(optional = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    var status: ArtifactStatus = ArtifactStatus.PENDING_FOR_APPROVAL
 
     override fun getIdValue(): Long? {
         return id

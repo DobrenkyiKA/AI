@@ -4,12 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.step1.GeminiQuestionGenerator
-import com.kdob.piq.ai.application.service.step1.GeneratedQuestionValidator
 import com.kdob.piq.ai.domain.model.GeneratedQuestion
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogHttpClient
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.Step0TopicEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 
@@ -29,12 +28,6 @@ class Step1QuestionGenerationService(
 
         val artifactStep0 = pipeline.artifactStep0 ?: throw IllegalStateException("Step 0 artifact not found for pipeline: $pipelineName")
         val topics = artifactStep0.topics
-        val topicKeys = topics.map { it.key }.toSet()
-        val expectedCount = 5//pipeline.questionCount
-
-        val existingPrompts =
-            questionCatalogHttpClient.findQuestionPrompts(topicKeys).map { it.prompt.trim().lowercase() }.toSet()
-
         val prompt = buildPrompt(topics)
 
         val rawOutput = generator.generateQuestions(prompt)
@@ -56,7 +49,7 @@ class Step1QuestionGenerationService(
         )
     }
 
-    private fun buildPrompt(topics: MutableSet<TopicEntity>): String = """
+    private fun buildPrompt(topics: MutableSet<Step0TopicEntity>): String = """
 You are a senior technical interviewer.
 
 Generate exactly questionCount interview-grade questions for each of the following topics.

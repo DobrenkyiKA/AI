@@ -1,5 +1,5 @@
 -- liquibase formatted sql
--- changeset liquibase:001-v2
+-- changeset liquibase:001-v3
 
 CREATE SCHEMA IF NOT EXISTS public;
 
@@ -28,7 +28,8 @@ CREATE SEQUENCE artifacts_step_0_id_sequence START WITH 1 INCREMENT BY 50 CACHE 
 CREATE TABLE public.artifacts_step_0
 (
     id          BIGINT,
-    pipeline_id BIGINT NOT NULL,
+    pipeline_id BIGINT      NOT NULL,
+    status      VARCHAR(40) NOT NULL,
     CONSTRAINT pk_artifacts_step_0_id PRIMARY KEY (id),
     CONSTRAINT fk_pipeline_id FOREIGN KEY (pipeline_id) REFERENCES pipelines (id) ON DELETE CASCADE,
     CONSTRAINT uq_artifacts_step_0_pipeline_id UNIQUE (pipeline_id)

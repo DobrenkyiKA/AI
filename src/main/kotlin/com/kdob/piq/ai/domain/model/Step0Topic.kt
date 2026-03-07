@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.domain.model
 
-data class Topic(
+data class Step0Topic(
     val key: String,
     val title: String,
     val description: String,

@@ -1,11 +1,11 @@
 package com.kdob.piq.ai.infrastructure.persistence.mapping
 
-import com.kdob.piq.ai.domain.model.Topic
+import com.kdob.piq.ai.domain.model.Step0Topic
 import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.Step0TopicEntity
 
-fun Topic.toEntity(artifactStep0: ArtifactStep0Entity): TopicEntity =
-    TopicEntity(
+fun Step0Topic.toEntity(artifactStep0: ArtifactStep0Entity): Step0TopicEntity =
+    Step0TopicEntity(
         key = key,
         title = title,
         description = description,
@@ -13,8 +13,8 @@ fun Topic.toEntity(artifactStep0: ArtifactStep0Entity): TopicEntity =
         constraints = constraints.toEntity()
     )
 
-fun TopicEntity.toDomain(): Topic =
-    Topic(
+fun Step0TopicEntity.toDomain(): Step0Topic =
+    Step0Topic(
         key = key,
         title = title,
         description = description,
