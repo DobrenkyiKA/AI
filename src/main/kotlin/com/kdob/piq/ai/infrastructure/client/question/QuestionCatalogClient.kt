@@ -1,5 +1,6 @@
 package com.kdob.piq.ai.infrastructure.client.question
 
+import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.QuestionPromptResponse
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
 
@@ -10,4 +11,6 @@ interface QuestionCatalogClient {
     ): List<QuestionPromptResponse>
 
     fun findTopic(topicKey: String): TopicClientResponse?
+
+    fun createTopic(request: CreateTopicClientRequest): TopicClientResponse
 }

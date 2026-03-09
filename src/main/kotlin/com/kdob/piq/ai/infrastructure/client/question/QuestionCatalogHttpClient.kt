@@ -1,7 +1,9 @@
 package com.kdob.piq.ai.infrastructure.client.question
 
+import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.QuestionPromptResponse
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
@@ -31,5 +33,14 @@ class QuestionCatalogHttpClient(private val restClient: RestClient) : QuestionCa
             .uri("/topics/{key}", topicKey)
             .retrieve()
             .body<TopicClientResponse>()
+    }
+
+    override fun createTopic(request: CreateTopicClientRequest): TopicClientResponse {
+        return restClient.post()
+            .uri("/admin/topics")
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(request)
+            .retrieve()
+            .body<TopicClientResponse>() ?: throw IllegalStateException("Failed to create topic: ${request.key}")
     }
 }

@@ -8,6 +8,8 @@ import com.kdob.piq.ai.application.service.step0.Step0TopicsGenerationService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
+import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
@@ -22,7 +24,8 @@ class PipelineService(
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
     private val step0TopicsGenerationService: Step0TopicsGenerationService,
-    private val step1QuestionGenerationService: Step1QuestionGenerationService
+    private val step1QuestionGenerationService: Step1QuestionGenerationService,
+    private val questionCatalogClient: QuestionCatalogClient
 ) {
     fun findAll() = pipelineRepository.findAll()
     fun findByName(name: String) = pipelineRepository.findByName(name)
@@ -129,6 +132,41 @@ class PipelineService(
         for (step in startStep..maxStep) {
             runStep(pipelineName, step)
         }
+    }
+
+    @Transactional
+    fun publishStep0Artifact(pipelineName: String) {
+        val pipeline = pipelineRepository.findByName(pipelineName)
+            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+
+        val artifactStep0 = pipeline.artifactStep0
+            ?: throw IllegalStateException("Step 0 artifact not found for pipeline: $pipelineName")
+
+        if (artifactStep0.status != ArtifactStatus.APPROVED) {
+            throw IllegalStateException("Step 0 artifact is not APPROVED. Current status: ${artifactStep0.status}")
+        }
+
+        val rootTopic = questionCatalogClient.findTopic(pipeline.topicKey)
+            ?: throw IllegalStateException("Root topic not found in catalog: ${pipeline.topicKey}")
+
+        val topicsByParent = artifactStep0.topics.groupBy { it.parentTopicKey }
+
+        fun publishRecursive(parentKey: String, parentPath: String) {
+            val children = topicsByParent[parentKey] ?: return
+            for (child in children) {
+                val request = CreateTopicClientRequest(
+                    key = child.key,
+                    name = child.name,
+                    parentPath = parentPath,
+                    coverageArea = child.coverageArea,
+                    exclusions = "" // Artifact topics don't have exclusions, they are filtered out during generation
+                )
+                val response = questionCatalogClient.createTopic(request)
+                publishRecursive(child.key, response.path)
+            }
+        }
+
+        publishRecursive(pipeline.topicKey, rootTopic.path)
     }
 
     @Transactional

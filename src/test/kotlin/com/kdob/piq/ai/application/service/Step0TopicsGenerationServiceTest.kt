@@ -34,6 +34,7 @@ class Step0TopicsGenerationServiceTest {
         val topicResponse = TopicClientResponse(
             key = topicKey,
             name = "Java Core",
+            path = "/java-core",
             coverageArea = "Core Java features",
             exclusions = "Spring"
         )
@@ -79,6 +80,7 @@ class Step0TopicsGenerationServiceTest {
         val topicResponse = TopicClientResponse(
             key = topicKey,
             name = "Java Core",
+            path = "/java-core",
             coverageArea = "Core Java features",
             exclusions = ""
         )
@@ -112,6 +114,7 @@ class Step0TopicsGenerationServiceTest {
         val topicResponse = TopicClientResponse(
             key = topicKey,
             name = "Java Core",
+            path = "/java-core",
             coverageArea = "Core Java features",
             exclusions = "Spring"
         )
@@ -141,7 +144,7 @@ class Step0TopicsGenerationServiceTest {
         val pipelineName = "java-pipeline"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
-        val topicResponse = TopicClientResponse(topicKey, "Java Core", "Core", "")
+        val topicResponse = TopicClientResponse(topicKey, "Java Core", "/java-core", "Core", "")
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)

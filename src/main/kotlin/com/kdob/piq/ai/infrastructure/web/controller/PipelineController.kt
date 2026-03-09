@@ -103,6 +103,12 @@ class PipelineController(
         return getPipeline(pipelineName)
     }
 
+    @PostMapping("/{pipelineName}/publish-step-0")
+    fun publishStep0Artifact(@PathVariable pipelineName: String): PipelineResponse {
+        pipelineService.publishStep0Artifact(pipelineName)
+        return getPipeline(pipelineName)
+    }
+
     private fun PipelineEntity.toResponse() = PipelineResponse(
         pipelineName = name,
         topicKey = topicKey,
