@@ -82,7 +82,7 @@ You are a senior technical interviewer.
 Generate exactly ${topic.constraints.questionCount} interview-grade questions for the following topic:
 
 Topic: ${topic.title}
-Description: ${topic.description}
+Coverage Area: ${topic.coverageArea}
 
 Constraints:
 - Target Audience: ${topic.constraints.targetAudience}

@@ -8,15 +8,15 @@ fun Step0Topic.toEntity(artifactStep0: ArtifactStep0Entity): Step0TopicEntity =
     Step0TopicEntity(
         key = key,
         title = title,
-        description = description,
+        coverageArea = coverageArea,
         artifactStep0 = artifactStep0,
         constraints = constraints.toEntity()
     )
 
-fun Step0TopicEntity.toDomain(): Step0Topic =
-    Step0Topic(
-        key = key,
-        title = title,
-        description = description,
-        constraints = constraints.toDomain()
-    )
+    fun Step0TopicEntity.toDomain(): Step0Topic =
+        Step0Topic(
+            key = key,
+            title = title,
+            coverageArea = coverageArea,
+            constraints = constraints.toDomain()
+        )

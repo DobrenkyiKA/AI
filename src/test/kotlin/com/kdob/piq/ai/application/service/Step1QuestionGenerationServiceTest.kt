@@ -64,7 +64,7 @@ class Step1QuestionGenerationServiceTest {
         val topic = Step0TopicEntity(
             key = "java-gc",
             title = "JVM Garbage Collection",
-            description = "Memory management",
+            coverageArea = "Memory management",
             artifactStep0 = artifactStep0,
             constraints = ConstraintsEntity(
                 targetAudience = "backend-engineers",

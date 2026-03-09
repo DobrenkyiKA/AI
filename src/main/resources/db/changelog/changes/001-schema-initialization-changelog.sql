@@ -58,7 +58,7 @@ CREATE TABLE public.topics
     key                VARCHAR(255) NOT NULL,
     artifact_step_0_id BIGINT       NOT NULL,
     title              VARCHAR(255) NOT NULL,
-    description        TEXT         NOT NULL,
+    coverage_area      TEXT         NOT NULL,
     target_audience    VARCHAR(255) NOT NULL,
     experience_level   VARCHAR(255) NOT NULL,
     question_count     INT          NOT NULL,

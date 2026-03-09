@@ -3,7 +3,7 @@ package com.kdob.piq.ai.domain.model
 data class Step0Topic(
     val key: String,
     val title: String,
-    val description: String,
+    val coverageArea: String,
     val constraints: Constraints,
 )
 

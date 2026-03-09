@@ -15,8 +15,8 @@ class Step0TopicEntity(
     val title: String,
 
     @Basic(optional = false)
-    @Column(columnDefinition = "TEXT")
-    val description: String,
+    @Column(name = "coverage_area", columnDefinition = "TEXT")
+    val coverageArea: String,
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "artifact_step_0_id", nullable = false)
