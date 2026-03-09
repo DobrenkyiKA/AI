@@ -11,7 +11,7 @@ class Step1TopicWithQuestionsEntity(
     val key: String,
 
     @Basic(optional = false)
-    val title: String,
+    val name: String,
 
     @ElementCollection
     @CollectionTable(name = "step_1_questions", joinColumns = [JoinColumn(name = "step_1_topic_id")])

@@ -51,7 +51,7 @@ class Step1QuestionGenerationService(
 
             val topicWithQuestions = Step1TopicWithQuestionsEntity(
                 key = topic.key,
-                title = topic.title,
+                name = topic.name,
                 artifactStep1 = artifactStep1
             )
             topicWithQuestions.questions.addAll(questions)
@@ -68,7 +68,7 @@ class Step1QuestionGenerationService(
             "topics" to artifactStep1.topicsWithQuestions.map {
                 mapOf(
                     "key" to it.key,
-                    "title" to it.title,
+                    "name" to it.name,
                     "questions" to it.questions.toList()
                 )
             }
@@ -81,7 +81,7 @@ You are a senior technical interviewer.
 
 Generate exactly ${topic.constraints.questionCount} interview-grade questions for the following topic:
 
-Topic: ${topic.title}
+Topic: ${topic.name}
 Coverage Area: ${topic.coverageArea}
 
 Constraints:

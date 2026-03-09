@@ -17,8 +17,10 @@ object Step0ArtifactValidator {
         }
 
         pipeline.topics.forEach {
-            require(it.constraints.questionCount in 1..100) {
-                "Question count must be between 1 and 100"
+            it.constraints?.let { constraints ->
+                require(constraints.questionCount in 1..100) {
+                    "Question count must be between 1 and 100"
+                }
             }
         }
     }

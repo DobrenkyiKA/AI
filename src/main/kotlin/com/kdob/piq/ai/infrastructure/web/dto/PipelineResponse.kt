@@ -5,6 +5,7 @@ import java.time.Instant
 
 data class PipelineResponse(
     val pipelineName: String,
+    val topicKey: String,
     val status: String,
     val createdAt: Instant,
     val updatedAt: Instant,

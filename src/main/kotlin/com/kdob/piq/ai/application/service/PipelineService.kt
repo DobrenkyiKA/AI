@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.step0.Step0ArtifactValidator
+import com.kdob.piq.ai.application.service.step0.Step0TopicsGenerationService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -20,6 +21,7 @@ import java.time.Instant
 class PipelineService(
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
+    private val step0TopicsGenerationService: Step0TopicsGenerationService,
     private val step1QuestionGenerationService: Step1QuestionGenerationService
 ) {
     fun findAll() = pipelineRepository.findAll()
@@ -98,11 +100,27 @@ class PipelineService(
 
     @Transactional
     fun runStep(pipelineName: String, step: Int) {
+        val existing = pipelineRepository.findByName(pipelineName)
+            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+
         when (step) {
+            0 -> step0TopicsGenerationService.generate(pipelineName)
             1 -> step1QuestionGenerationService.generate(pipelineName)
-            0 -> {} // Step 0 generation is not yet implemented, but we don't throw error to allow pipeline run
             else -> throw IllegalArgumentException("Run for step $step is not supported yet")
         }
+    }
+
+    @Transactional
+    fun updatePipelineMetadata(name: String, topicKey: String?): PipelineEntity {
+        val existing = pipelineRepository.findByName(name)
+            ?: throw NoSuchElementException("Pipeline not found: $name")
+
+        if (topicKey != null) {
+            existing.topicKey = topicKey
+        }
+
+        existing.updatedAt = Instant.now()
+        return pipelineRepository.save(existing)
     }
 
     @Transactional
@@ -114,9 +132,9 @@ class PipelineService(
     }
 
     @Transactional
-    fun createPipeline(name: String): PipelineEntity {
+    fun createPipeline(name: String, topicKey: String): PipelineEntity {
         val normalizedName = normalizeAndValidateName(name)
-        val pipelineEntity = PipelineEntity(name = normalizedName)
+        val pipelineEntity = PipelineEntity(name = normalizedName, topicKey = topicKey)
         return pipelineRepository.save(pipelineEntity)
     }
 

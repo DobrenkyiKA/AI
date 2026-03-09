@@ -12,6 +12,10 @@ class PipelineEntity(
     @Column(name = "name", nullable = false, unique = true)
     val name: String,
 
+    @Basic(optional = false)
+    @Column(name = "topic_key", nullable = false)
+    var topicKey: String,
+
     @OneToOne(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
     var artifactStep0: ArtifactStep0Entity? = null,
 

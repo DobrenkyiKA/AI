@@ -2,9 +2,10 @@ package com.kdob.piq.ai.domain.model
 
 data class Step0Topic(
     val key: String,
-    val title: String,
+    val name: String,
+    val parentTopicKey: String? = null,
     val coverageArea: String,
-    val constraints: Constraints,
+    val constraints: Constraints? = null,
 )
 
 data class Constraints(

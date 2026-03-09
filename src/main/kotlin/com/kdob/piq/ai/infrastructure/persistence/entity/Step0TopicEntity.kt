@@ -12,7 +12,11 @@ class Step0TopicEntity(
     val key: String,
 
     @Basic(optional = false)
-    val title: String,
+    val name: String,
+
+    @Basic(optional = true)
+    @Column(name = "parent_topic_key")
+    val parentTopicKey: String?,
 
     @Basic(optional = false)
     @Column(name = "coverage_area", columnDefinition = "TEXT")

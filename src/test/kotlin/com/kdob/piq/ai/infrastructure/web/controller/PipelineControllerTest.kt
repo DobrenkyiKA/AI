@@ -26,16 +26,18 @@ class PipelineControllerTest {
     @Test
     fun `should create pipeline and return 201 with Location header`() {
         val name = "test-pipeline"
-        val entity = PipelineEntity(name = name)
+        val topicKey = "test-topic"
+        val entity = PipelineEntity(name = name, topicKey = topicKey)
         
-        `when`(intakeService.createPipeline(name)).thenReturn(entity)
+        `when`(intakeService.createPipeline(name, topicKey)).thenReturn(entity)
 
         mockMvc.perform(post("/pipeline")
             .contentType(MediaType.APPLICATION_JSON)
-            .content("{\"name\": \"$name\"}"))
+            .content("{\"name\": \"$name\", \"topicKey\": \"$topicKey\"}"))
             .andExpect(status().isCreated)
             .andExpect(header().string("Location", "http://localhost/pipeline/test-pipeline"))
             .andExpect(jsonPath("$.pipelineName").value(name))
+            .andExpect(jsonPath("$.topicKey").value(topicKey))
     }
 
     @Test
@@ -48,23 +50,25 @@ class PipelineControllerTest {
 
     @Test
     fun `should return 200 when getting all pipelines`() {
-        val entity = PipelineEntity(name = "test-pipeline")
+        val entity = PipelineEntity(name = "test-pipeline", topicKey = "test-topic")
         `when`(intakeService.findAll()).thenReturn(listOf(entity))
 
         mockMvc.perform(get("/pipeline"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].pipelineName").value("test-pipeline"))
+            .andExpect(jsonPath("$[0].topicKey").value("test-topic"))
     }
 
     @Test
     fun `should return 200 when getting single pipeline`() {
         val name = "test-pipeline"
-        val entity = PipelineEntity(name = name)
+        val entity = PipelineEntity(name = name, topicKey = "test-topic")
         `when`(intakeService.findByName(name)).thenReturn(entity)
 
         mockMvc.perform(get("/pipeline/$name"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.pipelineName").value(name))
+            .andExpect(jsonPath("$.topicKey").value("test-topic"))
     }
 
     @Test
@@ -94,7 +98,7 @@ class PipelineControllerTest {
         val name = "test-pipeline"
         val yaml = "updated step content"
         val status = ArtifactStatus.APPROVED
-        val entity = PipelineEntity(name = name)
+        val entity = PipelineEntity(name = name, topicKey = "test-topic")
         
         `when`(intakeService.updateArtifact(name, 1, yaml, status)).thenReturn(entity)
 
@@ -109,7 +113,7 @@ class PipelineControllerTest {
     fun `should update pipeline and return updated response`() {
         val name = "test-pipeline"
         val yaml = "pipeline: { name: 'test-pipeline', topics: [] }"
-        val entity = PipelineEntity(name = name)
+        val entity = PipelineEntity(name = name, topicKey = "test-topic")
         `when`(intakeService.updatePipeline(name, yaml)).thenReturn(entity)
 
         mockMvc.perform(put("/pipeline/$name")
@@ -120,10 +124,24 @@ class PipelineControllerTest {
     }
 
     @Test
+    fun `should update pipeline metadata`() {
+        val name = "test-pipeline"
+        val newTopicKey = "new-topic"
+        val entity = PipelineEntity(name = name, topicKey = newTopicKey)
+        `when`(intakeService.updatePipelineMetadata(name, newTopicKey)).thenReturn(entity)
+
+        mockMvc.perform(patch("/pipeline/$name")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"topicKey\": \"$newTopicKey\"}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.topicKey").value(newTopicKey))
+    }
+
+    @Test
     fun `should run step and return updated response`() {
         val name = "test-pipeline"
         val step = 1
-        val entity = PipelineEntity(name = name)
+        val entity = PipelineEntity(name = name, topicKey = "test-topic")
         `when`(intakeService.findByName(name)).thenReturn(entity)
 
         mockMvc.perform(post("/pipeline/$name/run/$step"))
@@ -137,7 +155,7 @@ class PipelineControllerTest {
     fun `should run pipeline from step and return updated response`() {
         val name = "test-pipeline"
         val step = 0
-        val entity = PipelineEntity(name = name)
+        val entity = PipelineEntity(name = name, topicKey = "test-topic")
         `when`(intakeService.findByName(name)).thenReturn(entity)
 
         mockMvc.perform(post("/pipeline/$name/run-from/$step"))

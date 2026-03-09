@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.PipelineService
+import com.kdob.piq.ai.application.service.step0.Step0TopicsGenerationService
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
@@ -19,29 +20,32 @@ class PipelineServiceTest {
 
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
+    private val step0TopicsGenerationService = mock(Step0TopicsGenerationService::class.java)
     private val step1QuestionGenerationService = mock(Step1QuestionGenerationService::class.java)
-    private val service = PipelineService(repository, artifactStorage, step1QuestionGenerationService)
+    private val service = PipelineService(repository, artifactStorage, step0TopicsGenerationService, step1QuestionGenerationService)
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .registerKotlinModule()
 
     @Test
     fun `should create pipeline with normalized name`() {
         val name = "Java Core Interview v1"
+        val topicKey = "java-core"
         val expectedNormalized = "java-core-interview-v1"
 
         `when`(repository.findByName(expectedNormalized)).thenReturn(null)
         `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
 
-        val result = service.createPipeline(name)
+        val result = service.createPipeline(name, topicKey)
 
         assertEquals(expectedNormalized, result.name)
+        assertEquals(topicKey, result.topicKey)
         verify(repository).save(any(PipelineEntity::class.java))
     }
 
     private fun <T> any(type: Class<T>): T {
         org.mockito.Mockito.any(type)
         return if (type == PipelineEntity::class.java) {
-            PipelineEntity(name = "dummy") as T
+            PipelineEntity(name = "dummy", topicKey = "dummy-topic") as T
         } else {
             @Suppress("UNCHECKED_CAST")
             null as T
@@ -53,17 +57,17 @@ class PipelineServiceTest {
         val name = "Java Core @ Interview"
 
         assertThrows<IllegalArgumentException> {
-            service.createPipeline(name)
+            service.createPipeline(name, "java-core")
         }
     }
 
     @Test
     fun `should fail to create pipeline with existing name`() {
         val name = "existing-pipeline"
-        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name))
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "some-topic"))
 
         assertThrows<IllegalArgumentException> {
-            service.createPipeline(name)
+            service.createPipeline(name, "some-topic")
         }
     }
 
@@ -94,8 +98,8 @@ class PipelineServiceTest {
         val yamlContent = """
               topics:
                 - key: java-gc-v2
-                  title: JVM Garbage Collection v2
-                  description: Updated memory management
+                  name: JVM Garbage Collection v2
+                  coverageArea: Updated memory management
                   constraints:
                     targetAudience: backend-engineers
                     experienceLevel: mid-to-senior
@@ -104,7 +108,7 @@ class PipelineServiceTest {
                     questionCount: 8
         """.trimIndent()
 
-        val existingEntity = com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = name)
+        val existingEntity = com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = name, topicKey = "java-core")
         `when`(repository.findByName(name)).thenReturn(existingEntity)
         `when`(repository.save(existingEntity)).thenReturn(existingEntity)
         `when`(repository.saveAndFlush(existingEntity)).thenReturn(existingEntity)
@@ -118,8 +122,19 @@ class PipelineServiceTest {
     }
 
     @Test
+    fun `should run step 0`() {
+        val name = "java-core-interview-v1"
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
+
+        service.runStep(name, 0)
+
+        verify(step0TopicsGenerationService).generate(name)
+    }
+
+    @Test
     fun `should run step 1`() {
         val name = "java-core-interview-v1"
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
         
         service.runStep(name, 1)
         
@@ -129,16 +144,18 @@ class PipelineServiceTest {
     @Test
     fun `should run pipeline from step 0`() {
         val name = "java-core-interview-v1"
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
         
         service.runPipelineFrom(name, 0)
         
-        // step 0 generation currently does nothing, but it's called
+        verify(step0TopicsGenerationService).generate(name)
         verify(step1QuestionGenerationService).generate(name)
     }
 
     @Test
     fun `should run pipeline from step 1`() {
         val name = "java-core-interview-v1"
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
         
         service.runPipelineFrom(name, 1)
         
@@ -148,6 +165,7 @@ class PipelineServiceTest {
     @Test
     fun `should fail for unsupported step run`() {
         val name = "java-core-interview-v1"
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
         
         assertThrows<IllegalArgumentException> {
             service.runStep(name, 99)

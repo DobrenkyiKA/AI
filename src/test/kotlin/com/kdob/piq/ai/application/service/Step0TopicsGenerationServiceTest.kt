@@ -1,0 +1,69 @@
+package com.kdob.piq.ai.application.service.step0
+
+import com.kdob.piq.ai.application.service.GeminiChat
+import com.kdob.piq.ai.domain.model.ArtifactStatus
+import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
+import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.ArgumentMatchers.eq
+import org.mockito.Mockito.*
+
+class Step0TopicsGenerationServiceTest {
+
+    private val generator = mock(GeminiChat::class.java)
+    private val repository = mock(PipelineRepository::class.java)
+    private val artifactStorage = mock(ArtifactStorage::class.java)
+    private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
+    private val service = Step0TopicsGenerationService(generator, repository, artifactStorage, questionCatalogClient)
+
+    @Test
+    fun `should generate topics and save them`() {
+        val pipelineName = "java-pipeline"
+        val topicKey = "java-core"
+        val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+
+        val topicResponse = TopicClientResponse(
+            key = topicKey,
+            name = "Java Core",
+            coverageArea = "Core Java features",
+            exclusions = "Spring"
+        )
+
+        `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
+        `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
+        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+            topics:
+              - key: java-fundamentals
+                name: Java Fundamentals
+                parentTopicKey: null
+                coverageArea: Basics of Java
+              - key: java-collections
+                name: Java Collections
+                parentTopicKey: java-fundamentals
+                coverageArea: List, Set, Map
+        """.trimIndent())
+
+        service.generate(pipelineName)
+
+        verify(repository).save(pipeline)
+        verify(artifactStorage).saveArtifact(eq(pipelineName) ?: "", eq(0), anyString() ?: "")
+        assertEquals(PipelineStatus.DRAFT, pipeline.status)
+        assertEquals(ArtifactStatus.PENDING_FOR_APPROVAL, pipeline.artifactStep0?.status)
+        
+        assertEquals(2, pipeline.artifactStep0?.topics?.size)
+        val fundamentals = pipeline.artifactStep0?.topics?.find { it.key == "java-fundamentals" }
+        assertEquals("Java Fundamentals", fundamentals?.name)
+        // Top level subtopic should have parentTopicKey set to the pipeline's topicKey
+        assertEquals(topicKey, fundamentals?.parentTopicKey)
+
+        val collections = pipeline.artifactStep0?.topics?.find { it.key == "java-collections" }
+        assertEquals("Java Collections", collections?.name)
+        assertEquals("java-fundamentals", collections?.parentTopicKey)
+    }
+}

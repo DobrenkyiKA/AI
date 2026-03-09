@@ -25,6 +25,7 @@ CREATE TABLE public.pipelines
     status     VARCHAR(40)  NOT NULL,
     created_at TIMESTAMP    NOT NULL,
     updated_at TIMESTAMP    NOT NULL,
+    topic_key  VARCHAR(255) NOT NULL,
     CONSTRAINT pk_pipelines_id PRIMARY KEY (id),
     CONSTRAINT uq_pipelines_name UNIQUE (name)
 );
@@ -57,7 +58,8 @@ CREATE TABLE public.topics
     id                 BIGINT,
     key                VARCHAR(255) NOT NULL,
     artifact_step_0_id BIGINT       NOT NULL,
-    title              VARCHAR(255) NOT NULL,
+    name               VARCHAR(255) NOT NULL,
+    parent_topic_key   VARCHAR(255),
     coverage_area      TEXT         NOT NULL,
     target_audience    VARCHAR(255) NOT NULL,
     experience_level   VARCHAR(255) NOT NULL,
@@ -73,7 +75,7 @@ CREATE TABLE public.step_1_topics_with_questions
     id                 BIGINT,
     key                VARCHAR(255) NOT NULL,
     artifact_step_1_id BIGINT       NOT NULL,
-    title              VARCHAR(255) NOT NULL,
+    name               VARCHAR(255) NOT NULL,
     CONSTRAINT fk_artifact_step_1_id FOREIGN KEY (artifact_step_1_id) REFERENCES artifacts_step_1 (id) ON DELETE CASCADE,
     CONSTRAINT pk_step_1_topics_with_questions_id PRIMARY KEY (id),
     CONSTRAINT uq_step_1_topics_with_questions_key UNIQUE (key)

@@ -1,6 +1,7 @@
 package com.kdob.piq.ai.infrastructure.client.question
 
 import com.kdob.piq.ai.infrastructure.client.question.dto.QuestionPromptResponse
+import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
@@ -23,5 +24,12 @@ class QuestionCatalogHttpClient(private val restClient: RestClient) : QuestionCa
             }
             .retrieve()
             .body<List<QuestionPromptResponse>>() ?: emptyList()
+    }
+
+    override fun findTopic(topicKey: String): TopicClientResponse? {
+        return restClient.get()
+            .uri("/topics/{key}", topicKey)
+            .retrieve()
+            .body<TopicClientResponse>()
     }
 }

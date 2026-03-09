@@ -33,7 +33,7 @@ class Step1QuestionGenerationServiceTest {
 
     @Test
     fun `should throw exception if artifact step 0 not found`() {
-        val pipeline = PipelineEntity(name = "test")
+        val pipeline = PipelineEntity(name = "test", topicKey = "test-topic")
         `when`(repository.findByName("test")).thenReturn(pipeline)
 
         assertThrows<IllegalStateException> {
@@ -43,7 +43,7 @@ class Step1QuestionGenerationServiceTest {
 
     @Test
     fun `should throw exception if artifact step 0 is not APPROVED`() {
-        val pipeline = PipelineEntity(name = "test")
+        val pipeline = PipelineEntity(name = "test", topicKey = "test-topic")
         val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
         artifactStep0.status = ArtifactStatus.PENDING_FOR_APPROVAL
         pipeline.artifactStep0 = artifactStep0
@@ -57,13 +57,14 @@ class Step1QuestionGenerationServiceTest {
     @Test
     fun `should generate questions and save them`() {
         val pipelineName = "java-core-interview-v1"
-        val pipeline = PipelineEntity(name = pipelineName)
+        val pipeline = PipelineEntity(name = pipelineName, topicKey = "java-core")
         val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
         artifactStep0.status = ArtifactStatus.APPROVED
         
         val topic = Step0TopicEntity(
             key = "java-gc",
-            title = "JVM Garbage Collection",
+            name = "JVM Garbage Collection",
+            parentTopicKey = null,
             coverageArea = "Memory management",
             artifactStep0 = artifactStep0,
             constraints = ConstraintsEntity(

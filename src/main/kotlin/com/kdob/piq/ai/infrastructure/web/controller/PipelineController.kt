@@ -6,6 +6,7 @@ import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineArtifactUpdateRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepResponse
+import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -58,9 +59,17 @@ class PipelineController(
         return pipelineService.updatePipeline(pipelineName, yaml).toResponse()
     }
 
+    @PatchMapping("/{pipelineName}")
+    fun updatePipelineMetadata(
+        @PathVariable pipelineName: String,
+        @RequestBody request: UpdatePipelineRequest
+    ): PipelineResponse {
+        return pipelineService.updatePipelineMetadata(pipelineName, request.topicKey).toResponse()
+    }
+
     @PostMapping
     fun createPipeline(@RequestBody request: CreatePipelineRequest): ResponseEntity<PipelineResponse> {
-        val created = pipelineService.createPipeline(request.name)
+        val created = pipelineService.createPipeline(request.name, request.topicKey)
         val location = ServletUriComponentsBuilder
             .fromCurrentRequest()
             .path("/{name}")
@@ -96,6 +105,7 @@ class PipelineController(
 
     private fun PipelineEntity.toResponse() = PipelineResponse(
         pipelineName = name,
+        topicKey = topicKey,
         status = status.name,
         createdAt = createdAt,
         updatedAt = updatedAt,
