@@ -7,6 +7,7 @@ import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.ArgumentMatchers.anyString
@@ -89,5 +90,36 @@ class Step1QuestionGenerationServiceTest {
         val topicWithQuestions = pipeline.artifactStep1?.topicsWithQuestions?.first()
         assertEquals("java-gc", topicWithQuestions?.key)
         assertEquals(2, topicWithQuestions?.questions?.size)
+    }
+
+    @Test
+    fun `should handle questions with special characters if quoted`() {
+        val pipelineName = "java-pipeline"
+        val pipeline = PipelineEntity(name = pipelineName, topicKey = "java-core")
+        val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
+        artifactStep0.status = ArtifactStatus.APPROVED
+        
+        val topic = Step0TopicEntity(
+            key = "java-annotations",
+            name = "Annotations",
+            parentTopicKey = null,
+            coverageArea = "Annotations basics",
+            artifactStep0 = artifactStep0,
+        )
+        artifactStep0.topics.add(topic)
+        pipeline.artifactStep0 = artifactStep0
+
+        `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
+        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+            questions:
+              - "@Override annotation purpose?"
+              - "What is @FunctionalInterface?"
+        """.trimIndent())
+
+        service.generate(pipelineName)
+
+        val topicWithQuestions = pipeline.artifactStep1?.topicsWithQuestions?.first()
+        assertEquals(2, topicWithQuestions?.questions?.size)
+        assertTrue(topicWithQuestions?.questions?.contains("@Override annotation purpose?") == true)
     }
 }

@@ -7,7 +7,7 @@ import jakarta.persistence.*
 @Access(AccessType.FIELD)
 class Step1TopicWithQuestionsEntity(
     @Basic(optional = false)
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     val key: String,
 
     @Basic(optional = false)

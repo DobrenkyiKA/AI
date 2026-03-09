@@ -88,11 +88,12 @@ Rules:
 - Generate exactly 10 questions.
 - No answers.
 - No explanations.
+- Quoting: ALWAYS wrap each question text in double quotes to ensure valid YAML (e.g., - "Question text?").
 - Output YAML ONLY in the following format:
 
 questions:
-  - <question 1 text>
-  - <question 2 text>
+  - "<question 1 text>"
+  - "<question 2 text>"
 """.trimIndent()
 
     private fun parseQuestions(rawOutput: String): List<String> {

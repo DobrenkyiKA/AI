@@ -100,7 +100,7 @@ class Step0TopicsGenerationServiceTest {
         
         val prompt = captor.value
         assertFalse(prompt.contains("Exclusions (DO NOT INCLUDE):"), "Prompt should not contain 'Exclusions (DO NOT INCLUDE):'")
-        assertFalse(prompt.contains("Avoid topics listed in exclusions."), "Prompt should not contain rule '- Avoid topics listed in exclusions.'")
+        assertFalse(prompt.contains("- Strict Exclusions:"), "Prompt should not contain rule '- Strict Exclusions:'")
     }
 
     @Test
@@ -133,6 +133,31 @@ class Step0TopicsGenerationServiceTest {
         
         val prompt = captor.value
         assertTrue(prompt.contains("Exclusions (DO NOT INCLUDE): Spring"), "Prompt should contain 'Exclusions (DO NOT INCLUDE): Spring'")
-        assertTrue(prompt.contains("- Avoid topics listed in exclusions."), "Prompt should contain rule '- Avoid topics listed in exclusions.'")
+        assertTrue(prompt.contains("- Strict Exclusions: Do not include ANY topics or subtopics that fall under the exclusions list."), "Prompt should contain rule '- Strict Exclusions: ...'")
+    }
+
+    @Test
+    fun `should succeed if LLM returns valid YAML with @ sign quoted`() {
+        val pipelineName = "java-pipeline"
+        val topicKey = "java-core"
+        val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+        val topicResponse = TopicClientResponse(topicKey, "Java Core", "Core", "")
+
+        `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
+        `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
+        
+        // Simulating the corrected output with quotes
+        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+            topics:
+              - key: "java-annotations"
+                name: "Annotations"
+                parentTopicKey: "java-core"
+                coverageArea: "@FunctionalInterface annotation"
+        """.trimIndent())
+
+        service.generate(pipelineName)
+        
+        assertEquals(1, pipeline.artifactStep0?.topics?.size)
+        assertEquals("@FunctionalInterface annotation", pipeline.artifactStep0?.topics?.first()?.coverageArea)
     }
 }

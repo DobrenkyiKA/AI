@@ -67,9 +67,10 @@ class Step0TopicsGenerationService(
     }
 
     private fun buildPrompt(topicName: String, coverageArea: String, exclusions: String, topicKey: String): String = buildString {
-        appendLine("You are a senior technical interviewer.")
+        appendLine("You are a senior technical interviewer and subject matter expert.")
         appendLine()
-        appendLine("Build the most comprehensive subtopics graph/tree with structure as wide and deep as possible for the following topic:")
+        appendLine("Your task is to build a highly granular and comprehensive taxonomy of subtopics for a technical interview.")
+        appendLine("The goal is to create a tree structure that is as deep and wide as possible, covering every nuance of the specified topic.")
         appendLine()
         appendLine("Topic: $topicName (Key: $topicKey)")
         appendLine("Coverage Area: $coverageArea")
@@ -77,21 +78,25 @@ class Step0TopicsGenerationService(
             appendLine("Exclusions (DO NOT INCLUDE): $exclusions")
         }
         appendLine()
-        appendLine("Rules:")
-        appendLine("- Build all subtopics based on the topic and its coverage area.")
+        appendLine("Rules for Subtopic Generation:")
+        appendLine("- Breakdown: Decompose the main topic into multiple levels of subtopics (at least 3-4 levels deep where appropriate).")
+        appendLine("- Granularity: Do not stop at high-level categories. Break them down into specific concepts, internal workings, edge cases, and advanced usage.")
+        appendLine("- Completeness: Ensure every aspect mentioned in the Coverage Area is thoroughly expanded.")
         if (exclusions.isNotBlank()) {
-            appendLine("- Avoid topics listed in exclusions.")
+            appendLine("- Strict Exclusions: Do not include ANY topics or subtopics that fall under the exclusions list.")
         }
-        appendLine("- Result should be a comprehensive list of subtopics.")
-        appendLine("- Each subtopic must have a unique key, a name, a coverage area, and a parentTopicKey.")
-        appendLine("- For top-level subtopics, parentTopicKey should be $topicKey.")
-        appendLine("- Output YAML ONLY in the following format:")
+        appendLine("- Structure: Each subtopic must have a unique 'key', a 'name', a 'coverageArea' (detailed description), and a 'parentTopicKey'.")
+        appendLine("- Quoting: ALWAYS wrap 'name' and 'coverageArea' values in double quotes to ensure valid YAML (e.g., name: \"Topic Name\").")
+        appendLine("- Hierarchy: For top-level subtopics, 'parentTopicKey' must be '$topicKey'. Subsequent levels should point to their respective parent subtopic keys.")
+        appendLine("- Unique Keys: Use descriptive, lowercase, kebab-case keys (e.g., 'java-collections-list-internal').")
+        appendLine("- Volume: Aim for a large number of subtopics (typically 50-100+) to ensure full coverage.")
+        appendLine("- Output Format: YAML ONLY in the specified format.")
         appendLine()
         appendLine("topics:")
-        appendLine("  - key: <subtopic key>")
-        appendLine("    name: <subtopic name>")
-        appendLine("    parentTopicKey: <parent key or null>")
-        appendLine("    coverageArea: <brief description of what this subtopic covers>")
+        appendLine("  - key: \"<subtopic-key>\"")
+        appendLine("    name: \"<subtopic-name>\"")
+        appendLine("    parentTopicKey: \"<parent-key>\"")
+        appendLine("    coverageArea: \"<detailed description of what this specific subtopic covers, including key concepts to be tested>\"")
     }.trim()
 
     private fun parseSubTopics(rawOutput: String): List<Step0Topic> {

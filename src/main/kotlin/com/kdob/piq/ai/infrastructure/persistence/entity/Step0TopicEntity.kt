@@ -8,7 +8,7 @@ import jakarta.persistence.*
 class Step0TopicEntity(
 
     @Basic(optional = false)
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     val key: String,
 
     @Basic(optional = false)
