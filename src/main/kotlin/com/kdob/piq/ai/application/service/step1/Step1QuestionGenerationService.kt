@@ -79,19 +79,13 @@ class Step1QuestionGenerationService(
     private fun buildPrompt(topic: Step0TopicEntity): String = """
 You are a senior technical interviewer.
 
-Generate exactly ${topic.constraints.questionCount} interview-grade questions for the following topic:
+Generate exactly 10 interview-grade questions for the following topic:
 
 Topic: ${topic.name}
 Coverage Area: ${topic.coverageArea}
 
-Constraints:
-- Target Audience: ${topic.constraints.targetAudience}
-- Experience Level: ${topic.constraints.experienceLevel}
-- Intended Usage: ${topic.constraints.intendedUsage.joinToString(", ")}
-- Exclusions (DO NOT INCLUDE): ${topic.constraints.exclusions.joinToString(", ")}
-
 Rules:
-- Generate exactly ${topic.constraints.questionCount} questions.
+- Generate exactly 10 questions.
 - No answers.
 - No explanations.
 - Output YAML ONLY in the following format:

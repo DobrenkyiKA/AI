@@ -3,8 +3,6 @@
 
 CREATE SCHEMA IF NOT EXISTS public;
 
-DROP TABLE IF EXISTS public.intended_usages CASCADE;
-DROP TABLE IF EXISTS public.exclusions CASCADE;
 DROP TABLE IF EXISTS public.topics CASCADE;
 DROP SEQUENCE IF EXISTS public.topics_id_sequence CASCADE;
 DROP TABLE IF EXISTS public.artifacts_step_0 CASCADE;
@@ -61,9 +59,6 @@ CREATE TABLE public.topics
     name               VARCHAR(255) NOT NULL,
     parent_topic_key   VARCHAR(255),
     coverage_area      TEXT         NOT NULL,
-    target_audience    VARCHAR(255) NOT NULL,
-    experience_level   VARCHAR(255) NOT NULL,
-    question_count     INT          NOT NULL,
     CONSTRAINT fk_artifact_step_0_id FOREIGN KEY (artifact_step_0_id) REFERENCES artifacts_step_0 (id) ON DELETE CASCADE,
     CONSTRAINT pk_topics_id PRIMARY KEY (id),
     CONSTRAINT uq_topics_key UNIQUE (key)
@@ -86,19 +81,5 @@ CREATE TABLE public.step_1_questions
     step_1_topic_id BIGINT       NOT NULL,
     question        VARCHAR(255) NOT NULL,
     CONSTRAINT fk_step_1_topic_id FOREIGN KEY (step_1_topic_id) REFERENCES step_1_topics_with_questions (id) ON DELETE CASCADE
-);
-
-CREATE TABLE public.exclusions
-(
-    topic_id  BIGINT       NOT NULL,
-    exclusion VARCHAR(255) NOT NULL,
-    CONSTRAINT fk_topic_id FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
-);
-
-CREATE TABLE public.intended_usages
-(
-    topic_id       BIGINT       NOT NULL,
-    intended_usage VARCHAR(255) NOT NULL,
-    CONSTRAINT fk_topic_id FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
 );
 

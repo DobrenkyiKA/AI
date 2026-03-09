@@ -66,29 +66,33 @@ class Step0TopicsGenerationService(
         artifactStorage.saveArtifact(pipelineName, 0, yamlContent.trim())
     }
 
-    private fun buildPrompt(topicName: String, coverageArea: String, exclusions: String, topicKey: String): String = """
-        You are a senior technical interviewer.
-        
-        Build the most comprehensive subtopics graph/tree with structure as wide and deep as possible for the following topic:
-        
-        Topic: $topicName (Key: $topicKey)
-        Coverage Area: $coverageArea
-        Exclusions (DO NOT INCLUDE): $exclusions
-        
-        Rules:
-        - Build all subtopics based on the topic and its coverage area.
-        - Avoid topics listed in exclusions.
-        - Result should be a comprehensive list of subtopics.
-        - Each subtopic must have a unique key, a name, a coverage area, and a parentTopicKey.
-        - For top-level subtopics, parentTopicKey should be $topicKey.
-        - Output YAML ONLY in the following format:
-        
-        topics:
-          - key: <subtopic key>
-            name: <subtopic name>
-            parentTopicKey: <parent key or null>
-            coverageArea: <brief description of what this subtopic covers>
-    """.trimIndent()
+    private fun buildPrompt(topicName: String, coverageArea: String, exclusions: String, topicKey: String): String = buildString {
+        appendLine("You are a senior technical interviewer.")
+        appendLine()
+        appendLine("Build the most comprehensive subtopics graph/tree with structure as wide and deep as possible for the following topic:")
+        appendLine()
+        appendLine("Topic: $topicName (Key: $topicKey)")
+        appendLine("Coverage Area: $coverageArea")
+        if (exclusions.isNotBlank()) {
+            appendLine("Exclusions (DO NOT INCLUDE): $exclusions")
+        }
+        appendLine()
+        appendLine("Rules:")
+        appendLine("- Build all subtopics based on the topic and its coverage area.")
+        if (exclusions.isNotBlank()) {
+            appendLine("- Avoid topics listed in exclusions.")
+        }
+        appendLine("- Result should be a comprehensive list of subtopics.")
+        appendLine("- Each subtopic must have a unique key, a name, a coverage area, and a parentTopicKey.")
+        appendLine("- For top-level subtopics, parentTopicKey should be $topicKey.")
+        appendLine("- Output YAML ONLY in the following format:")
+        appendLine()
+        appendLine("topics:")
+        appendLine("  - key: <subtopic key>")
+        appendLine("    name: <subtopic name>")
+        appendLine("    parentTopicKey: <parent key or null>")
+        appendLine("    coverageArea: <brief description of what this subtopic covers>")
+    }.trim()
 
     private fun parseSubTopics(rawOutput: String): List<Step0Topic> {
         val cleaned = rawOutput.trim().removeSurrounding("```yaml", "```").trim()
@@ -103,7 +107,6 @@ class Step0TopicsGenerationService(
                 name = it["name"] as String,
                 parentTopicKey = it["parentTopicKey"] as? String,
                 coverageArea = it["coverageArea"] as String,
-                constraints = null
             )
         }
     }

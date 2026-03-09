@@ -100,12 +100,6 @@ class PipelineServiceTest {
                 - key: java-gc-v2
                   name: JVM Garbage Collection v2
                   coverageArea: Updated memory management
-                  constraints:
-                    targetAudience: backend-engineers
-                    experienceLevel: mid-to-senior
-                    intendedUsage: [interview]
-                    exclusions: []
-                    questionCount: 8
         """.trimIndent()
 
         val existingEntity = com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = name, topicKey = "java-core")

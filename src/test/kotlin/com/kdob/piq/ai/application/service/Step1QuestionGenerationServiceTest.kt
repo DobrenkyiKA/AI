@@ -67,13 +67,6 @@ class Step1QuestionGenerationServiceTest {
             parentTopicKey = null,
             coverageArea = "Memory management",
             artifactStep0 = artifactStep0,
-            constraints = ConstraintsEntity(
-                targetAudience = "backend-engineers",
-                experienceLevel = "mid-to-senior",
-                intendedUsage = listOf("interview"),
-                exclusions = emptyList(),
-                questionCount = 2
-            )
         )
         artifactStep0.topics.add(topic)
         pipeline.artifactStep0 = artifactStep0

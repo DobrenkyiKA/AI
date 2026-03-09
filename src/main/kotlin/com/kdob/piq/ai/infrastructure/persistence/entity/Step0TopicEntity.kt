@@ -25,10 +25,6 @@ class Step0TopicEntity(
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "artifact_step_0_id", nullable = false)
     val artifactStep0: ArtifactStep0Entity,
-
-    @Basic(optional = false)
-    @Embedded
-    val constraints: ConstraintsEntity
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "topics_sequence")

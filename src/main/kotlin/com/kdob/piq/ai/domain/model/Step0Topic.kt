@@ -5,13 +5,4 @@ data class Step0Topic(
     val name: String,
     val parentTopicKey: String? = null,
     val coverageArea: String,
-    val constraints: Constraints? = null,
-)
-
-data class Constraints(
-    val targetAudience: String,
-    val experienceLevel: String,
-    val intendedUsage: List<String>,
-    val exclusions: List<String>,
-    val questionCount: Int
 )

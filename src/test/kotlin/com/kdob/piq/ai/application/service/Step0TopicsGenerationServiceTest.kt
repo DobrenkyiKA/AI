@@ -10,9 +10,12 @@ import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.*
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 
 class Step0TopicsGenerationServiceTest {
 
@@ -65,5 +68,71 @@ class Step0TopicsGenerationServiceTest {
         val collections = pipeline.artifactStep0?.topics?.find { it.key == "java-collections" }
         assertEquals("Java Collections", collections?.name)
         assertEquals("java-fundamentals", collections?.parentTopicKey)
+    }
+
+    @Test
+    fun `should not include exclusions in prompt if they are blank`() {
+        val pipelineName = "java-pipeline"
+        val topicKey = "java-core"
+        val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+
+        val topicResponse = TopicClientResponse(
+            key = topicKey,
+            name = "Java Core",
+            coverageArea = "Core Java features",
+            exclusions = ""
+        )
+
+        `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
+        `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
+        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+            topics:
+              - key: java-fundamentals
+                name: Java Fundamentals
+                parentTopicKey: null
+                coverageArea: Basics of Java
+        """.trimIndent())
+
+        service.generate(pipelineName)
+
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(generator).executePrompt(captor.capture() ?: "")
+        
+        val prompt = captor.value
+        assertFalse(prompt.contains("Exclusions (DO NOT INCLUDE):"), "Prompt should not contain 'Exclusions (DO NOT INCLUDE):'")
+        assertFalse(prompt.contains("Avoid topics listed in exclusions."), "Prompt should not contain rule '- Avoid topics listed in exclusions.'")
+    }
+
+    @Test
+    fun `should include exclusions in prompt if they are not blank`() {
+        val pipelineName = "java-pipeline"
+        val topicKey = "java-core"
+        val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+
+        val topicResponse = TopicClientResponse(
+            key = topicKey,
+            name = "Java Core",
+            coverageArea = "Core Java features",
+            exclusions = "Spring"
+        )
+
+        `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
+        `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
+        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+            topics:
+              - key: java-fundamentals
+                name: Java Fundamentals
+                parentTopicKey: null
+                coverageArea: Basics of Java
+        """.trimIndent())
+
+        service.generate(pipelineName)
+
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(generator).executePrompt(captor.capture() ?: "")
+        
+        val prompt = captor.value
+        assertTrue(prompt.contains("Exclusions (DO NOT INCLUDE): Spring"), "Prompt should contain 'Exclusions (DO NOT INCLUDE): Spring'")
+        assertTrue(prompt.contains("- Avoid topics listed in exclusions."), "Prompt should contain rule '- Avoid topics listed in exclusions.'")
     }
 }

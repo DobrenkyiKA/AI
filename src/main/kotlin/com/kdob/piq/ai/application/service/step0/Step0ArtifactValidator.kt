@@ -15,13 +15,5 @@ object Step0ArtifactValidator {
                 "Topic key must not be blank"
             }
         }
-
-        pipeline.topics.forEach {
-            it.constraints?.let { constraints ->
-                require(constraints.questionCount in 1..100) {
-                    "Question count must be between 1 and 100"
-                }
-            }
-        }
     }
 }
