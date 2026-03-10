@@ -1,10 +1,10 @@
-package com.kdob.piq.ai.application.service.step0
+package com.kdob.piq.ai.application.service.topics
 
-import com.kdob.piq.ai.infrastructure.web.dto.Step0ArtifactForm
+import com.kdob.piq.ai.infrastructure.web.dto.TopicsArtifactForm
 
-object Step0ArtifactValidator {
+object TopicsArtifactValidator {
 
-    fun validate(pipeline: Step0ArtifactForm) {
+    fun validate(pipeline: TopicsArtifactForm) {
 
         require(pipeline.topics.isNotEmpty()) {
             "At least one topic must be defined"

@@ -4,20 +4,20 @@ import com.kdob.piq.ai.domain.model.ArtifactStatus
 import jakarta.persistence.*
 
 @Entity
-@Table(name = "artifacts_step_0")
+@Table(name = "questions_artifacts")
 @Access(AccessType.FIELD)
-class ArtifactStep0Entity(
+class QuestionsArtifactEntity(
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pipeline_id", nullable = false)
     val pipeline: PipelineEntity,
 
     @Basic(optional = false)
-    @OneToMany(mappedBy = "artifactStep0", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val topics: MutableSet<Step0TopicEntity> = mutableSetOf()
+    @OneToMany(mappedBy = "questionsArtifact", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val topicsWithQuestions: MutableSet<PipelineTopicWithQuestionsEntity> = mutableSetOf()
 ) : BaseEntity() {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "artifacts_step_0_sequence")
-    @SequenceGenerator(name = "artifacts_step_0_sequence", sequenceName = "artifacts_step_0_id_sequence", allocationSize = 50)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "questions_artifacts_sequence")
+    @SequenceGenerator(name = "questions_artifacts_sequence", sequenceName = "questions_artifacts_id_sequence", allocationSize = 50)
     var id: Long? = null
 
     @Basic(optional = false)

@@ -3,18 +3,15 @@ package com.kdob.piq.ai.application.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.step0.Step0TopicsGenerationService
-import com.kdob.piq.ai.application.service.step1.Step1QuestionGenerationService
+import com.kdob.piq.ai.application.service.topics.TopicsGenerationService
+import com.kdob.piq.ai.application.service.questions.QuestionsGenerationService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
-import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
-import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -25,20 +22,20 @@ class PipelineServiceTest {
 
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val step0TopicsGenerationService = mock(Step0TopicsGenerationService::class.java)
-    private val step1QuestionGenerationService = mock(Step1QuestionGenerationService::class.java)
+    private val topicsGenerationService = mock(TopicsGenerationService::class.java)
+    private val questionsGenerationService = mock(QuestionsGenerationService::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val service = PipelineService(
         repository,
         artifactStorage,
-        listOf(step0TopicsGenerationService, step1QuestionGenerationService),
+        listOf(topicsGenerationService, questionsGenerationService),
         questionCatalogClient
     )
 
     @BeforeEach
     fun setup() {
-        `when`(step0TopicsGenerationService.getStepType()).thenReturn("TOPICS_GENERATION")
-        `when`(step1QuestionGenerationService.getStepType()).thenReturn("QUESTIONS_GENERATION")
+        `when`(topicsGenerationService.getStepType()).thenReturn("TOPICS_GENERATION")
+        `when`(questionsGenerationService.getStepType()).thenReturn("QUESTIONS_GENERATION")
     }
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .registerKotlinModule()
@@ -102,9 +99,12 @@ class PipelineServiceTest {
     fun `should load pipeline artifact`() {
         val name = "java-core-interview-v1"
         val expectedYaml = "topics: []"
-        `when`(artifactStorage.loadArtifact(name, 0)).thenReturn(expectedYaml)
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(artifactStorage.loadArtifact(name, "TOPICS_GENERATION")).thenReturn(expectedYaml)
 
-        val result = service.getPipelineArtifact(name)
+        val result = service.getArtifact(name, 0)
 
         assertEquals(expectedYaml, result)
     }
@@ -121,20 +121,21 @@ class PipelineServiceTest {
 
         val existingEntity =
             com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = name, topicKey = "java-core")
+        existingEntity.steps.add(PipelineStepEntity(existingEntity, "TOPICS_GENERATION", 0))
         `when`(repository.findByName(name)).thenReturn(existingEntity)
         `when`(repository.save(existingEntity)).thenReturn(existingEntity)
         `when`(repository.saveAndFlush(existingEntity)).thenReturn(existingEntity)
 
         service.updatePipeline(name, yamlContent)
 
-        assert(existingEntity.artifactStep0?.topics?.size == 1)
-        assert(existingEntity.artifactStep0?.topics?.first()?.key == "java-gc-v2")
-        verify(artifactStorage).saveArtifact(name, 0, yamlContent)
+        assert(existingEntity.topicsArtifact?.topics?.size == 1)
+        assert(existingEntity.topicsArtifact?.topics?.first()?.key == "java-gc-v2")
+        verify(artifactStorage).saveTopicsArtifact(name, yamlContent)
         verify(repository).save(existingEntity)
     }
 
     @Test
-    fun `should run step 0`() {
+    fun `should run topics generation step`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
@@ -142,11 +143,11 @@ class PipelineServiceTest {
 
         service.runStep(name, 0)
 
-        verify(step0TopicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(topicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test
-    fun `should run step 1`() {
+    fun `should run questions generation step`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
@@ -155,11 +156,11 @@ class PipelineServiceTest {
 
         service.runStep(name, 1)
 
-        verify(step1QuestionGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(questionsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test
-    fun `should run pipeline from step 0`() {
+    fun `should run pipeline from topics generation`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
@@ -168,12 +169,12 @@ class PipelineServiceTest {
 
         service.runPipelineFrom(name, 0)
 
-        verify(step0TopicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
-        verify(step1QuestionGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(topicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(questionsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test
-    fun `should run pipeline from step 1`() {
+    fun `should run pipeline from questions generation`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
@@ -182,7 +183,7 @@ class PipelineServiceTest {
 
         service.runPipelineFrom(name, 1)
 
-        verify(step1QuestionGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(questionsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test
@@ -196,30 +197,30 @@ class PipelineServiceTest {
     }
 
     @Test
-    fun `should publish approved step 0 artifact`() {
+    fun `should publish approved topics artifact`() {
         val name = "java-core-interview-v1"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = name, topicKey = topicKey)
-        val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
-        artifactStep0.status = ArtifactStatus.APPROVED
+        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        topicsArtifact.status = ArtifactStatus.APPROVED
 
-        val child1 = Step0TopicEntity(
+        val child1 = PipelineTopicEntity(
             key = "java-fundamentals",
             name = "Java Fundamentals",
             parentTopicKey = topicKey,
             coverageArea = "Basics",
-            artifactStep0 = artifactStep0
+            topicsArtifact = topicsArtifact
         )
-        val child2 = Step0TopicEntity(
+        val child2 = PipelineTopicEntity(
             key = "java-collections",
             name = "Java Collections",
             parentTopicKey = "java-fundamentals",
             coverageArea = "Collections",
-            artifactStep0 = artifactStep0
+            topicsArtifact = topicsArtifact
         )
-        artifactStep0.topics.add(child1)
-        artifactStep0.topics.add(child2)
-        pipeline.artifactStep0 = artifactStep0
+        topicsArtifact.topics.add(child1)
+        topicsArtifact.topics.add(child2)
+        pipeline.topicsArtifact = topicsArtifact
 
         `when`(repository.findByName(name)).thenReturn(pipeline)
         `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(
@@ -234,7 +235,7 @@ class PipelineServiceTest {
             TopicClientResponse(req.key, req.name, "${req.parentPath}/${req.key}")
         }
 
-        service.publishStep0Artifact(name)
+        service.publishTopicsArtifact(name)
 
         verify(questionCatalogClient).createTopic(
             CreateTopicClientRequest(
@@ -257,17 +258,17 @@ class PipelineServiceTest {
     }
 
     @Test
-    fun `should fail to publish if step 0 artifact is not approved`() {
+    fun `should fail to publish if topics artifact is not approved`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
-        artifactStep0.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        pipeline.artifactStep0 = artifactStep0
+        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        pipeline.topicsArtifact = topicsArtifact
 
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         assertThrows<IllegalStateException> {
-            service.publishStep0Artifact(name)
+            service.publishTopicsArtifact(name)
         }
     }
 }

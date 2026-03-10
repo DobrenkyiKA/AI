@@ -3,9 +3,9 @@ package com.kdob.piq.ai.infrastructure.persistence.entity
 import jakarta.persistence.*
 
 @Entity
-@Table(name = "topics")
+@Table(name = "pipeline_topics")
 @Access(AccessType.FIELD)
-class Step0TopicEntity(
+class PipelineTopicEntity(
 
     @Basic(optional = false)
     @Column(nullable = false)
@@ -23,12 +23,12 @@ class Step0TopicEntity(
     val coverageArea: String,
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "artifact_step_0_id", nullable = false)
-    val artifactStep0: ArtifactStep0Entity,
+    @JoinColumn(name = "topics_artifact_id", nullable = false)
+    val topicsArtifact: TopicsArtifactEntity,
 ) : BaseEntity() {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "topics_sequence")
-    @SequenceGenerator(name = "topics_sequence", sequenceName = "topics_id_sequence", allocationSize = 50)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "pipeline_topics_sequence")
+    @SequenceGenerator(name = "pipeline_topics_sequence", sequenceName = "pipeline_topics_id_sequence", allocationSize = 50)
     var id: Long? = null
 
     override fun getIdValue(): Long? {

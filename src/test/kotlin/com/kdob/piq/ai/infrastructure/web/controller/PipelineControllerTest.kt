@@ -79,7 +79,7 @@ class PipelineControllerTest {
     fun `should return artifact content`() {
         val name = "test-pipeline"
         val yaml = "pipeline: { name: 'test-pipeline' }"
-        `when`(intakeService.getPipelineArtifact(name)).thenReturn(yaml)
+        `when`(intakeService.getTopicsArtifact(name)).thenReturn(yaml)
 
         mockMvc.perform(get("/pipeline/$name/artifact"))
             .andExpect(status().isOk)
@@ -180,8 +180,8 @@ class PipelineControllerTest {
                 step = index,
                 type = step.stepType,
                 status = when (step.stepType) {
-                    "TOPICS_GENERATION" -> artifactStep0?.status
-                    "QUESTIONS_GENERATION" -> artifactStep1?.status
+                    "TOPICS_GENERATION" -> topicsArtifact?.status
+                    "QUESTIONS_GENERATION" -> questionsArtifact?.status
                     else -> null
                 },
                 systemPrompt = step.systemPrompt,

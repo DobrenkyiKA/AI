@@ -5,10 +5,10 @@ import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface SpringDataPipelineRepository: JpaRepository<PipelineEntity, Long> {
-    @EntityGraph(attributePaths = ["steps", "artifactStep0", "artifactStep1"])
+    @EntityGraph(attributePaths = ["steps", "topicsArtifact", "questionsArtifact"])
     override fun findAll(): MutableList<PipelineEntity>
 
-    @EntityGraph(attributePaths = ["steps", "artifactStep0", "artifactStep1"])
+    @EntityGraph(attributePaths = ["steps", "topicsArtifact", "questionsArtifact"])
     fun findByName(name: String): MutableList<PipelineEntity>
 
     fun deleteByName(name: String)

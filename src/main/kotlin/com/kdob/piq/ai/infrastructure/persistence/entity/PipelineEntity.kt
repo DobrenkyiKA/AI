@@ -17,10 +17,10 @@ class PipelineEntity(
     var topicKey: String,
 
     @OneToOne(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
-    var artifactStep0: ArtifactStep0Entity? = null,
+    var topicsArtifact: TopicsArtifactEntity? = null,
 
     @OneToOne(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
-    var artifactStep1: ArtifactStep1Entity? = null,
+    var questionsArtifact: QuestionsArtifactEntity? = null,
 
     @OneToMany(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
     @OrderBy("stepOrder ASC")

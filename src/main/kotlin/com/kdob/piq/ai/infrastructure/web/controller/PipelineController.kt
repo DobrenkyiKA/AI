@@ -1,11 +1,9 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
 import com.kdob.piq.ai.application.service.PipelineService
-import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineArtifactUpdateRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepResponse
 import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -31,7 +29,7 @@ class PipelineController(
 
     @GetMapping("/{pipelineName}/artifact")
     fun getPipelineArtifact(@PathVariable pipelineName: String): String {
-        return pipelineService.getPipelineArtifact(pipelineName)
+        return pipelineService.getTopicsArtifact(pipelineName)
     }
 
     @GetMapping("/{pipelineName}/artifact/{step}")
@@ -103,9 +101,9 @@ class PipelineController(
         return getPipeline(pipelineName)
     }
 
-    @PostMapping("/{pipelineName}/publish-step-0")
-    fun publishStep0Artifact(@PathVariable pipelineName: String): PipelineResponse {
-        pipelineService.publishStep0Artifact(pipelineName)
+    @PostMapping("/{pipelineName}/publish-topics")
+    fun publishTopicsArtifact(@PathVariable pipelineName: String): PipelineResponse {
+        pipelineService.publishTopicsArtifact(pipelineName)
         return getPipeline(pipelineName)
     }
 }

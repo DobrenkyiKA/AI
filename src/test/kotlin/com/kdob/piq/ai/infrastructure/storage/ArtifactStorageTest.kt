@@ -13,21 +13,21 @@ class ArtifactStorageTest {
     lateinit var tempDir: Path
 
     @Test
-    fun `should save step 0 artifact using pipeline id`() {
+    fun `should save topics artifact using pipeline name`() {
         val properties = PipelineArtifactProperties(tempDir.toString())
         val storage = ArtifactStorage(properties)
         val pipelineName = "test-pipeline"
         val yaml = "content: test"
 
-        storage.saveStep0Artifact(pipelineName, yaml)
+        storage.saveTopicsArtifact(pipelineName, yaml)
 
-        val expectedPath = tempDir.resolve("$pipelineName/step-0-topics-artifact.yaml")
+        val expectedPath = tempDir.resolve("$pipelineName/topics-artifact.yaml")
         assertTrue(Files.exists(expectedPath))
         assertEquals(yaml, Files.readString(expectedPath))
     }
 
     @Test
-    fun `should load step 0 artifact using pipeline id`() {
+    fun `should load topics artifact using pipeline name`() {
         val properties = PipelineArtifactProperties(tempDir.toString())
         val storage = ArtifactStorage(properties)
         val pipelineName = "test-pipeline"
@@ -35,9 +35,9 @@ class ArtifactStorageTest {
 
         val dir = tempDir.resolve(pipelineName)
         Files.createDirectories(dir)
-        Files.writeString(dir.resolve("step-0-topics-artifact.yaml"), yaml)
+        Files.writeString(dir.resolve("topics-artifact.yaml"), yaml)
 
-        val result = storage.loadStep0Artifact(pipelineName)
+        val result = storage.loadTopicsArtifact(pipelineName)
 
         assertEquals(yaml, result)
     }
@@ -49,8 +49,8 @@ class ArtifactStorageTest {
         val pipelineName = "test-pipeline"
         val yaml = "content: test"
 
-        storage.saveStep0Artifact(pipelineName, yaml)
-        val result = storage.loadStep0Artifact(pipelineName)
+        storage.saveTopicsArtifact(pipelineName, yaml)
+        val result = storage.loadTopicsArtifact(pipelineName)
         assertEquals(yaml, result)
     }
 }

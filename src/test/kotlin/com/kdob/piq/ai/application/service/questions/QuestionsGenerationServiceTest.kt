@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service.step1
+package com.kdob.piq.ai.application.service.questions
 
 import com.kdob.piq.ai.application.service.GeminiChat
 import com.kdob.piq.ai.domain.model.ArtifactStatus
@@ -16,12 +16,12 @@ import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 
-class Step1QuestionGenerationServiceTest {
+class QuestionsGenerationServiceTest {
 
     private val generator = mock(GeminiChat::class.java)
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val service = Step1QuestionGenerationService(generator, repository, artifactStorage)
+    private val service = QuestionsGenerationService(generator, repository, artifactStorage)
 
     private fun addStepToPipeline(pipeline: PipelineEntity) {
         pipeline.steps.add(
@@ -45,7 +45,7 @@ class Step1QuestionGenerationServiceTest {
     }
 
     @Test
-    fun `should throw exception if artifact step 0 not found`() {
+    fun `should throw exception if topics artifact not found`() {
         val pipeline = PipelineEntity(name = "test", topicKey = "test-topic")
         addStepToPipeline(pipeline)
         `when`(repository.findByName("test")).thenReturn(pipeline)
@@ -56,12 +56,12 @@ class Step1QuestionGenerationServiceTest {
     }
 
     @Test
-    fun `should throw exception if artifact step 0 is not APPROVED`() {
+    fun `should throw exception if topics artifact is not APPROVED`() {
         val pipeline = PipelineEntity(name = "test", topicKey = "test-topic")
         addStepToPipeline(pipeline)
-        val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
-        artifactStep0.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        pipeline.artifactStep0 = artifactStep0
+        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        pipeline.topicsArtifact = topicsArtifact
         `when`(repository.findByName("test")).thenReturn(pipeline)
 
         assertThrows<IllegalStateException> {
@@ -74,18 +74,18 @@ class Step1QuestionGenerationServiceTest {
         val pipelineName = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = "java-core")
         addStepToPipeline(pipeline)
-        val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
-        artifactStep0.status = ArtifactStatus.APPROVED
+        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        topicsArtifact.status = ArtifactStatus.APPROVED
         
-        val topic = Step0TopicEntity(
+        val topic = PipelineTopicEntity(
             key = "java-gc",
             name = "JVM Garbage Collection",
             parentTopicKey = null,
             coverageArea = "Memory management",
-            artifactStep0 = artifactStep0,
+            topicsArtifact = topicsArtifact,
         )
-        artifactStep0.topics.add(topic)
-        pipeline.artifactStep0 = artifactStep0
+        topicsArtifact.topics.add(topic)
+        pipeline.topicsArtifact = topicsArtifact
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(repository.saveAndFlush(pipeline)).thenReturn(pipeline)
@@ -98,11 +98,11 @@ class Step1QuestionGenerationServiceTest {
         service.generate(pipelineName)
 
         verify(repository).save(pipeline)
-        verify(artifactStorage).saveStep1Questions(eq(pipelineName) ?: "", anyString() ?: "")
-        assertEquals(PipelineStatus.STEP_1_PENDING_FOR_APPROVAL, pipeline.status)
+        verify(artifactStorage).saveQuestionsArtifact(eq(pipelineName) ?: "", anyString() ?: "")
+        assertEquals(PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL, pipeline.status)
         
-        assertEquals(1, pipeline.artifactStep1?.topicsWithQuestions?.size)
-        val topicWithQuestions = pipeline.artifactStep1?.topicsWithQuestions?.first()
+        assertEquals(1, pipeline.questionsArtifact?.topicsWithQuestions?.size)
+        val topicWithQuestions = pipeline.questionsArtifact?.topicsWithQuestions?.first()
         assertEquals("java-gc", topicWithQuestions?.key)
         assertEquals(2, topicWithQuestions?.questions?.size)
     }
@@ -112,18 +112,18 @@ class Step1QuestionGenerationServiceTest {
         val pipelineName = "java-pipeline"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = "java-core")
         addStepToPipeline(pipeline)
-        val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
+        val artifactStep0 = TopicsArtifactEntity(pipeline = pipeline)
         artifactStep0.status = ArtifactStatus.APPROVED
         
-        val topic = Step0TopicEntity(
+        val topic = PipelineTopicEntity(
             key = "java-annotations",
             name = "Annotations",
             parentTopicKey = null,
             coverageArea = "Annotations basics",
-            artifactStep0 = artifactStep0,
+            topicsArtifact = artifactStep0,
         )
         artifactStep0.topics.add(topic)
-        pipeline.artifactStep0 = artifactStep0
+        pipeline.topicsArtifact = artifactStep0
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("""
@@ -134,7 +134,7 @@ class Step1QuestionGenerationServiceTest {
 
         service.generate(pipelineName)
 
-        val topicWithQuestions = pipeline.artifactStep1?.topicsWithQuestions?.first()
+        val topicWithQuestions = pipeline.questionsArtifact?.topicsWithQuestions?.first()
         assertEquals(2, topicWithQuestions?.questions?.size)
         assertTrue(topicWithQuestions?.questions?.contains("@Override annotation purpose?") == true)
     }

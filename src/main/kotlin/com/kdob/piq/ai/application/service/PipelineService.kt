@@ -3,21 +3,19 @@ package com.kdob.piq.ai.application.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.step0.Step0ArtifactValidator
-import com.kdob.piq.ai.application.service.step0.Step0TopicsGenerationService
-import com.kdob.piq.ai.application.service.step1.Step1QuestionGenerationService
+import com.kdob.piq.ai.application.service.topics.TopicsArtifactValidator
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
-import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
-import com.kdob.piq.ai.infrastructure.web.dto.Step0ArtifactForm
+import com.kdob.piq.ai.infrastructure.web.dto.TopicsArtifactForm
 import com.kdob.piq.ai.infrastructure.web.dto.*
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -36,53 +34,62 @@ class PipelineService(
     @Transactional(readOnly = true)
     fun findByName(name: String): PipelineResponse? = pipelineRepository.findByName(name)?.toResponse()
 
-    fun getArtifact(name: String, step: Int): String = artifactStorage.loadArtifact(name, step)
+    fun getArtifact(name: String, stepIndex: Int): String {
+        val existing = pipelineRepository.findByName(name)
+            ?: throw NoSuchElementException("Pipeline not found: $name")
+        val step = existing.steps.getOrNull(stepIndex)
+            ?: throw IllegalArgumentException("Step at index $stepIndex not found")
+        return artifactStorage.loadArtifact(name, step.stepType)
+    }
 
-    fun getPipelineArtifact(name: String): String = getArtifact(name, 0)
+    fun getTopicsArtifact(name: String): String = artifactStorage.loadTopicsArtifact(name)
 
     @Transactional
-    fun updateArtifact(name: String, step: Int, yamlContent: String, status: ArtifactStatus): PipelineResponse {
+    fun updateArtifact(name: String, stepIndex: Int, yamlContent: String, status: ArtifactStatus): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
 
-        when (step) {
-            0 -> {
-                val updatedForm = yamlMapper.readValue(yamlContent, Step0ArtifactForm::class.java)
-                Step0ArtifactValidator.validate(updatedForm)
+        val step = existing.steps.getOrNull(stepIndex)
+            ?: throw IllegalArgumentException("Step at index $stepIndex not found")
 
-                existing.artifactStep1 = null
-                artifactStorage.deleteArtifact(name, 1)
+        when (step.stepType) {
+            "TOPICS_GENERATION" -> {
+                val updatedForm = yamlMapper.readValue(yamlContent, TopicsArtifactForm::class.java)
+                TopicsArtifactValidator.validate(updatedForm)
 
-                if (existing.artifactStep0 != null) {
-                    existing.artifactStep0 = null
+                existing.questionsArtifact = null
+                artifactStorage.deleteArtifact(name, "QUESTIONS_GENERATION")
+
+                if (existing.topicsArtifact != null) {
+                    existing.topicsArtifact = null
                     pipelineRepository.saveAndFlush(existing)
                 }
 
-                val artifactStep0 = ArtifactStep0Entity(pipeline = existing)
-                artifactStep0.status = status
-                artifactStep0.topics.addAll(updatedForm.topics.map { it.toEntity(artifactStep0) })
-                existing.artifactStep0 = artifactStep0
+                val topicsArtifact = TopicsArtifactEntity(pipeline = existing)
+                topicsArtifact.status = status
+                topicsArtifact.topics.addAll(updatedForm.topics.map { it.toEntity(topicsArtifact) })
+                existing.topicsArtifact = topicsArtifact
 
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
                     existing.status = PipelineStatus.DRAFT
                 }
-                artifactStorage.saveArtifact(name, 0, yamlContent)
+                artifactStorage.saveTopicsArtifact(name, yamlContent)
             }
 
-            1 -> {
-                val artifactStep1 = existing.artifactStep1 ?: throw IllegalStateException("Step 1 artifact not found")
-                artifactStep1.status = status
+            "QUESTIONS_GENERATION" -> {
+                val questionsArtifact = existing.questionsArtifact ?: throw IllegalStateException("Questions artifact not found")
+                questionsArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.STEP_1_APPROVED
+                    existing.status = PipelineStatus.QUESTIONS_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.STEP_1_PENDING_FOR_APPROVAL
+                    existing.status = PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL
                 }
-                artifactStorage.saveArtifact(name, 1, yamlContent)
+                artifactStorage.saveQuestionsArtifact(name, yamlContent)
             }
 
-            else -> throw IllegalArgumentException("Unsupported step: $step")
+            else -> throw IllegalArgumentException("Unsupported step type: ${step.stepType}")
         }
 
         existing.updatedAt = Instant.now()
@@ -93,11 +100,14 @@ class PipelineService(
     fun updatePipeline(name: String, yamlContent: String): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
+        val topicsStepIndex = existing.steps.indexOfFirst { it.stepType == "TOPICS_GENERATION" }
+        if (topicsStepIndex == -1) throw IllegalStateException("Topics generation step not found")
+
         return updateArtifact(
             name,
-            0,
+            topicsStepIndex,
             yamlContent,
-            existing.artifactStep0?.status ?: ArtifactStatus.PENDING_FOR_APPROVAL
+            existing.topicsArtifact?.status ?: ArtifactStatus.PENDING_FOR_APPROVAL
         )
     }
 
@@ -158,21 +168,21 @@ class PipelineService(
     }
 
     @Transactional
-    fun publishStep0Artifact(pipelineName: String) {
-        val pipeline = pipelineRepository.findByName(pipelineName)
+    fun publishTopicsArtifact(pipelineName: String) {
+        val existing = pipelineRepository.findByName(pipelineName)
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
 
-        val artifactStep0 = pipeline.artifactStep0
-            ?: throw IllegalStateException("Step 0 artifact not found for pipeline: $pipelineName")
+        val topicsArtifact = existing.topicsArtifact
+            ?: throw IllegalStateException("Topics artifact not found for pipeline: $pipelineName")
 
-        if (artifactStep0.status != ArtifactStatus.APPROVED) {
-            throw IllegalStateException("Step 0 artifact is not APPROVED. Current status: ${artifactStep0.status}")
+        if (topicsArtifact.status != ArtifactStatus.APPROVED) {
+            throw IllegalStateException("Topics artifact is not APPROVED. Current status: ${topicsArtifact.status}")
         }
 
-        val rootTopic = questionCatalogClient.findTopic(pipeline.topicKey)
-            ?: throw IllegalStateException("Root topic not found in catalog: ${pipeline.topicKey}")
+        val rootTopic = questionCatalogClient.findTopic(existing.topicKey)
+            ?: throw IllegalStateException("Root topic not found in catalog: ${existing.topicKey}")
 
-        val topicsByParent = artifactStep0.topics.groupBy { it.parentTopicKey }
+        val topicsByParent = topicsArtifact.topics.groupBy { it.parentTopicKey }
 
         fun publishRecursive(parentKey: String, parentPath: String) {
             val children = topicsByParent[parentKey] ?: return
@@ -189,7 +199,7 @@ class PipelineService(
             }
         }
 
-        publishRecursive(pipeline.topicKey, rootTopic.path)
+        publishRecursive(existing.topicKey, rootTopic.path)
     }
 
     @Transactional
@@ -235,8 +245,8 @@ class PipelineService(
                 step = index,
                 type = step.stepType,
                 status = when (step.stepType) {
-                    "TOPICS_GENERATION" -> artifactStep0?.status
-                    "QUESTIONS_GENERATION" -> artifactStep1?.status
+                    "TOPICS_GENERATION" -> topicsArtifact?.status
+                    "QUESTIONS_GENERATION" -> questionsArtifact?.status
                     else -> null
                 },
                 systemPrompt = step.systemPrompt,

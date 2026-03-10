@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service.step0
+package com.kdob.piq.ai.application.service.topics
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
@@ -8,10 +8,10 @@ import com.kdob.piq.ai.application.service.GeminiChat
 import com.kdob.piq.ai.application.service.GenerationStep
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
-import com.kdob.piq.ai.domain.model.Step0Topic
+import com.kdob.piq.ai.domain.model.PipelineTopic
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
-import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 @Service
-class Step0TopicsGenerationService(
+class TopicsGenerationService(
     private val generator: GeminiChat,
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
@@ -50,16 +50,16 @@ class Step0TopicsGenerationService(
             if (it.parentTopicKey == null) it.copy(parentTopicKey = pipeline.topicKey) else it
         }
 
-        if (pipeline.artifactStep0 != null) {
-            pipeline.artifactStep0 = null
+        if (pipeline.topicsArtifact != null) {
+            pipeline.topicsArtifact = null
             pipelineRepository.saveAndFlush(pipeline)
         }
 
-        val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
-        artifactStep0.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        artifactStep0.topics.addAll(topicsWithParent.map { it.toEntity(artifactStep0) })
+        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        topicsArtifact.topics.addAll(topicsWithParent.map { it.toEntity(topicsArtifact) })
 
-        pipeline.artifactStep0 = artifactStep0
+        pipeline.topicsArtifact = topicsArtifact
         pipeline.status = PipelineStatus.DRAFT
         pipeline.updatedAt = Instant.now()
         pipelineRepository.save(pipeline)
@@ -67,7 +67,7 @@ class Step0TopicsGenerationService(
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf("topics" to topicsWithParent)
         )
-        artifactStorage.saveArtifact(pipeline.name, 0, yamlContent.trim())
+        artifactStorage.saveTopicsArtifact(pipeline.name, yamlContent.trim())
     }
 
     private fun interpolate(prompt: String, pipeline: PipelineEntity, topicName: String, coverageArea: String, exclusions: String): String {
@@ -89,7 +89,7 @@ class Step0TopicsGenerationService(
         generate(pipeline, step)
     }
 
-    private fun parseSubTopics(rawOutput: String): List<Step0Topic> {
+    private fun parseSubTopics(rawOutput: String): List<PipelineTopic> {
         val cleaned = rawOutput.trim().removeSurrounding("```yaml", "```").trim()
         val data = yamlMapper.readValue(cleaned, Map::class.java)
 
@@ -97,7 +97,7 @@ class Step0TopicsGenerationService(
         val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
         
         return topicsList.map { 
-            Step0Topic(
+            PipelineTopic(
                 key = it["key"] as String,
                 name = it["name"] as String,
                 parentTopicKey = it["parentTopicKey"] as? String,

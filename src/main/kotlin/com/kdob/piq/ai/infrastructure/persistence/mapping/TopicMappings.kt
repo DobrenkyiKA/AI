@@ -1,20 +1,20 @@
 package com.kdob.piq.ai.infrastructure.persistence.mapping
 
-import com.kdob.piq.ai.domain.model.Step0Topic
-import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
-import com.kdob.piq.ai.infrastructure.persistence.entity.Step0TopicEntity
+import com.kdob.piq.ai.domain.model.PipelineTopic
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineTopicEntity
 
-fun Step0Topic.toEntity(artifactStep0: ArtifactStep0Entity): Step0TopicEntity =
-    Step0TopicEntity(
+fun PipelineTopic.toEntity(topicsArtifact: TopicsArtifactEntity): PipelineTopicEntity =
+    PipelineTopicEntity(
         key = key,
         name = name,
         parentTopicKey = parentTopicKey,
         coverageArea = coverageArea,
-        artifactStep0 = artifactStep0,
+        topicsArtifact = topicsArtifact,
     )
 
-    fun Step0TopicEntity.toDomain(): Step0Topic =
-        Step0Topic(
+    fun PipelineTopicEntity.toDomain(): PipelineTopic =
+        PipelineTopic(
             key = key,
             name = name,
             parentTopicKey = parentTopicKey,

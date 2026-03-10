@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service.step0
+package com.kdob.piq.ai.application.service.topics
 
 import com.kdob.piq.ai.application.service.GeminiChat
 import com.kdob.piq.ai.domain.model.ArtifactStatus
@@ -17,13 +17,13 @@ import org.mockito.Mockito.*
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 
-class Step0TopicsGenerationServiceTest {
+class TopicsGenerationServiceTest {
 
     private val generator = mock(GeminiChat::class.java)
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
-    private val service = Step0TopicsGenerationService(generator, repository, artifactStorage, questionCatalogClient)
+    private val service = TopicsGenerationService(generator, repository, artifactStorage, questionCatalogClient)
 
     @Test
     fun `should generate topics and save them`() {
@@ -56,17 +56,17 @@ class Step0TopicsGenerationServiceTest {
         service.generate(pipelineName)
 
         verify(repository).save(pipeline)
-        verify(artifactStorage).saveArtifact(eq(pipelineName) ?: "", eq(0), anyString() ?: "")
+        verify(artifactStorage).saveTopicsArtifact(eq(pipelineName) ?: "", anyString() ?: "")
         assertEquals(PipelineStatus.DRAFT, pipeline.status)
-        assertEquals(ArtifactStatus.PENDING_FOR_APPROVAL, pipeline.artifactStep0?.status)
+        assertEquals(ArtifactStatus.PENDING_FOR_APPROVAL, pipeline.topicsArtifact?.status)
         
-        assertEquals(2, pipeline.artifactStep0?.topics?.size)
-        val fundamentals = pipeline.artifactStep0?.topics?.find { it.key == "java-fundamentals" }
+        assertEquals(2, pipeline.topicsArtifact?.topics?.size)
+        val fundamentals = pipeline.topicsArtifact?.topics?.find { it.key == "java-fundamentals" }
         assertEquals("Java Fundamentals", fundamentals?.name)
         // Top level subtopic should have parentTopicKey set to the pipeline's topicKey
         assertEquals(topicKey, fundamentals?.parentTopicKey)
 
-        val collections = pipeline.artifactStep0?.topics?.find { it.key == "java-collections" }
+        val collections = pipeline.topicsArtifact?.topics?.find { it.key == "java-collections" }
         assertEquals("Java Collections", collections?.name)
         assertEquals("java-fundamentals", collections?.parentTopicKey)
     }
@@ -160,7 +160,7 @@ class Step0TopicsGenerationServiceTest {
 
         service.generate(pipelineName)
         
-        assertEquals(1, pipeline.artifactStep0?.topics?.size)
-        assertEquals("@FunctionalInterface annotation", pipeline.artifactStep0?.topics?.first()?.coverageArea)
+        assertEquals(1, pipeline.topicsArtifact?.topics?.size)
+        assertEquals("@FunctionalInterface annotation", pipeline.topicsArtifact?.topics?.first()?.coverageArea)
     }
 }

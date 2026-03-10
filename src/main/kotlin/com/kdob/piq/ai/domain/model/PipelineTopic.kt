@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.domain.model
 
-data class Step0Topic(
+data class PipelineTopic(
     val key: String,
     val name: String,
     val parentTopicKey: String? = null,

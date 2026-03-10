@@ -14,29 +14,29 @@ class ArtifactStorage(
         Files.createDirectories(rootDir)
     }
 
-    fun saveStep0Artifact(pipelineName: String, yaml: String) {
-        saveArtifact(pipelineName, 0, yaml)
+    fun saveTopicsArtifact(pipelineName: String, yaml: String) {
+        saveArtifact(pipelineName, "TOPICS_GENERATION", yaml)
     }
 
-    fun loadStep0Artifact(pipelineName: String): String = loadArtifact(pipelineName, 0)
+    fun loadTopicsArtifact(pipelineName: String): String = loadArtifact(pipelineName, "TOPICS_GENERATION")
 
-    fun saveStep1Questions(pipelineName: String, yaml: String) {
-        saveArtifact(pipelineName, 1, yaml)
+    fun saveQuestionsArtifact(pipelineName: String, yaml: String) {
+        saveArtifact(pipelineName, "QUESTIONS_GENERATION", yaml)
     }
 
-    fun saveArtifact(pipelineName: String, step: Int, yaml: String) {
+    fun saveArtifact(pipelineName: String, stepType: String, yaml: String) {
         val dir = rootDir.resolve(pipelineName)
         Files.createDirectories(dir)
-        Files.writeString(dir.resolve(getArtifactFileName(step)), yaml)
+        Files.writeString(dir.resolve(getArtifactFileName(stepType)), yaml)
     }
 
-    fun loadArtifact(pipelineName: String, step: Int): String =
-        Files.readString(rootDir.resolve(pipelineName).resolve(getArtifactFileName(step)))
+    fun loadArtifact(pipelineName: String, stepType: String): String =
+        Files.readString(rootDir.resolve(pipelineName).resolve(getArtifactFileName(stepType)))
 
-    private fun getArtifactFileName(step: Int): String = when (step) {
-        0 -> "step-0-topics-artifact.yaml"
-        1 -> "step-1-questions-artifact.yaml"
-        else -> throw IllegalArgumentException("Unknown step: $step")
+    private fun getArtifactFileName(stepType: String): String = when (stepType) {
+        "TOPICS_GENERATION" -> "topics-artifact.yaml"
+        "QUESTIONS_GENERATION" -> "questions-artifact.yaml"
+        else -> throw IllegalArgumentException("Unknown step type: $stepType")
     }
 
     fun deleteArtifacts(pipelineName: String) {
@@ -46,9 +46,9 @@ class ArtifactStorage(
         }
     }
 
-    fun deleteArtifact(pipelineName: String, step: Int) {
+    fun deleteArtifact(pipelineName: String, stepType: String) {
         val dir = rootDir.resolve(pipelineName)
-        val file = dir.resolve(getArtifactFileName(step))
+        val file = dir.resolve(getArtifactFileName(stepType))
         if (Files.exists(file)) {
             Files.delete(file)
         }

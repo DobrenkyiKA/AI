@@ -1,8 +1,8 @@
-package com.kdob.piq.ai.application.service.step1
+package com.kdob.piq.ai.application.service.questions
 
 import com.kdob.piq.ai.domain.model.GeneratedQuestion
 
-object Step1ArtifactValidator {
+object QuestionsArtifactValidator {
 
     fun validate(
         generated: List<GeneratedQuestion>,
