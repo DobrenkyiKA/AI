@@ -12,6 +12,8 @@ DROP TABLE IF EXISTS public.step_1_topics_with_questions CASCADE;
 DROP SEQUENCE IF EXISTS public.step_1_topics_with_questions_id_sequence CASCADE;
 DROP TABLE IF EXISTS public.artifacts_step_1 CASCADE;
 DROP SEQUENCE IF EXISTS public.artifacts_step_1_id_sequence CASCADE;
+DROP TABLE IF EXISTS public.pipeline_steps CASCADE;
+DROP SEQUENCE IF EXISTS public.pipeline_steps_id_sequence CASCADE;
 DROP TABLE IF EXISTS public.pipelines CASCADE;
 DROP SEQUENCE IF EXISTS public.pipelines_id_sequence CASCADE;
 
@@ -26,6 +28,19 @@ CREATE TABLE public.pipelines
     topic_key  VARCHAR(255) NOT NULL,
     CONSTRAINT pk_pipelines_id PRIMARY KEY (id),
     CONSTRAINT uq_pipelines_name UNIQUE (name)
+);
+
+CREATE SEQUENCE pipeline_steps_id_sequence START WITH 1 INCREMENT BY 50 CACHE 50;
+CREATE TABLE public.pipeline_steps
+(
+    id            BIGINT,
+    pipeline_id   BIGINT       NOT NULL,
+    step_type     VARCHAR(255) NOT NULL,
+    step_order    INT          NOT NULL,
+    system_prompt TEXT         NOT NULL,
+    user_prompt   TEXT         NOT NULL,
+    CONSTRAINT pk_pipeline_steps_id PRIMARY KEY (id),
+    CONSTRAINT fk_pipeline_id_steps FOREIGN KEY (pipeline_id) REFERENCES pipelines (id) ON DELETE CASCADE
 );
 
 CREATE SEQUENCE artifacts_step_0_id_sequence START WITH 1 INCREMENT BY 50 CACHE 50;

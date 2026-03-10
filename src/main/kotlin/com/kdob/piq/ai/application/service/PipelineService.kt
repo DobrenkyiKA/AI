@@ -5,6 +5,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.step0.Step0ArtifactValidator
 import com.kdob.piq.ai.application.service.step0.Step0TopicsGenerationService
+import com.kdob.piq.ai.application.service.step1.Step1QuestionGenerationService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -12,9 +13,12 @@ import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
+import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
 import com.kdob.piq.ai.infrastructure.web.dto.Step0ArtifactForm
+import com.kdob.piq.ai.infrastructure.web.dto.*
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -23,19 +27,21 @@ import java.time.Instant
 class PipelineService(
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
-    private val step0TopicsGenerationService: Step0TopicsGenerationService,
-    private val step1QuestionGenerationService: Step1QuestionGenerationService,
+    private val generationSteps: List<GenerationStep>,
     private val questionCatalogClient: QuestionCatalogClient
 ) {
-    fun findAll() = pipelineRepository.findAll()
-    fun findByName(name: String) = pipelineRepository.findByName(name)
+    @Transactional(readOnly = true)
+    fun findAll(): List<PipelineResponse> = pipelineRepository.findAll().map { it.toResponse() }
+
+    @Transactional(readOnly = true)
+    fun findByName(name: String): PipelineResponse? = pipelineRepository.findByName(name)?.toResponse()
 
     fun getArtifact(name: String, step: Int): String = artifactStorage.loadArtifact(name, step)
 
     fun getPipelineArtifact(name: String): String = getArtifact(name, 0)
 
     @Transactional
-    fun updateArtifact(name: String, step: Int, yamlContent: String, status: ArtifactStatus): PipelineEntity {
+    fun updateArtifact(name: String, step: Int, yamlContent: String, status: ArtifactStatus): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
 
@@ -80,11 +86,11 @@ class PipelineService(
         }
 
         existing.updatedAt = Instant.now()
-        return pipelineRepository.save(existing)
+        return pipelineRepository.save(existing).toResponse()
     }
 
     @Transactional
-    fun updatePipeline(name: String, yamlContent: String): PipelineEntity {
+    fun updatePipeline(name: String, yamlContent: String): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
         return updateArtifact(
@@ -102,19 +108,21 @@ class PipelineService(
     }
 
     @Transactional
-    fun runStep(pipelineName: String, step: Int) {
-        val existing = pipelineRepository.findByName(pipelineName)
+    fun runStep(pipelineName: String, stepIndex: Int) {
+        val pipeline = pipelineRepository.findByName(pipelineName)
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
 
-        when (step) {
-            0 -> step0TopicsGenerationService.generate(pipelineName)
-            1 -> step1QuestionGenerationService.generate(pipelineName)
-            else -> throw IllegalArgumentException("Run for step $step is not supported yet")
-        }
+        val step = pipeline.steps.getOrNull(stepIndex)
+            ?: throw IllegalArgumentException("Step at index $stepIndex not found")
+
+        val generationStep = generationSteps.find { it.getStepType() == step.stepType }
+            ?: throw IllegalStateException("GenerationStep for type ${step.stepType} not found")
+
+        generationStep.generate(pipeline, step)
     }
 
     @Transactional
-    fun updatePipelineMetadata(name: String, topicKey: String?): PipelineEntity {
+    fun updatePipelineMetadata(name: String, topicKey: String?, steps: List<UpdatePipelineStepRequest>?): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
 
@@ -122,13 +130,28 @@ class PipelineService(
             existing.topicKey = topicKey
         }
 
+        if (steps != null) {
+            existing.steps.clear()
+            existing.steps.addAll(steps.mapIndexed { index, stepRequest ->
+                PipelineStepEntity(
+                    pipeline = existing,
+                    stepType = stepRequest.type,
+                    stepOrder = index,
+                    systemPrompt = stepRequest.systemPrompt,
+                    userPrompt = stepRequest.userPrompt
+                )
+            })
+        }
+
         existing.updatedAt = Instant.now()
-        return pipelineRepository.save(existing)
+        return pipelineRepository.save(existing).toResponse()
     }
 
     @Transactional
     fun runPipelineFrom(pipelineName: String, startStep: Int) {
-        val maxStep = 1 // Currently we have steps 0 and 1
+        val pipeline = pipelineRepository.findByName(pipelineName)
+            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+        val maxStep = pipeline.steps.size - 1
         for (step in startStep..maxStep) {
             runStep(pipelineName, step)
         }
@@ -170,10 +193,21 @@ class PipelineService(
     }
 
     @Transactional
-    fun createPipeline(name: String, topicKey: String): PipelineEntity {
+    fun createPipeline(name: String, topicKey: String, steps: List<CreatePipelineStepRequest>): PipelineResponse {
         val normalizedName = normalizeAndValidateName(name)
         val pipelineEntity = PipelineEntity(name = normalizedName, topicKey = topicKey)
-        return pipelineRepository.save(pipelineEntity)
+
+        pipelineEntity.steps.addAll(steps.mapIndexed { index, stepRequest ->
+            PipelineStepEntity(
+                pipeline = pipelineEntity,
+                stepType = stepRequest.type,
+                stepOrder = index,
+                systemPrompt = stepRequest.systemPrompt,
+                userPrompt = stepRequest.userPrompt
+            )
+        })
+
+        return pipelineRepository.save(pipelineEntity).toResponse()
     }
 
     private fun normalizeAndValidateName(name: String): String {
@@ -189,6 +223,27 @@ class PipelineService(
         }
         return normalized
     }
+
+    private fun PipelineEntity.toResponse() = PipelineResponse(
+        pipelineName = name,
+        topicKey = topicKey,
+        status = status.name,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        steps = steps.mapIndexed { index, step ->
+            PipelineStepResponse(
+                step = index,
+                type = step.stepType,
+                status = when (step.stepType) {
+                    "TOPICS_GENERATION" -> artifactStep0?.status
+                    "QUESTIONS_GENERATION" -> artifactStep1?.status
+                    else -> null
+                },
+                systemPrompt = step.systemPrompt,
+                userPrompt = step.userPrompt
+            )
+        }
+    )
 
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .registerKotlinModule()

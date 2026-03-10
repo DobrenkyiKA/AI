@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service
+package com.kdob.piq.ai.application.service.step1
 
 import com.kdob.piq.ai.application.service.GeminiChat
 import com.kdob.piq.ai.domain.model.ArtifactStatus
@@ -23,6 +23,18 @@ class Step1QuestionGenerationServiceTest {
     private val artifactStorage = mock(ArtifactStorage::class.java)
     private val service = Step1QuestionGenerationService(generator, repository, artifactStorage)
 
+    private fun addStepToPipeline(pipeline: PipelineEntity) {
+        pipeline.steps.add(
+            PipelineStepEntity(
+                pipeline = pipeline,
+                stepType = "QUESTIONS_GENERATION",
+                stepOrder = 0,
+                systemPrompt = "System",
+                userPrompt = "User"
+            )
+        )
+    }
+
     @Test
     fun `should throw exception if pipeline not found`() {
         `when`(repository.findByName("unknown")).thenReturn(null)
@@ -35,6 +47,7 @@ class Step1QuestionGenerationServiceTest {
     @Test
     fun `should throw exception if artifact step 0 not found`() {
         val pipeline = PipelineEntity(name = "test", topicKey = "test-topic")
+        addStepToPipeline(pipeline)
         `when`(repository.findByName("test")).thenReturn(pipeline)
 
         assertThrows<IllegalStateException> {
@@ -45,6 +58,7 @@ class Step1QuestionGenerationServiceTest {
     @Test
     fun `should throw exception if artifact step 0 is not APPROVED`() {
         val pipeline = PipelineEntity(name = "test", topicKey = "test-topic")
+        addStepToPipeline(pipeline)
         val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
         artifactStep0.status = ArtifactStatus.PENDING_FOR_APPROVAL
         pipeline.artifactStep0 = artifactStep0
@@ -59,6 +73,7 @@ class Step1QuestionGenerationServiceTest {
     fun `should generate questions and save them`() {
         val pipelineName = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = "java-core")
+        addStepToPipeline(pipeline)
         val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
         artifactStep0.status = ArtifactStatus.APPROVED
         
@@ -74,7 +89,7 @@ class Step1QuestionGenerationServiceTest {
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(repository.saveAndFlush(pipeline)).thenReturn(pipeline)
-        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+        `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("""
             questions:
               - Question 1
               - Question 2
@@ -96,6 +111,7 @@ class Step1QuestionGenerationServiceTest {
     fun `should handle questions with special characters if quoted`() {
         val pipelineName = "java-pipeline"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = "java-core")
+        addStepToPipeline(pipeline)
         val artifactStep0 = ArtifactStep0Entity(pipeline = pipeline)
         artifactStep0.status = ArtifactStatus.APPROVED
         
@@ -110,7 +126,7 @@ class Step1QuestionGenerationServiceTest {
         pipeline.artifactStep0 = artifactStep0
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
-        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+        `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("""
             questions:
               - "@Override annotation purpose?"
               - "What is @FunctionalInterface?"

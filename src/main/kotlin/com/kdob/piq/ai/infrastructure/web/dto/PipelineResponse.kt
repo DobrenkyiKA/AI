@@ -14,5 +14,8 @@ data class PipelineResponse(
 
 data class PipelineStepResponse(
     val step: Int,
-    val status: ArtifactStatus?
+    val type: String,
+    val status: ArtifactStatus?,
+    val systemPrompt: String,
+    val userPrompt: String
 )

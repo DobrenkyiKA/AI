@@ -1,13 +1,17 @@
-package com.kdob.piq.ai.application.service
+package com.kdob.piq.ai.application.service.step1
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.kdob.piq.ai.application.service.GeminiChat
+import com.kdob.piq.ai.application.service.GenerationStep
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep1Entity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.Step0TopicEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.Step1TopicWithQuestionsEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
@@ -19,19 +23,18 @@ class Step1QuestionGenerationService(
     private val generator: GeminiChat,
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
-) {
+) : GenerationStep {
     private val yamlMapper = ObjectMapper(
         YAMLFactory()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     ).registerKotlinModule()
 
-    @Transactional
-    fun generate(pipelineName: String) {
-        val pipeline = pipelineRepository.findByName(pipelineName)
-            ?: throw IllegalArgumentException("Pipeline not found: $pipelineName")
+    override fun getStepType(): String = "QUESTIONS_GENERATION"
 
+    @Transactional
+    override fun generate(pipeline: PipelineEntity, step: PipelineStepEntity) {
         val artifactStep0 = pipeline.artifactStep0
-            ?: throw IllegalStateException("Step 0 artifact not found for pipeline: $pipelineName")
+            ?: throw IllegalStateException("Step 0 artifact not found for pipeline: ${pipeline.name}")
 
         if (artifactStep0.status != ArtifactStatus.APPROVED) {
             throw IllegalStateException("Step 0 artifact is not APPROVED. Current status: ${artifactStep0.status}")
@@ -45,8 +48,10 @@ class Step1QuestionGenerationService(
         val artifactStep1 = ArtifactStep1Entity(pipeline = pipeline)
 
         for (topic in artifactStep0.topics) {
-            val prompt = buildPrompt(topic)
-            val rawOutput = generator.executePrompt(prompt)
+            val systemPrompt = interpolate(step.systemPrompt, topic)
+            val userPrompt = interpolate(step.userPrompt, topic)
+
+            val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
             val questions = parseQuestions(rawOutput)
 
             val topicWithQuestions = Step1TopicWithQuestionsEntity(
@@ -65,36 +70,33 @@ class Step1QuestionGenerationService(
 
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf(
-            "topics" to artifactStep1.topicsWithQuestions.map {
-                mapOf(
-                    "key" to it.key,
-                    "name" to it.name,
-                    "questions" to it.questions.toList()
-                )
-            }
-        ))
-        artifactStorage.saveStep1Questions(pipelineName, yamlContent.trim())
+                "topics" to artifactStep1.topicsWithQuestions.map {
+                    mapOf(
+                        "key" to it.key,
+                        "name" to it.name,
+                        "questions" to it.questions.toList()
+                    )
+                }
+            ))
+        artifactStorage.saveStep1Questions(pipeline.name, yamlContent.trim())
     }
 
-    private fun buildPrompt(topic: Step0TopicEntity): String = """
-You are a senior technical interviewer.
+    private fun interpolate(prompt: String, topic: Step0TopicEntity): String {
+        return prompt
+            .replace("{{topicName}}", topic.name)
+            .replace("{{coverageArea}}", topic.coverageArea)
+    }
 
-Generate exactly 10 interview-grade questions for the following topic:
+    @Transactional
+    fun generate(pipelineName: String) {
+        val pipeline = pipelineRepository.findByName(pipelineName)
+            ?: throw IllegalArgumentException("Pipeline not found: $pipelineName")
 
-Topic: ${topic.name}
-Coverage Area: ${topic.coverageArea}
+        val step = pipeline.steps.find { it.stepType == getStepType() }
+            ?: throw IllegalStateException("Step ${getStepType()} not found in pipeline $pipelineName")
 
-Rules:
-- Generate exactly 10 questions.
-- No answers.
-- No explanations.
-- Quoting: ALWAYS wrap each question text in double quotes to ensure valid YAML (e.g., - "Question text?").
-- Output YAML ONLY in the following format:
-
-questions:
-  - "<question 1 text>"
-  - "<question 2 text>"
-""".trimIndent()
+        generate(pipeline, step)
+    }
 
     private fun parseQuestions(rawOutput: String): List<String> {
         val cleaned = rawOutput.trim().removeSurrounding("```yaml", "```").trim()

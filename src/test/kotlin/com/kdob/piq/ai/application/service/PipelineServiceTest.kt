@@ -4,16 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.step0.Step0TopicsGenerationService
+import com.kdob.piq.ai.application.service.step1.Step1QuestionGenerationService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
+import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
-import com.kdob.piq.ai.infrastructure.persistence.entity.ArtifactStep0Entity
-import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.Step0TopicEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
+import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
+import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.*
@@ -28,10 +31,15 @@ class PipelineServiceTest {
     private val service = PipelineService(
         repository,
         artifactStorage,
-        step0TopicsGenerationService,
-        step1QuestionGenerationService,
+        listOf(step0TopicsGenerationService, step1QuestionGenerationService),
         questionCatalogClient
     )
+
+    @BeforeEach
+    fun setup() {
+        `when`(step0TopicsGenerationService.getStepType()).thenReturn("TOPICS_GENERATION")
+        `when`(step1QuestionGenerationService.getStepType()).thenReturn("QUESTIONS_GENERATION")
+    }
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .registerKotlinModule()
 
@@ -44,9 +52,9 @@ class PipelineServiceTest {
         `when`(repository.findByName(expectedNormalized)).thenReturn(null)
         `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
 
-        val result = service.createPipeline(name, topicKey)
+        val result = service.createPipeline(name, topicKey, emptyList())
 
-        assertEquals(expectedNormalized, result.name)
+        assertEquals(expectedNormalized, result.pipelineName)
         assertEquals(topicKey, result.topicKey)
         verify(repository).save(any(PipelineEntity::class.java))
     }
@@ -66,7 +74,7 @@ class PipelineServiceTest {
         val name = "Java Core @ Interview"
 
         assertThrows<IllegalArgumentException> {
-            service.createPipeline(name, "java-core")
+            service.createPipeline(name, "java-core", emptyList())
         }
     }
 
@@ -76,7 +84,7 @@ class PipelineServiceTest {
         `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "some-topic"))
 
         assertThrows<IllegalArgumentException> {
-            service.createPipeline(name, "some-topic")
+            service.createPipeline(name, "some-topic", emptyList())
         }
     }
 
@@ -128,42 +136,53 @@ class PipelineServiceTest {
     @Test
     fun `should run step 0`() {
         val name = "java-core-interview-v1"
-        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
 
         service.runStep(name, 0)
 
-        verify(step0TopicsGenerationService).generate(name)
+        verify(step0TopicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test
     fun `should run step 1`() {
         val name = "java-core-interview-v1"
-        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
 
         service.runStep(name, 1)
 
-        verify(step1QuestionGenerationService).generate(name)
+        verify(step1QuestionGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test
     fun `should run pipeline from step 0`() {
         val name = "java-core-interview-v1"
-        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
 
         service.runPipelineFrom(name, 0)
 
-        verify(step0TopicsGenerationService).generate(name)
-        verify(step1QuestionGenerationService).generate(name)
+        verify(step0TopicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(step1QuestionGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test
     fun `should run pipeline from step 1`() {
         val name = "java-core-interview-v1"
-        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
 
         service.runPipelineFrom(name, 1)
 
-        verify(step1QuestionGenerationService).generate(name)
+        verify(step1QuestionGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
     }
 
     @Test

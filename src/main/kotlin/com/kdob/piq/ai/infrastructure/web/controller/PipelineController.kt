@@ -20,12 +20,12 @@ class PipelineController(
 ) {
     @GetMapping
     fun getAllPipelines(): List<PipelineResponse> {
-        return pipelineService.findAll().map { it.toResponse() }
+        return pipelineService.findAll()
     }
 
     @GetMapping("/{pipelineName}")
     fun getPipeline(@PathVariable pipelineName: String): PipelineResponse {
-        return pipelineService.findByName(pipelineName)?.toResponse()
+        return pipelineService.findByName(pipelineName)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Pipeline not found")
     }
 
@@ -48,7 +48,7 @@ class PipelineController(
         @PathVariable step: Int,
         @RequestBody request: PipelineArtifactUpdateRequest
     ): PipelineResponse {
-        return pipelineService.updateArtifact(pipelineName, step, request.content, request.status).toResponse()
+        return pipelineService.updateArtifact(pipelineName, step, request.content, request.status)
     }
 
     @PutMapping("/{pipelineName}")
@@ -56,7 +56,7 @@ class PipelineController(
         @PathVariable pipelineName: String,
         @RequestBody yaml: String
     ): PipelineResponse {
-        return pipelineService.updatePipeline(pipelineName, yaml).toResponse()
+        return pipelineService.updatePipeline(pipelineName, yaml)
     }
 
     @PatchMapping("/{pipelineName}")
@@ -64,19 +64,19 @@ class PipelineController(
         @PathVariable pipelineName: String,
         @RequestBody request: UpdatePipelineRequest
     ): PipelineResponse {
-        return pipelineService.updatePipelineMetadata(pipelineName, request.topicKey).toResponse()
+        return pipelineService.updatePipelineMetadata(pipelineName, request.topicKey, request.steps)
     }
 
     @PostMapping
     fun createPipeline(@RequestBody request: CreatePipelineRequest): ResponseEntity<PipelineResponse> {
-        val created = pipelineService.createPipeline(request.name, request.topicKey)
+        val created = pipelineService.createPipeline(request.name, request.topicKey, request.steps)
         val location = ServletUriComponentsBuilder
             .fromCurrentRequest()
             .path("/{name}")
-            .buildAndExpand(created.name)
+            .buildAndExpand(created.pipelineName)
             .toUri()
 
-        return ResponseEntity.created(location).body(created.toResponse())
+        return ResponseEntity.created(location).body(created)
     }
 
     @DeleteMapping("/{pipelineName}")
@@ -108,16 +108,4 @@ class PipelineController(
         pipelineService.publishStep0Artifact(pipelineName)
         return getPipeline(pipelineName)
     }
-
-    private fun PipelineEntity.toResponse() = PipelineResponse(
-        pipelineName = name,
-        topicKey = topicKey,
-        status = status.name,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-        steps = listOf(
-            PipelineStepResponse(0, artifactStep0?.status),
-            PipelineStepResponse(1, artifactStep1?.status)
-        )
-    )
 }

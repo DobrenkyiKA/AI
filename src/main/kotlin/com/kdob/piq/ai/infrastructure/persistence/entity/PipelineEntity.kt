@@ -20,7 +20,11 @@ class PipelineEntity(
     var artifactStep0: ArtifactStep0Entity? = null,
 
     @OneToOne(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
-    var artifactStep1: ArtifactStep1Entity? = null
+    var artifactStep1: ArtifactStep1Entity? = null,
+
+    @OneToMany(mappedBy = "pipeline", cascade = [CascadeType.ALL], orphanRemoval = true)
+    @OrderBy("stepOrder ASC")
+    val steps: MutableList<PipelineStepEntity> = mutableListOf()
 
 ) : BaseEntity() {
     @Id

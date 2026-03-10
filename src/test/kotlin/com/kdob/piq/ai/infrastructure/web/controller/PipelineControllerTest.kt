@@ -3,8 +3,12 @@ package com.kdob.piq.ai.infrastructure.web.controller
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepResponse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyList
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.*
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -27,13 +31,13 @@ class PipelineControllerTest {
     fun `should create pipeline and return 201 with Location header`() {
         val name = "test-pipeline"
         val topicKey = "test-topic"
-        val entity = PipelineEntity(name = name, topicKey = topicKey)
+        val response = PipelineEntity(name = name, topicKey = topicKey).toResponse()
         
-        `when`(intakeService.createPipeline(name, topicKey)).thenReturn(entity)
+        `when`(intakeService.createPipeline(eq(name) ?: name, eq(topicKey) ?: topicKey, anyList())).thenReturn(response)
 
         mockMvc.perform(post("/pipeline")
             .contentType(MediaType.APPLICATION_JSON)
-            .content("{\"name\": \"$name\", \"topicKey\": \"$topicKey\"}"))
+            .content("{\"name\": \"$name\", \"topicKey\": \"$topicKey\", \"steps\": []}"))
             .andExpect(status().isCreated)
             .andExpect(header().string("Location", "http://localhost/pipeline/test-pipeline"))
             .andExpect(jsonPath("$.pipelineName").value(name))
@@ -50,8 +54,8 @@ class PipelineControllerTest {
 
     @Test
     fun `should return 200 when getting all pipelines`() {
-        val entity = PipelineEntity(name = "test-pipeline", topicKey = "test-topic")
-        `when`(intakeService.findAll()).thenReturn(listOf(entity))
+        val response = PipelineEntity(name = "test-pipeline", topicKey = "test-topic").toResponse()
+        `when`(intakeService.findAll()).thenReturn(listOf(response))
 
         mockMvc.perform(get("/pipeline"))
             .andExpect(status().isOk)
@@ -62,8 +66,8 @@ class PipelineControllerTest {
     @Test
     fun `should return 200 when getting single pipeline`() {
         val name = "test-pipeline"
-        val entity = PipelineEntity(name = name, topicKey = "test-topic")
-        `when`(intakeService.findByName(name)).thenReturn(entity)
+        val response = PipelineEntity(name = name, topicKey = "test-topic").toResponse()
+        `when`(intakeService.findByName(name)).thenReturn(response)
 
         mockMvc.perform(get("/pipeline/$name"))
             .andExpect(status().isOk)
@@ -98,9 +102,9 @@ class PipelineControllerTest {
         val name = "test-pipeline"
         val yaml = "updated step content"
         val status = ArtifactStatus.APPROVED
-        val entity = PipelineEntity(name = name, topicKey = "test-topic")
+        val response = PipelineEntity(name = name, topicKey = "test-topic").toResponse()
         
-        `when`(intakeService.updateArtifact(name, 1, yaml, status)).thenReturn(entity)
+        `when`(intakeService.updateArtifact(name, 1, yaml, status)).thenReturn(response)
 
         mockMvc.perform(put("/pipeline/$name/artifact/1")
             .contentType(MediaType.APPLICATION_JSON)
@@ -113,8 +117,8 @@ class PipelineControllerTest {
     fun `should update pipeline and return updated response`() {
         val name = "test-pipeline"
         val yaml = "pipeline: { name: 'test-pipeline', topics: [] }"
-        val entity = PipelineEntity(name = name, topicKey = "test-topic")
-        `when`(intakeService.updatePipeline(name, yaml)).thenReturn(entity)
+        val response = PipelineEntity(name = name, topicKey = "test-topic").toResponse()
+        `when`(intakeService.updatePipeline(name, yaml)).thenReturn(response)
 
         mockMvc.perform(put("/pipeline/$name")
             .contentType(MediaType.TEXT_PLAIN)
@@ -127,8 +131,8 @@ class PipelineControllerTest {
     fun `should update pipeline metadata`() {
         val name = "test-pipeline"
         val newTopicKey = "new-topic"
-        val entity = PipelineEntity(name = name, topicKey = newTopicKey)
-        `when`(intakeService.updatePipelineMetadata(name, newTopicKey)).thenReturn(entity)
+        val response = PipelineEntity(name = name, topicKey = newTopicKey).toResponse()
+        `when`(intakeService.updatePipelineMetadata(eq(name) ?: name, eq(newTopicKey) ?: newTopicKey, eq(null))).thenReturn(response)
 
         mockMvc.perform(patch("/pipeline/$name")
             .contentType(MediaType.APPLICATION_JSON)
@@ -141,8 +145,8 @@ class PipelineControllerTest {
     fun `should run step and return updated response`() {
         val name = "test-pipeline"
         val step = 1
-        val entity = PipelineEntity(name = name, topicKey = "test-topic")
-        `when`(intakeService.findByName(name)).thenReturn(entity)
+        val response = PipelineEntity(name = name, topicKey = "test-topic").toResponse()
+        `when`(intakeService.findByName(name)).thenReturn(response)
 
         mockMvc.perform(post("/pipeline/$name/run/$step"))
             .andExpect(status().isOk)
@@ -155,8 +159,8 @@ class PipelineControllerTest {
     fun `should run pipeline from step and return updated response`() {
         val name = "test-pipeline"
         val step = 0
-        val entity = PipelineEntity(name = name, topicKey = "test-topic")
-        `when`(intakeService.findByName(name)).thenReturn(entity)
+        val response = PipelineEntity(name = name, topicKey = "test-topic").toResponse()
+        `when`(intakeService.findByName(name)).thenReturn(response)
 
         mockMvc.perform(post("/pipeline/$name/run-from/$step"))
             .andExpect(status().isOk)
@@ -164,4 +168,25 @@ class PipelineControllerTest {
         
         verify(intakeService).runPipelineFrom(name, step)
     }
+
+    private fun PipelineEntity.toResponse() = PipelineResponse(
+        pipelineName = name,
+        topicKey = topicKey,
+        status = status.name,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        steps = steps.mapIndexed { index, step ->
+            PipelineStepResponse(
+                step = index,
+                type = step.stepType,
+                status = when (step.stepType) {
+                    "TOPICS_GENERATION" -> artifactStep0?.status
+                    "QUESTIONS_GENERATION" -> artifactStep1?.status
+                    else -> null
+                },
+                systemPrompt = step.systemPrompt,
+                userPrompt = step.userPrompt
+            )
+        }
+    )
 }
