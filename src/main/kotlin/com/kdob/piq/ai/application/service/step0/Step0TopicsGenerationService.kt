@@ -68,8 +68,8 @@ class Step0TopicsGenerationService(
 
     private fun buildPrompt(topicName: String, coverageArea: String, exclusions: String, topicKey: String): String = buildString {
         appendLine("You are a senior technical interviewer and subject matter expert.")
-        appendLine()
-        appendLine("Your task is to build a highly granular and comprehensive taxonomy of subtopics for a technical interview.")
+        appendLine("You need to build the most comprehensive library of possible questions for developers of all levels. ")
+        appendLine("First, your task is to build a highly granular and comprehensive taxonomy of subtopics which the questions can then address for a technical interview.")
         appendLine("The goal is to create a tree structure that is as deep and wide as possible, covering every nuance of the specified topic.")
         appendLine()
         appendLine("Topic: $topicName (Key: $topicKey)")
@@ -89,7 +89,7 @@ class Step0TopicsGenerationService(
         appendLine("- Quoting: ALWAYS wrap 'name' and 'coverageArea' values in double quotes to ensure valid YAML (e.g., name: \"Topic Name\").")
         appendLine("- Hierarchy: For top-level subtopics, 'parentTopicKey' must be '$topicKey'. Subsequent levels should point to their respective parent subtopic keys.")
         appendLine("- Unique Keys: Use descriptive, lowercase, kebab-case keys (e.g., 'java-collections-list-internal').")
-        appendLine("- Volume: Aim for a large number of subtopics (typically 50-100+) to ensure full coverage.")
+        appendLine("- Volume: Aim for a large number of subtopics (typically 150+) to ensure full coverage.")
         appendLine("- Output Format: YAML ONLY in the specified format.")
         appendLine()
         appendLine("topics:")
@@ -116,3 +116,18 @@ class Step0TopicsGenerationService(
         }
     }
 }
+
+//
+//
+//  Structure: Each subtopic must have a unique 'key', a 'name', a 'coverageArea' (detailed description), and a 'parentTopicKey'.
+//- Quoting: ALWAYS wrap 'name' and 'coverageArea' values in double quotes to ensure valid YAML (e.g., name: \"Topic Name\").
+//- Hierarchy: For top-level subtopics, 'parentTopicKey' must be '$topicKey'. Subsequent levels should point to their respective parent subtopic keys.
+//- Unique Keys: Use descriptive, lowercase, kebab-case keys (e.g., 'java-collections-list-internal').
+//- Volume: Aim for a large number of subtopics (typically 150+) to ensure full coverage.
+//- Output Format: YAML ONLY in the specified format.
+//
+//topics:
+//  - key: "<subtopic-key>"
+//    name: "<subtopic-name>"
+//    parentTopicKey: "<parent-key>"
+//    coverageArea: "<detailed description of what this specific subtopic covers, including key concepts to be tested>"
