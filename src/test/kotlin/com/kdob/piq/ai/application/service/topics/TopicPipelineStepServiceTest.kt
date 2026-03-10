@@ -20,13 +20,13 @@ import org.mockito.Mockito.*
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 
-class TopicsGenerationServiceTest {
+class TopicPipelineStepServiceTest {
 
     private val generator = mock(GeminiChat::class.java)
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
-    private val service = TopicsGenerationService(generator, repository, artifactStorage, questionCatalogClient)
+    private val service = TopicPipelineStepService(generator, repository, artifactStorage, questionCatalogClient)
 
     private fun addStepToPipeline(pipeline: PipelineEntity) {
         pipeline.steps.add(

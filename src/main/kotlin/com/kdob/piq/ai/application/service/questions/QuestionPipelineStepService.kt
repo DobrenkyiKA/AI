@@ -5,7 +5,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.GeminiChat
-import com.kdob.piq.ai.application.service.GenerationStep
+import com.kdob.piq.ai.application.service.PipelineStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -19,11 +19,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-class QuestionsGenerationService(
+class QuestionPipelineStepService(
     private val generator: GeminiChat,
     private val pipelineRepository: PipelineRepository,
     private val artifactStorage: ArtifactStorage,
-) : GenerationStep {
+) : PipelineStepService {
     private val yamlMapper = ObjectMapper(
         YAMLFactory()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)

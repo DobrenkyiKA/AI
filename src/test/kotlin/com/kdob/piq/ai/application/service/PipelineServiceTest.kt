@@ -3,8 +3,8 @@ package com.kdob.piq.ai.application.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.topics.TopicsGenerationService
-import com.kdob.piq.ai.application.service.questions.QuestionsGenerationService
+import com.kdob.piq.ai.application.service.topics.TopicPipelineStepService
+import com.kdob.piq.ai.application.service.questions.QuestionPipelineStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -25,8 +25,8 @@ class PipelineServiceTest {
     private val repository = mock(PipelineRepository::class.java)
     private val promptRepository = mock(PromptRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val topicsGenerationService = mock(TopicsGenerationService::class.java)
-    private val questionsGenerationService = mock(QuestionsGenerationService::class.java)
+    private val topicsGenerationService = mock(TopicPipelineStepService::class.java)
+    private val questionsGenerationService = mock(QuestionPipelineStepService::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val service = PipelineService(
         repository,

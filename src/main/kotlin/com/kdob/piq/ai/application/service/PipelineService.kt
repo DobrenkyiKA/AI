@@ -29,7 +29,7 @@ class PipelineService(
     private val pipelineRepository: PipelineRepository,
     private val promptRepository: PromptRepository,
     private val artifactStorage: ArtifactStorage,
-    private val generationSteps: List<GenerationStep>,
+    private val generationSteps: List<PipelineStepService>,
     private val questionCatalogClient: QuestionCatalogClient
 ) {
     @Transactional(readOnly = true)
@@ -130,7 +130,7 @@ class PipelineService(
             ?: throw IllegalArgumentException("Step at index $stepIndex not found")
 
         val generationStep = generationSteps.find { it.getStepType() == step.stepType }
-            ?: throw IllegalStateException("GenerationStep for type ${step.stepType} not found")
+            ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
 
         generationStep.generate(pipeline, step)
     }

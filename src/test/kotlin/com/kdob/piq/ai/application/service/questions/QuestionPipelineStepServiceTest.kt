@@ -17,12 +17,12 @@ import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 
-class QuestionsGenerationServiceTest {
+class QuestionPipelineStepServiceTest {
 
     private val generator = mock(GeminiChat::class.java)
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val service = QuestionsGenerationService(generator, repository, artifactStorage)
+    private val service = QuestionPipelineStepService(generator, repository, artifactStorage)
 
     private fun addStepToPipeline(pipeline: PipelineEntity) {
         pipeline.steps.add(
