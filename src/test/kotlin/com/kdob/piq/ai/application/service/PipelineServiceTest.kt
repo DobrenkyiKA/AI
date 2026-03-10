@@ -41,6 +41,15 @@ class PipelineServiceTest {
         `when`(topicsGenerationService.getStepType()).thenReturn("TOPICS_GENERATION")
         `when`(questionsGenerationService.getStepType()).thenReturn("QUESTIONS_GENERATION")
         `when`(promptRepository.save(any(PromptEntity::class.java))).thenAnswer { it.arguments[0] as PromptEntity }
+        `when`(promptRepository.findByName(org.mockito.ArgumentMatchers.anyString())).thenAnswer { invocation ->
+            val name = invocation.arguments[0] as String
+            if (name.startsWith("DEFAULT_")) {
+                val type = if (name.endsWith("SYSTEM")) PromptType.SYSTEM else PromptType.USER
+                PromptEntity(type = type, name = name, content = "default content")
+            } else {
+                null
+            }
+        }
     }
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .registerKotlinModule()
@@ -71,6 +80,49 @@ class PipelineServiceTest {
             @Suppress("UNCHECKED_CAST")
             null as T
         }
+    }
+
+    @Test
+    fun `should create pipeline with steps and use default prompts`() {
+        val name = "test-pipeline"
+        val topicKey = "java-core"
+        val stepRequest = com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest(
+            type = "TOPICS_GENERATION"
+        )
+
+        `when`(repository.findByName(name)).thenReturn(null)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
+
+        val result = service.createPipeline(name, topicKey, listOf(stepRequest))
+
+        assertEquals(1, result.steps.size)
+        val step = result.steps[0]
+        assertEquals("TOPICS_GENERATION", step.type)
+        assertEquals("DEFAULT_TOPICS_GENERATION_SYSTEM", step.systemPromptName)
+        assertEquals("DEFAULT_TOPICS_GENERATION_USER", step.userPromptName)
+        assertEquals("default content", step.systemPrompt)
+    }
+
+    @Test
+    fun `should update shared default prompt when provided name and content`() {
+        val name = "test-pipeline"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
+
+        val defaultPrompt = PromptEntity(type = PromptType.SYSTEM, name = "DEFAULT_TOPICS_GENERATION_SYSTEM", content = "original content")
+        `when`(promptRepository.findByName("DEFAULT_TOPICS_GENERATION_SYSTEM")).thenReturn(defaultPrompt)
+
+        val updateRequest = com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest(
+            type = "TOPICS_GENERATION",
+            systemPromptName = "DEFAULT_TOPICS_GENERATION_SYSTEM",
+            systemPrompt = "new improved content"
+        )
+
+        service.updatePipelineMetadata(name, null, listOf(updateRequest))
+
+        assertEquals("new improved content", defaultPrompt.content)
+        verify(promptRepository).save(defaultPrompt)
     }
 
     @Test

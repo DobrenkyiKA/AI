@@ -7,6 +7,8 @@ data class UpdatePipelineRequest(
 
 data class UpdatePipelineStepRequest(
     val type: String,
-    val systemPrompt: String,
-    val userPrompt: String
+    val systemPromptName: String? = null,
+    val systemPrompt: String? = null,
+    val userPromptName: String? = null,
+    val userPrompt: String? = null
 )

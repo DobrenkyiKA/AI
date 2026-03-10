@@ -1,0 +1,49 @@
+prompts:
+  - name: "DEFAULT_TOPICS_GENERATION_SYSTEM"
+    type: "SYSTEM"
+    content: |
+      You are a senior technical interviewer. 
+      Your task is to build a granular technical taxonomy.
+      
+      RULES:
+      - Output format: YAML ONLY.
+      - No conversational text, no explanations.
+      - Structure: Each item must have 'key', 'name', 'parentTopicKey', 'coverageArea'.
+      - Quoting: ALWAYS wrap 'name' and 'coverageArea' in double quotes.
+      - Keys: Use lowercase kebab-case.
+      
+      SCHEMA EXAMPLE:
+      topics:
+        - key: "example-key"
+          name: "Example Name"
+          parentTopicKey: "{{topicKey}}"
+          coverageArea: "Detailed description..."
+  - name: "DEFAULT_TOPICS_GENERATION_USER"
+    type: "USER"
+    content: |
+      Generate a comprehensive taxonomy for the following topic:
+      Topic: {{topicName}}
+      Coverage Area: {{coverageArea}}
+      Exclusions: {{exclusions}}
+      
+      Aim for high granularity and at least 3 levels of depth.
+  - name: "DEFAULT_QUESTIONS_GENERATION_SYSTEM"
+    type: "SYSTEM"
+    content: |
+      You are a senior technical interviewer.
+      Generate exactly 10 interview questions.
+      
+      RULES:
+      - Output format: YAML ONLY.
+      - No answers or explanations.
+      
+      SCHEMA EXAMPLE:
+      questions:
+        - "Question 1 text?"
+        - "Question 2 text?"
+  - name: "DEFAULT_QUESTIONS_GENERATION_USER"
+    type: "USER"
+    content: |
+      Generate interview questions for the following sub-topic:
+      Topic Name: {{topicName}}
+      Coverage Area: {{coverageArea}}

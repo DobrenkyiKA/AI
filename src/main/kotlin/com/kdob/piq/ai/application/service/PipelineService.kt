@@ -151,8 +151,8 @@ class PipelineService(
                     pipeline = existing,
                     stepType = stepRequest.type,
                     stepOrder = index,
-                    systemPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPrompt),
-                    userPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.USER, stepRequest.userPrompt)
+                    systemPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPromptName, stepRequest.systemPrompt),
+                    userPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.USER, stepRequest.userPromptName, stepRequest.userPrompt)
                 )
             })
         }
@@ -216,8 +216,8 @@ class PipelineService(
                 pipeline = pipelineEntity,
                 stepType = stepRequest.type,
                 stepOrder = index,
-                systemPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPrompt),
-                userPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.USER, stepRequest.userPrompt)
+                systemPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPromptName, stepRequest.systemPrompt),
+                userPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.USER, stepRequest.userPromptName, stepRequest.userPrompt)
             )
         })
 
@@ -253,21 +253,50 @@ class PipelineService(
                     "QUESTIONS_GENERATION" -> questionsArtifact?.status
                     else -> null
                 },
+                systemPromptName = step.systemPrompt?.name,
                 systemPrompt = step.systemPrompt?.content ?: "",
+                userPromptName = step.userPrompt?.name,
                 userPrompt = step.userPrompt?.content ?: ""
             )
         }
     )
 
-    private fun getOrCreatePrompt(pipelineName: String, stepType: String, type: PromptType, content: String): PromptEntity {
-        val promptName = "$pipelineName-$stepType-${type.name.lowercase()}"
-        val existing = promptRepository.findByName(promptName)
-        return if (existing != null) {
-            existing.content = content
-            promptRepository.save(existing)
-        } else {
-            promptRepository.save(PromptEntity(type = type, name = promptName, content = content))
+    private fun getOrCreatePrompt(
+        pipelineName: String,
+        stepType: String,
+        type: PromptType,
+        providedName: String?,
+        providedContent: String?
+    ): PromptEntity {
+        // 1. If name is provided, try to find and use it
+        if (!providedName.isNullOrBlank()) {
+            val existing = promptRepository.findByName(providedName)
+            if (existing != null) {
+                // If content is also provided, update it (requirement 4: change provided default prompts)
+                if (!providedContent.isNullOrBlank() && providedContent != existing.content) {
+                    existing.content = providedContent
+                    return promptRepository.save(existing)
+                }
+                return existing
+            }
         }
+
+        // 2. If content is provided but no name (or name not found), create/update pipeline-specific prompt
+        if (!providedContent.isNullOrBlank()) {
+            val promptName = providedName ?: "$pipelineName-$stepType-${type.name.lowercase()}"
+            val existing = promptRepository.findByName(promptName)
+            return if (existing != null) {
+                existing.content = providedContent
+                promptRepository.save(existing)
+            } else {
+                promptRepository.save(PromptEntity(type = type, name = promptName, content = providedContent))
+            }
+        }
+
+        // 3. Fallback to default prompt for the step type if nothing else is provided
+        val defaultPromptName = "DEFAULT_${stepType}_${type.name}"
+        return promptRepository.findByName(defaultPromptName)
+            ?: throw IllegalStateException("Default prompt not found: $defaultPromptName. Make sure default prompts are loaded on startup.")
     }
 
     private val yamlMapper = ObjectMapper(YAMLFactory())

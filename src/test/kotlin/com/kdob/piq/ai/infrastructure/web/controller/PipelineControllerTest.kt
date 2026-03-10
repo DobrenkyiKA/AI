@@ -184,7 +184,9 @@ class PipelineControllerTest {
                     "QUESTIONS_GENERATION" -> questionsArtifact?.status
                     else -> null
                 },
+                systemPromptName = step.systemPrompt?.name,
                 systemPrompt = step.systemPrompt?.content ?: "",
+                userPromptName = step.userPrompt?.name,
                 userPrompt = step.userPrompt?.content ?: ""
             )
         }
