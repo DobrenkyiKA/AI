@@ -16,11 +16,13 @@ class PipelineStepEntity(
     @Column(name = "step_order", nullable = false)
     var stepOrder: Int,
 
-    @Column(name = "system_prompt", columnDefinition = "TEXT")
-    var systemPrompt: String = "",
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "system_prompt_id")
+    var systemPrompt: PromptEntity? = null,
 
-    @Column(name = "user_prompt", columnDefinition = "TEXT")
-    var userPrompt: String = ""
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_prompt_id")
+    var userPrompt: PromptEntity? = null
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "pipeline_steps_sequence")

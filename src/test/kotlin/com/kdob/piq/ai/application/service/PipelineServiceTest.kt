@@ -6,7 +6,9 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.topics.TopicsGenerationService
 import com.kdob.piq.ai.application.service.questions.QuestionsGenerationService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
+import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
@@ -21,12 +23,14 @@ import org.mockito.Mockito.*
 class PipelineServiceTest {
 
     private val repository = mock(PipelineRepository::class.java)
+    private val promptRepository = mock(PromptRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
     private val topicsGenerationService = mock(TopicsGenerationService::class.java)
     private val questionsGenerationService = mock(QuestionsGenerationService::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val service = PipelineService(
         repository,
+        promptRepository,
         artifactStorage,
         listOf(topicsGenerationService, questionsGenerationService),
         questionCatalogClient
@@ -36,6 +40,7 @@ class PipelineServiceTest {
     fun setup() {
         `when`(topicsGenerationService.getStepType()).thenReturn("TOPICS_GENERATION")
         `when`(questionsGenerationService.getStepType()).thenReturn("QUESTIONS_GENERATION")
+        `when`(promptRepository.save(any(PromptEntity::class.java))).thenAnswer { it.arguments[0] as PromptEntity }
     }
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .registerKotlinModule()
@@ -60,6 +65,8 @@ class PipelineServiceTest {
         org.mockito.Mockito.any(type)
         return if (type == PipelineEntity::class.java) {
             PipelineEntity(name = "dummy", topicKey = "dummy-topic") as T
+        } else if (type == PromptEntity::class.java) {
+            PromptEntity(type = PromptType.SYSTEM, name = "dummy", content = "dummy") as T
         } else {
             @Suppress("UNCHECKED_CAST")
             null as T

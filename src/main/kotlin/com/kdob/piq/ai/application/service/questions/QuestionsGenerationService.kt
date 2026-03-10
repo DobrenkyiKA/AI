@@ -48,8 +48,8 @@ class QuestionsGenerationService(
         val questionsArtifact = QuestionsArtifactEntity(pipeline = pipeline)
 
         for (topic in topicsArtifact.topics) {
-            val systemPrompt = interpolate(step.systemPrompt, topic)
-            val userPrompt = interpolate(step.userPrompt, topic)
+            val systemPrompt = interpolate(step.systemPrompt?.content ?: "", topic)
+            val userPrompt = interpolate(step.userPrompt?.content ?: "", topic)
 
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
             val questions = parseQuestions(rawOutput)

@@ -3,6 +3,7 @@ package com.kdob.piq.ai.application.service.questions
 import com.kdob.piq.ai.application.service.GeminiChat
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
@@ -29,8 +30,8 @@ class QuestionsGenerationServiceTest {
                 pipeline = pipeline,
                 stepType = "QUESTIONS_GENERATION",
                 stepOrder = 0,
-                systemPrompt = "System",
-                userPrompt = "User"
+                systemPrompt = PromptEntity(PromptType.SYSTEM, "${pipeline.name}-sys", "System"),
+                userPrompt = PromptEntity(PromptType.USER, "${pipeline.name}-usr", "User")
             )
         )
     }

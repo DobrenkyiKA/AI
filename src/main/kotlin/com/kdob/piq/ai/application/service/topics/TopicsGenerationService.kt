@@ -39,8 +39,8 @@ class TopicsGenerationService(
         val topicDetail = questionCatalogClient.findTopic(pipeline.topicKey)
             ?: throw IllegalStateException("Main topic not found: ${pipeline.topicKey}")
 
-        val systemPrompt = interpolate(step.systemPrompt, pipeline, topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions)
-        val userPrompt = interpolate(step.userPrompt, pipeline, topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions)
+        val systemPrompt = interpolate(step.systemPrompt?.content ?: "", pipeline, topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions)
+        val userPrompt = interpolate(step.userPrompt?.content ?: "", pipeline, topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions)
 
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val subTopics = parseSubTopics(rawOutput)

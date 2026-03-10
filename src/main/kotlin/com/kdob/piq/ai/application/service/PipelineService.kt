@@ -6,12 +6,15 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.topics.TopicsArtifactValidator
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
@@ -24,6 +27,7 @@ import java.time.Instant
 @Service
 class PipelineService(
     private val pipelineRepository: PipelineRepository,
+    private val promptRepository: PromptRepository,
     private val artifactStorage: ArtifactStorage,
     private val generationSteps: List<GenerationStep>,
     private val questionCatalogClient: QuestionCatalogClient
@@ -147,8 +151,8 @@ class PipelineService(
                     pipeline = existing,
                     stepType = stepRequest.type,
                     stepOrder = index,
-                    systemPrompt = stepRequest.systemPrompt,
-                    userPrompt = stepRequest.userPrompt
+                    systemPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPrompt),
+                    userPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.USER, stepRequest.userPrompt)
                 )
             })
         }
@@ -212,8 +216,8 @@ class PipelineService(
                 pipeline = pipelineEntity,
                 stepType = stepRequest.type,
                 stepOrder = index,
-                systemPrompt = stepRequest.systemPrompt,
-                userPrompt = stepRequest.userPrompt
+                systemPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPrompt),
+                userPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.USER, stepRequest.userPrompt)
             )
         })
 
@@ -249,11 +253,22 @@ class PipelineService(
                     "QUESTIONS_GENERATION" -> questionsArtifact?.status
                     else -> null
                 },
-                systemPrompt = step.systemPrompt,
-                userPrompt = step.userPrompt
+                systemPrompt = step.systemPrompt?.content ?: "",
+                userPrompt = step.userPrompt?.content ?: ""
             )
         }
     )
+
+    private fun getOrCreatePrompt(pipelineName: String, stepType: String, type: PromptType, content: String): PromptEntity {
+        val promptName = "$pipelineName-$stepType-${type.name.lowercase()}"
+        val existing = promptRepository.findByName(promptName)
+        return if (existing != null) {
+            existing.content = content
+            promptRepository.save(existing)
+        } else {
+            promptRepository.save(PromptEntity(type = type, name = promptName, content = content))
+        }
+    }
 
     private val yamlMapper = ObjectMapper(YAMLFactory())
         .registerKotlinModule()

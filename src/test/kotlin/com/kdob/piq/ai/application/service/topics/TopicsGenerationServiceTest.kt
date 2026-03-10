@@ -3,10 +3,13 @@ package com.kdob.piq.ai.application.service.topics
 import com.kdob.piq.ai.application.service.GeminiChat
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -25,11 +28,24 @@ class TopicsGenerationServiceTest {
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val service = TopicsGenerationService(generator, repository, artifactStorage, questionCatalogClient)
 
+    private fun addStepToPipeline(pipeline: PipelineEntity) {
+        pipeline.steps.add(
+            PipelineStepEntity(
+                pipeline = pipeline,
+                stepType = "TOPICS_GENERATION",
+                stepOrder = 0,
+                systemPrompt = PromptEntity(PromptType.SYSTEM, "${pipeline.name}-sys", "System"),
+                userPrompt = PromptEntity(PromptType.USER, "${pipeline.name}-usr", "User")
+            )
+        )
+    }
+
     @Test
     fun `should generate topics and save them`() {
         val pipelineName = "java-pipeline"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+        addStepToPipeline(pipeline)
 
         val topicResponse = TopicClientResponse(
             key = topicKey,
@@ -41,7 +57,7 @@ class TopicsGenerationServiceTest {
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
-        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+        `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("""
             topics:
               - key: java-fundamentals
                 name: Java Fundamentals
@@ -76,6 +92,7 @@ class TopicsGenerationServiceTest {
         val pipelineName = "java-pipeline"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+        addStepToPipeline(pipeline)
 
         val topicResponse = TopicClientResponse(
             key = topicKey,
@@ -87,7 +104,7 @@ class TopicsGenerationServiceTest {
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
-        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+        `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("""
             topics:
               - key: java-fundamentals
                 name: Java Fundamentals
@@ -98,7 +115,7 @@ class TopicsGenerationServiceTest {
         service.generate(pipelineName)
 
         val captor = ArgumentCaptor.forClass(String::class.java)
-        verify(generator).executePrompt(captor.capture() ?: "")
+        verify(generator).executePrompt(anyString() ?: "", captor.capture() ?: "")
         
         val prompt = captor.value
         assertFalse(prompt.contains("Exclusions (DO NOT INCLUDE):"), "Prompt should not contain 'Exclusions (DO NOT INCLUDE):'")
@@ -110,6 +127,7 @@ class TopicsGenerationServiceTest {
         val pipelineName = "java-pipeline"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+        addStepToPipeline(pipeline)
 
         val topicResponse = TopicClientResponse(
             key = topicKey,
@@ -121,7 +139,7 @@ class TopicsGenerationServiceTest {
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
-        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+        `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("""
             topics:
               - key: java-fundamentals
                 name: Java Fundamentals
@@ -132,7 +150,7 @@ class TopicsGenerationServiceTest {
         service.generate(pipelineName)
 
         val captor = ArgumentCaptor.forClass(String::class.java)
-        verify(generator).executePrompt(captor.capture() ?: "")
+        verify(generator).executePrompt(anyString() ?: "", captor.capture() ?: "")
         
         val prompt = captor.value
         assertTrue(prompt.contains("Exclusions (DO NOT INCLUDE): Spring"), "Prompt should contain 'Exclusions (DO NOT INCLUDE): Spring'")
@@ -144,13 +162,14 @@ class TopicsGenerationServiceTest {
         val pipelineName = "java-pipeline"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = pipelineName, topicKey = topicKey)
+        addStepToPipeline(pipeline)
         val topicResponse = TopicClientResponse(topicKey, "Java Core", "/java-core", "Core", "")
 
         `when`(repository.findByName(pipelineName)).thenReturn(pipeline)
         `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(topicResponse)
         
         // Simulating the corrected output with quotes
-        `when`(generator.executePrompt(anyString() ?: "")).thenReturn("""
+        `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("""
             topics:
               - key: "java-annotations"
                 name: "Annotations"
