@@ -1,56 +1,42 @@
 package com.kdob.piq.ai.infrastructure.storage
 
+import com.kdob.piq.ai.infrastructure.client.storage.StorageClient
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Files
-import java.nio.file.Path
+import org.mockito.Mockito.*
 
 class ArtifactStorageTest {
 
-    @TempDir
-    lateinit var tempDir: Path
+    private val storageClient = mock(StorageClient::class.java)
+    private val storage = ArtifactStorage(storageClient)
+    private val topicKey = "test-topic"
+    private val pipelineName = "test-pipeline"
+    private val yaml = "content: test"
 
     @Test
-    fun `should save topics artifact using pipeline name`() {
-        val properties = PipelineArtifactProperties(tempDir.toString())
-        val storage = ArtifactStorage(properties)
-        val pipelineName = "test-pipeline"
-        val yaml = "content: test"
+    fun `should save topics artifact using topic key and pipeline name`() {
+        storage.saveTopicsArtifact(topicKey, pipelineName, yaml)
 
-        storage.saveTopicsArtifact(pipelineName, yaml)
-
-        val expectedPath = tempDir.resolve("$pipelineName/topics-artifact.yaml")
-        assertTrue(Files.exists(expectedPath))
-        assertEquals(yaml, Files.readString(expectedPath))
+        verify(storageClient).saveTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml", yaml)
     }
 
     @Test
-    fun `should load topics artifact using pipeline name`() {
-        val properties = PipelineArtifactProperties(tempDir.toString())
-        val storage = ArtifactStorage(properties)
-        val pipelineName = "test-pipeline"
-        val yaml = "content: loaded"
+    fun `should load topics artifact using topic key and pipeline name`() {
+        `when`(storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")).thenReturn(yaml)
 
-        val dir = tempDir.resolve(pipelineName)
-        Files.createDirectories(dir)
-        Files.writeString(dir.resolve("topics-artifact.yaml"), yaml)
-
-        val result = storage.loadTopicsArtifact(pipelineName)
+        val result = storage.loadTopicsArtifact(topicKey, pipelineName)
 
         assertEquals(yaml, result)
+        verify(storageClient).loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
     }
 
     @Test
     fun `demonstrate consistency between save and load`() {
-        val properties = PipelineArtifactProperties(tempDir.toString())
-        val storage = ArtifactStorage(properties)
-        val pipelineName = "test-pipeline"
-        val yaml = "content: test"
+        `when`(storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")).thenReturn(yaml)
 
-        storage.saveTopicsArtifact(pipelineName, yaml)
-        val result = storage.loadTopicsArtifact(pipelineName)
+        storage.saveTopicsArtifact(topicKey, pipelineName, yaml)
+        val result = storage.loadTopicsArtifact(topicKey, pipelineName)
+
         assertEquals(yaml, result)
     }
 }

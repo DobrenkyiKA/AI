@@ -1,6 +1,5 @@
 package com.kdob.piq.ai.infrastructure.persistence.entity
 
-import com.kdob.piq.ai.domain.model.ArtifactStatus
 import jakarta.persistence.*
 
 @Entity

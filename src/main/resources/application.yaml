@@ -42,11 +42,6 @@ spring:
           new_generator_mappings: true
         default_batch_fetch_size: 50
 
-content:
-  pipeline:
-    artifacts:
-      root-dir: ai/pipeline-artifacts
-
 storage:
   url: http://localhost:8084
 

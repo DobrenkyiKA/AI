@@ -44,10 +44,14 @@ class PipelineService(
             ?: throw NoSuchElementException("Pipeline not found: $name")
         val step = existing.steps.getOrNull(stepIndex)
             ?: throw IllegalArgumentException("Step at index $stepIndex not found")
-        return artifactStorage.loadArtifact(name, step.stepType)
+        return artifactStorage.loadArtifact(existing.topicKey, name, step.stepType)
     }
 
-    fun getTopicsArtifact(name: String): String = artifactStorage.loadTopicsArtifact(name)
+    fun getTopicsArtifact(name: String): String {
+        val existing = pipelineRepository.findByName(name)
+            ?: throw NoSuchElementException("Pipeline not found: $name")
+        return artifactStorage.loadTopicsArtifact(existing.topicKey, name)
+    }
 
     @Transactional
     fun updateArtifact(name: String, stepIndex: Int, yamlContent: String, status: ArtifactStatus): PipelineResponse {
@@ -64,7 +68,7 @@ class PipelineService(
 
                 val questionsStep = existing.steps.find { it.stepType == "QUESTIONS_GENERATION" }
                 questionsStep?.artifact = null
-                artifactStorage.deleteArtifact(name, "QUESTIONS_GENERATION")
+                artifactStorage.deleteArtifact(existing.topicKey, name, "QUESTIONS_GENERATION")
 
                 if (step.artifact != null) {
                     step.artifact = null
@@ -81,7 +85,7 @@ class PipelineService(
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
                     existing.status = PipelineStatus.DRAFT
                 }
-                artifactStorage.saveTopicsArtifact(name, yamlContent)
+                artifactStorage.saveTopicsArtifact(existing.topicKey, name, yamlContent)
             }
 
             "QUESTIONS_GENERATION" -> {
@@ -92,7 +96,7 @@ class PipelineService(
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
                     existing.status = PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL
                 }
-                artifactStorage.saveQuestionsArtifact(name, yamlContent)
+                artifactStorage.saveQuestionsArtifact(existing.topicKey, name, yamlContent)
             }
 
             else -> throw IllegalArgumentException("Unsupported step type: ${step.stepType}")
@@ -120,8 +124,10 @@ class PipelineService(
 
     @Transactional
     fun deletePipeline(name: String) {
+        val existing = pipelineRepository.findByName(name)
+            ?: throw NoSuchElementException("Pipeline not found: $name")
         pipelineRepository.deleteByName(name)
-        artifactStorage.deleteArtifacts(name)
+        artifactStorage.deleteArtifacts(existing.topicKey, name)
     }
 
     @Transactional

@@ -81,7 +81,7 @@ class QuestionPipelineStepService(
                     )
                 }
             ))
-        artifactStorage.saveQuestionsArtifact(pipeline.name, yamlContent.trim())
+        artifactStorage.saveQuestionsArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
     }
 
     private fun interpolate(prompt: String, topic: PipelineTopicEntity): String {

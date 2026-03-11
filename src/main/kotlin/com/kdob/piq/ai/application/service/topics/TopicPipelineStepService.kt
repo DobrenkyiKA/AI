@@ -67,7 +67,7 @@ class TopicPipelineStepService(
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf("topics" to topicsWithParent)
         )
-        artifactStorage.saveTopicsArtifact(pipeline.name, yamlContent.trim())
+        artifactStorage.saveTopicsArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
     }
 
     private fun interpolate(prompt: String, pipeline: PipelineEntity, topicName: String, coverageArea: String, exclusions: String): String {

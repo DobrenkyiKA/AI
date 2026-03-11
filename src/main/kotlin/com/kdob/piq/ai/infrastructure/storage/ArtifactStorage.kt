@@ -1,56 +1,38 @@
 package com.kdob.piq.ai.infrastructure.storage
 
+import com.kdob.piq.ai.infrastructure.client.storage.StorageClient
 import org.springframework.stereotype.Component
-import java.nio.file.Files
-import java.nio.file.Path
 
 @Component
 class ArtifactStorage(
-    properties: PipelineArtifactProperties
+    private val storageClient: StorageClient
 ) {
-    private val rootDir: Path = Path.of(properties.rootDir)
-
-    init {
-        Files.createDirectories(rootDir)
+    fun saveTopicsArtifact(topicKey: String, pipelineName: String, yaml: String) {
+        storageClient.saveTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml", yaml)
     }
 
-    fun saveTopicsArtifact(pipelineName: String, yaml: String) {
-        saveArtifact(pipelineName, "TOPICS_GENERATION", yaml)
+    fun loadTopicsArtifact(topicKey: String, pipelineName: String): String =
+        storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
+
+    fun saveQuestionsArtifact(topicKey: String, pipelineName: String, yaml: String) {
+        storageClient.saveQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml", yaml)
     }
 
-    fun loadTopicsArtifact(pipelineName: String): String = loadArtifact(pipelineName, "TOPICS_GENERATION")
-
-    fun saveQuestionsArtifact(pipelineName: String, yaml: String) {
-        saveArtifact(pipelineName, "QUESTIONS_GENERATION", yaml)
-    }
-
-    fun saveArtifact(pipelineName: String, stepType: String, yaml: String) {
-        val dir = rootDir.resolve(pipelineName)
-        Files.createDirectories(dir)
-        Files.writeString(dir.resolve(getArtifactFileName(stepType)), yaml)
-    }
-
-    fun loadArtifact(pipelineName: String, stepType: String): String =
-        Files.readString(rootDir.resolve(pipelineName).resolve(getArtifactFileName(stepType)))
-
-    private fun getArtifactFileName(stepType: String): String = when (stepType) {
-        "TOPICS_GENERATION" -> "topics-artifact.yaml"
-        "QUESTIONS_GENERATION" -> "questions-artifact.yaml"
+    fun loadArtifact(topicKey: String, pipelineName: String, stepType: String): String = when (stepType) {
+        "TOPICS_GENERATION" -> storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
+        "QUESTIONS_GENERATION" -> storageClient.loadQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml")
         else -> throw IllegalArgumentException("Unknown step type: $stepType")
     }
 
-    fun deleteArtifacts(pipelineName: String) {
-        val dir = rootDir.resolve(pipelineName)
-        if (Files.exists(dir)) {
-            dir.toFile().deleteRecursively()
-        }
+    fun deleteArtifacts(topicKey: String, pipelineName: String) {
+        storageClient.deleteVersion(topicKey, pipelineName)
     }
 
-    fun deleteArtifact(pipelineName: String, stepType: String) {
-        val dir = rootDir.resolve(pipelineName)
-        val file = dir.resolve(getArtifactFileName(stepType))
-        if (Files.exists(file)) {
-            Files.delete(file)
+    fun deleteArtifact(topicKey: String, pipelineName: String, stepType: String) {
+        when (stepType) {
+            "TOPICS_GENERATION" -> storageClient.deleteTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
+            "QUESTIONS_GENERATION" -> storageClient.deleteQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml")
+            else -> throw IllegalArgumentException("Unknown step type: $stepType")
         }
     }
 }
