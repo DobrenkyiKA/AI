@@ -9,7 +9,7 @@ import jakarta.persistence.*
 class PromptEntity(
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
-    val type: PromptType,
+    var type: PromptType,
 
     @Column(name = "name", nullable = false, unique = true)
     var name: String,

@@ -1,5 +1,6 @@
 package com.kdob.piq.ai.infrastructure.config
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.core.context.SecurityContextHolder
@@ -7,12 +8,22 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.web.client.RestClient
 
 @Configuration
-class RestClientConfig {
+class RestClientConfig(
+    @Value("\${question.service.url:http://localhost:8082}") private val questionServiceUrl: String,
+    @Value("\${storage.url:http://localhost:8084}") private val storageUrl: String
+) {
 
     @Bean
     fun questionServiceRestClient(): RestClient =
+        createRestClient(questionServiceUrl)
+
+    @Bean
+    fun storageRestClient(): RestClient =
+        createRestClient(storageUrl)
+
+    private fun createRestClient(baseUrl: String): RestClient =
         RestClient.builder()
-            .baseUrl("http://localhost:8082")
+            .baseUrl(baseUrl)
             .requestInterceptor { request, body, execution ->
                 val authentication = SecurityContextHolder.getContext().authentication
                 if (authentication is JwtAuthenticationToken) {

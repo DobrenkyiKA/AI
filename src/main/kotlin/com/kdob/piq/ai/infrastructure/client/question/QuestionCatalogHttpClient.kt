@@ -3,13 +3,16 @@ package com.kdob.piq.ai.infrastructure.client.question
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.QuestionPromptResponse
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 
 @Component
-class QuestionCatalogHttpClient(private val restClient: RestClient) : QuestionCatalogClient {
+class QuestionCatalogHttpClient(
+    @Qualifier("questionServiceRestClient") private val restClient: RestClient
+) : QuestionCatalogClient {
 
     override fun findQuestionPrompts(topicKeys: Set<String>): List<QuestionPromptResponse> {
 

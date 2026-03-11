@@ -47,6 +47,9 @@ content:
     artifacts:
       root-dir: ai/pipeline-artifacts
 
+storage:
+  url: http://localhost:8084
+
 logging:
   level:
     org:
