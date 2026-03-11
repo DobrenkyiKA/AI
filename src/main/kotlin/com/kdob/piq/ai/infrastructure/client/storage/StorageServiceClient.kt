@@ -43,21 +43,21 @@ class StorageServiceClient(
     fun listPrompts(version: String): List<String> {
         val typeRef = object : ParameterizedTypeReference<List<String>>() {}
         return storageRestClient.get()
-            .uri("/versions/prompts/$version/prompts")
+            .uri("/versions/prompts/$version")
             .retrieve()
             .body(typeRef) ?: emptyList()
     }
 
     fun getPromptFile(version: String, fileName: String): String? {
         return storageRestClient.get()
-            .uri("/versions/prompts/$version/prompts/$fileName")
+            .uri("/versions/prompts/$version/$fileName")
             .retrieve()
             .body(String::class.java)
     }
 
     fun savePromptFile(version: String, fileName: String, content: String) {
         storageRestClient.put()
-            .uri("/versions/prompts/$version/prompts/$fileName")
+            .uri("/versions/prompts/$version/$fileName")
             .contentType(MediaType.TEXT_PLAIN)
             .body(content)
             .retrieve()
