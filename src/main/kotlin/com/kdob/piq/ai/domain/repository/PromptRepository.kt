@@ -8,4 +8,5 @@ interface PromptRepository {
     fun save(prompt: PromptEntity): PromptEntity
     fun deleteByName(name: String)
     fun findAllByType(type: PromptType): List<PromptEntity>
+    fun findAll(): List<PromptEntity>
 }

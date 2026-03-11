@@ -13,4 +13,5 @@ class JpaPromptRepositoryImpl(
     override fun save(prompt: PromptEntity): PromptEntity = springDataPromptRepository.save(prompt)
     override fun deleteByName(name: String) = springDataPromptRepository.deleteByName(name)
     override fun findAllByType(type: PromptType): List<PromptEntity> = springDataPromptRepository.findAllByType(type)
+    override fun findAll(): List<PromptEntity> = springDataPromptRepository.findAll()
 }
