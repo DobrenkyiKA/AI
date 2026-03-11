@@ -11,10 +11,10 @@ import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PipelineTopic
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
-import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
+import com.kdob.piq.ai.infrastructure.persistence.mapping.toPipelineTopicEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -50,16 +50,16 @@ class TopicPipelineStepService(
             if (it.parentTopicKey == null) it.copy(parentTopicKey = pipeline.topicKey) else it
         }
 
-        if (pipeline.topicsArtifact != null) {
-            pipeline.topicsArtifact = null
+        if (step.artifact != null) {
+            step.artifact = null
             pipelineRepository.saveAndFlush(pipeline)
         }
 
-        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = pipeline)
         topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        topicsArtifact.topics.addAll(topicsWithParent.map { it.toEntity(topicsArtifact) })
+        topicsArtifact.topics.addAll(topicsWithParent.map { it.toPipelineTopicEntity(topicsArtifact) })
 
-        pipeline.topicsArtifact = topicsArtifact
+        step.artifact = topicsArtifact
         pipeline.status = PipelineStatus.DRAFT
         pipeline.updatedAt = Instant.now()
         pipelineRepository.save(pipeline)
@@ -71,11 +71,18 @@ class TopicPipelineStepService(
     }
 
     private fun interpolate(prompt: String, pipeline: PipelineEntity, topicName: String, coverageArea: String, exclusions: String): String {
-        return prompt
+        val result = prompt
             .replace("{{topicName}}", topicName)
             .replace("{{topicKey}}", pipeline.topicKey)
             .replace("{{coverageArea}}", coverageArea)
-            .replace("{{exclusions}}", exclusions)
+
+        return if (exclusions.isNotBlank()) {
+            result.replace("{{exclusions}}", exclusions)
+        } else {
+            result.lines()
+                .filter { !it.contains("{{exclusions}}") && !it.contains("Strict Exclusions") }
+                .joinToString("\n")
+        }
     }
 
     @Transactional

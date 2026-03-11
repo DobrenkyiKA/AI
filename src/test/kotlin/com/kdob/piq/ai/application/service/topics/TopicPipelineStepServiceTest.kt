@@ -10,6 +10,7 @@ import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -29,13 +30,18 @@ class TopicPipelineStepServiceTest {
     private val service = TopicPipelineStepService(generator, repository, artifactStorage, questionCatalogClient)
 
     private fun addStepToPipeline(pipeline: PipelineEntity) {
+        val userPromptContent = """
+            Generate topics for {{topicName}}
+            Exclusions (DO NOT INCLUDE): {{exclusions}}
+            - Strict Exclusions: Do not include ANY topics or subtopics that fall under the exclusions list.
+        """.trimIndent()
         pipeline.steps.add(
             PipelineStepEntity(
                 pipeline = pipeline,
                 stepType = "TOPICS_GENERATION",
                 stepOrder = 0,
                 systemPrompt = PromptEntity(PromptType.SYSTEM, "${pipeline.name}-sys", "System"),
-                userPrompt = PromptEntity(PromptType.USER, "${pipeline.name}-usr", "User")
+                userPrompt = PromptEntity(PromptType.USER, "${pipeline.name}-usr", userPromptContent)
             )
         )
     }
@@ -74,15 +80,17 @@ class TopicPipelineStepServiceTest {
         verify(repository).save(pipeline)
         verify(artifactStorage).saveTopicsArtifact(eq(pipelineName) ?: "", anyString() ?: "")
         assertEquals(PipelineStatus.DRAFT, pipeline.status)
-        assertEquals(ArtifactStatus.PENDING_FOR_APPROVAL, pipeline.topicsArtifact?.status)
+        val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" }
+        assertEquals(ArtifactStatus.PENDING_FOR_APPROVAL, topicsStep?.artifact?.status)
         
-        assertEquals(2, pipeline.topicsArtifact?.topics?.size)
-        val fundamentals = pipeline.topicsArtifact?.topics?.find { it.key == "java-fundamentals" }
+        val topicsArtifact = topicsStep?.artifact as? TopicsPipelineArtifactEntity
+        assertEquals(2, topicsArtifact?.topics?.size)
+        val fundamentals = topicsArtifact?.topics?.find { it.key == "java-fundamentals" }
         assertEquals("Java Fundamentals", fundamentals?.name)
         // Top level subtopic should have parentTopicKey set to the pipeline's topicKey
         assertEquals(topicKey, fundamentals?.parentTopicKey)
 
-        val collections = pipeline.topicsArtifact?.topics?.find { it.key == "java-collections" }
+        val collections = topicsArtifact?.topics?.find { it.key == "java-collections" }
         assertEquals("Java Collections", collections?.name)
         assertEquals("java-fundamentals", collections?.parentTopicKey)
     }
@@ -179,7 +187,9 @@ class TopicPipelineStepServiceTest {
 
         service.generate(pipelineName)
         
-        assertEquals(1, pipeline.topicsArtifact?.topics?.size)
-        assertEquals("@FunctionalInterface annotation", pipeline.topicsArtifact?.topics?.first()?.coverageArea)
+        val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" }
+        val topicsArtifact = topicsStep?.artifact as? TopicsPipelineArtifactEntity
+        assertEquals(1, topicsArtifact?.topics?.size)
+        assertEquals("@FunctionalInterface annotation", topicsArtifact?.topics?.first()?.coverageArea)
     }
 }

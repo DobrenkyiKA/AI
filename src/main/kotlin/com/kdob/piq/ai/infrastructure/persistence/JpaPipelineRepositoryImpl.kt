@@ -11,7 +11,7 @@ class JpaPipelineRepositoryImpl (
     override fun findAll(): List<PipelineEntity> = springDataPipelineRepository.findAll()
     override fun save(pipeline: PipelineEntity): PipelineEntity = springDataPipelineRepository.save(pipeline)
     override fun saveAndFlush(pipeline: PipelineEntity): PipelineEntity = springDataPipelineRepository.saveAndFlush(pipeline)
-    override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name).getOrNull(0)
+    override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name)
     override fun deleteByName(name: String) {
         springDataPipelineRepository.deleteByName(name)
     }

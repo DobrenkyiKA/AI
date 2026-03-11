@@ -179,11 +179,7 @@ class PipelineControllerTest {
             PipelineStepResponse(
                 step = index,
                 type = step.stepType,
-                status = when (step.stepType) {
-                    "TOPICS_GENERATION" -> topicsArtifact?.status
-                    "QUESTIONS_GENERATION" -> questionsArtifact?.status
-                    else -> null
-                },
+                status = step.artifact?.status,
                 systemPromptName = step.systemPrompt?.name,
                 systemPrompt = step.systemPrompt?.content ?: "",
                 userPromptName = step.userPrompt?.name,

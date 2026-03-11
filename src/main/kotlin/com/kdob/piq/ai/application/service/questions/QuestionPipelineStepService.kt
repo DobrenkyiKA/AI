@@ -9,7 +9,8 @@ import com.kdob.piq.ai.application.service.PipelineStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
-import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsPipelineArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineTopicEntity
@@ -33,19 +34,21 @@ class QuestionPipelineStepService(
 
     @Transactional
     override fun generate(pipeline: PipelineEntity, step: PipelineStepEntity) {
-        val topicsArtifact = pipeline.topicsArtifact
+        val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" }
+            ?: throw IllegalStateException("TOPICS_GENERATION step not found for pipeline: ${pipeline.name}")
+        val topicsArtifact = topicsStep.artifact as? TopicsPipelineArtifactEntity
             ?: throw IllegalStateException("Topics artifact not found for pipeline: ${pipeline.name}")
 
         if (topicsArtifact.status != ArtifactStatus.APPROVED) {
             throw IllegalStateException("Topics artifact is not APPROVED. Current status: ${topicsArtifact.status}")
         }
 
-        if (pipeline.questionsArtifact != null) {
-            pipeline.questionsArtifact = null
+        if (step.artifact != null) {
+            step.artifact = null
             pipelineRepository.saveAndFlush(pipeline)
         }
 
-        val questionsArtifact = QuestionsArtifactEntity(pipeline = pipeline)
+        val questionsArtifact = QuestionsPipelineArtifactEntity(pipeline = pipeline)
 
         for (topic in topicsArtifact.topics) {
             val systemPrompt = interpolate(step.systemPrompt?.content ?: "", topic)
@@ -63,7 +66,7 @@ class QuestionPipelineStepService(
             questionsArtifact.topicsWithQuestions.add(topicWithQuestions)
         }
 
-        pipeline.questionsArtifact = questionsArtifact
+        step.artifact = questionsArtifact
         pipeline.status = PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL
         pipeline.updatedAt = java.time.Instant.now()
         pipelineRepository.save(pipeline)

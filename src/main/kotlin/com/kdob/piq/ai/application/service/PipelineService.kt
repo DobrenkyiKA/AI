@@ -11,11 +11,12 @@ import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsPipelineArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
-import com.kdob.piq.ai.infrastructure.persistence.mapping.toEntity
+import com.kdob.piq.ai.infrastructure.persistence.mapping.toPipelineTopicEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
 import com.kdob.piq.ai.infrastructure.web.dto.TopicsArtifactForm
@@ -61,18 +62,19 @@ class PipelineService(
                 val updatedForm = yamlMapper.readValue(yamlContent, TopicsArtifactForm::class.java)
                 TopicsArtifactValidator.validate(updatedForm)
 
-                existing.questionsArtifact = null
+                val questionsStep = existing.steps.find { it.stepType == "QUESTIONS_GENERATION" }
+                questionsStep?.artifact = null
                 artifactStorage.deleteArtifact(name, "QUESTIONS_GENERATION")
 
-                if (existing.topicsArtifact != null) {
-                    existing.topicsArtifact = null
+                if (step.artifact != null) {
+                    step.artifact = null
                     pipelineRepository.saveAndFlush(existing)
                 }
 
-                val topicsArtifact = TopicsArtifactEntity(pipeline = existing)
+                val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = existing)
                 topicsArtifact.status = status
-                topicsArtifact.topics.addAll(updatedForm.topics.map { it.toEntity(topicsArtifact) })
-                existing.topicsArtifact = topicsArtifact
+                topicsArtifact.topics.addAll(updatedForm.topics.map { it.toPipelineTopicEntity(topicsArtifact) })
+                step.artifact = topicsArtifact
 
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.APPROVED
@@ -83,7 +85,7 @@ class PipelineService(
             }
 
             "QUESTIONS_GENERATION" -> {
-                val questionsArtifact = existing.questionsArtifact ?: throw IllegalStateException("Questions artifact not found")
+                val questionsArtifact = step.artifact as? QuestionsPipelineArtifactEntity ?: throw IllegalStateException("Questions artifact not found")
                 questionsArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.QUESTIONS_APPROVED
@@ -106,12 +108,13 @@ class PipelineService(
             ?: throw NoSuchElementException("Pipeline not found: $name")
         val topicsStepIndex = existing.steps.indexOfFirst { it.stepType == "TOPICS_GENERATION" }
         if (topicsStepIndex == -1) throw IllegalStateException("Topics generation step not found")
+        val topicsStep = existing.steps[topicsStepIndex]
 
         return updateArtifact(
             name,
             topicsStepIndex,
             yamlContent,
-            existing.topicsArtifact?.status ?: ArtifactStatus.PENDING_FOR_APPROVAL
+            topicsStep.artifact?.status ?: ArtifactStatus.PENDING_FOR_APPROVAL
         )
     }
 
@@ -176,7 +179,9 @@ class PipelineService(
         val existing = pipelineRepository.findByName(pipelineName)
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
 
-        val topicsArtifact = existing.topicsArtifact
+        val topicsStep = existing.steps.find { it.stepType == "TOPICS_GENERATION" }
+            ?: throw IllegalStateException("TOPICS_GENERATION step not found for pipeline: $pipelineName")
+        val topicsArtifact = topicsStep.artifact as? TopicsPipelineArtifactEntity
             ?: throw IllegalStateException("Topics artifact not found for pipeline: $pipelineName")
 
         if (topicsArtifact.status != ArtifactStatus.APPROVED) {
@@ -248,11 +253,7 @@ class PipelineService(
             PipelineStepResponse(
                 step = index,
                 type = step.stepType,
-                status = when (step.stepType) {
-                    "TOPICS_GENERATION" -> topicsArtifact?.status
-                    "QUESTIONS_GENERATION" -> questionsArtifact?.status
-                    else -> null
-                },
+                status = step.artifact?.status,
                 systemPromptName = step.systemPrompt?.name,
                 systemPrompt = step.systemPrompt?.content ?: "",
                 userPromptName = step.userPrompt?.name,

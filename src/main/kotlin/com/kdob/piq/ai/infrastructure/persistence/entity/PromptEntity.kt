@@ -6,21 +6,21 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "prompts")
 @Access(AccessType.FIELD)
-class PromptEntity(
+open class PromptEntity(
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
-    var type: PromptType,
+    open var type: PromptType,
 
     @Column(name = "name", nullable = false, unique = true)
-    var name: String,
+    open var name: String,
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
-    var content: String
+    open var content: String
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "prompts_sequence")
     @SequenceGenerator(name = "prompts_sequence", sequenceName = "prompts_id_sequence", allocationSize = 50)
-    var id: Long? = null
+    open var id: Long? = null
 
     override fun getIdValue(): Long? = id
 }

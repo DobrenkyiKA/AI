@@ -187,8 +187,10 @@ class PipelineServiceTest {
 
         service.updatePipeline(name, yamlContent)
 
-        assert(existingEntity.topicsArtifact?.topics?.size == 1)
-        assert(existingEntity.topicsArtifact?.topics?.first()?.key == "java-gc-v2")
+        val topicsStep = existingEntity.steps.find { it.stepType == "TOPICS_GENERATION" }
+        val topicsArtifact = topicsStep?.artifact as? TopicsPipelineArtifactEntity
+        assert(topicsArtifact?.topics?.size == 1)
+        assert(topicsArtifact?.topics?.first()?.key == "java-gc-v2")
         verify(artifactStorage).saveTopicsArtifact(name, yamlContent)
         verify(repository).save(existingEntity)
     }
@@ -260,7 +262,7 @@ class PipelineServiceTest {
         val name = "java-core-interview-v1"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = name, topicKey = topicKey)
-        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = pipeline)
         topicsArtifact.status = ArtifactStatus.APPROVED
 
         val child1 = PipelineTopicEntity(
@@ -279,7 +281,9 @@ class PipelineServiceTest {
         )
         topicsArtifact.topics.add(child1)
         topicsArtifact.topics.add(child2)
-        pipeline.topicsArtifact = topicsArtifact
+        val step = PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0)
+        step.artifact = topicsArtifact
+        pipeline.steps.add(step)
 
         `when`(repository.findByName(name)).thenReturn(pipeline)
         `when`(questionCatalogClient.findTopic(topicKey)).thenReturn(
@@ -320,9 +324,11 @@ class PipelineServiceTest {
     fun `should fail to publish if topics artifact is not approved`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        val topicsArtifact = TopicsArtifactEntity(pipeline = pipeline)
+        val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = pipeline)
         topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        pipeline.topicsArtifact = topicsArtifact
+        val step = PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0)
+        step.artifact = topicsArtifact
+        pipeline.steps.add(step)
 
         `when`(repository.findByName(name)).thenReturn(pipeline)
 

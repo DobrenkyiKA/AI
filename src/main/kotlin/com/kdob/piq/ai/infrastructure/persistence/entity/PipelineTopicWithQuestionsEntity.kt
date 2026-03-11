@@ -5,27 +5,27 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "pipeline_topic_questions")
 @Access(AccessType.FIELD)
-class PipelineTopicWithQuestionsEntity(
+open class PipelineTopicWithQuestionsEntity(
     @Basic(optional = false)
     @Column(nullable = false)
-    val key: String,
+    open val key: String,
 
     @Basic(optional = false)
-    val name: String,
+    open val name: String,
 
     @ElementCollection
     @CollectionTable(name = "pipeline_questions", joinColumns = [JoinColumn(name = "topic_question_id")])
     @Column(name = "question")
-    val questions: MutableSet<String> = mutableSetOf(),
+    open val questions: MutableSet<String> = mutableSetOf(),
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "questions_artifact_id", nullable = false)
-    val questionsArtifact: QuestionsArtifactEntity
+    open val questionsArtifact: QuestionsPipelineArtifactEntity
 ) : BaseEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "pipeline_topic_questions_sequence")
     @SequenceGenerator(name = "pipeline_topic_questions_sequence", sequenceName = "pipeline_topic_questions_id_sequence", allocationSize = 50)
-    var id: Long? = null
+    open var id: Long? = null
 
     override fun getIdValue(): Long? {
         return id
