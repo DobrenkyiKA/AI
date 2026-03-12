@@ -1,20 +1,15 @@
 package com.kdob.piq.ai.application.service.questions
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.GeminiChat
-import com.kdob.piq.ai.application.service.PipelineStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
-import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsPipelineArtifactEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineTopicEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineTopicWithQuestionsEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsPipelineArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -22,18 +17,15 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class QuestionPipelineStepService(
     private val generator: GeminiChat,
-    private val pipelineRepository: PipelineRepository,
-    private val artifactStorage: ArtifactStorage,
-) : PipelineStepService {
-    private val yamlMapper = ObjectMapper(
-        YAMLFactory()
-            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-    ).registerKotlinModule()
+    pipelineRepository: PipelineRepository,
+    artifactStorage: ArtifactStorage,
+) : AbstractPipelineStepService(pipelineRepository, artifactStorage) {
 
     override fun getStepType(): String = "QUESTIONS_GENERATION"
 
     @Transactional
-    override fun generate(pipeline: PipelineEntity, step: PipelineStepEntity) {
+    override fun generate(step: PipelineStepEntity) {
+        val pipeline = step.pipeline
         val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" || it.stepType == "SUBTOPICS_GENERATION" }
             ?: throw IllegalStateException("Topics generation step not found for pipeline: ${pipeline.name}")
         val topicsArtifact = topicsStep.artifact as? TopicsPipelineArtifactEntity
@@ -43,10 +35,7 @@ class QuestionPipelineStepService(
             throw IllegalStateException("Topics artifact is not APPROVED. Current status: ${topicsArtifact.status}")
         }
 
-        if (step.artifact != null) {
-            step.artifact = null
-            pipelineRepository.saveAndFlush(pipeline)
-        }
+        clearOldArtifact(pipeline, step)
 
         val questionsArtifact = QuestionsPipelineArtifactEntity(pipeline = pipeline)
 
@@ -67,9 +56,7 @@ class QuestionPipelineStepService(
         }
 
         step.artifact = questionsArtifact
-        pipeline.status = PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL
-        pipeline.updatedAt = java.time.Instant.now()
-        pipelineRepository.save(pipeline)
+        updatePipeline(pipeline, PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL)
 
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf(
@@ -90,21 +77,8 @@ class QuestionPipelineStepService(
             .replace("{{coverageArea}}", topic.coverageArea)
     }
 
-    @Transactional
-    fun generate(pipelineName: String) {
-        val pipeline = pipelineRepository.findByName(pipelineName)
-            ?: throw IllegalArgumentException("Pipeline not found: $pipelineName")
-
-        val step = pipeline.steps.find { it.stepType == getStepType() }
-            ?: throw IllegalStateException("Step ${getStepType()} not found in pipeline $pipelineName")
-
-        generate(pipeline, step)
-    }
-
     private fun parseQuestions(rawOutput: String): List<String> {
-        val cleaned = rawOutput.trim().removeSurrounding("```yaml", "```").trim()
-        val data = yamlMapper.readValue(cleaned, Map::class.java)
-
+        val data = parseYaml(rawOutput)
         @Suppress("UNCHECKED_CAST")
         val questions = data["questions"] as? List<String> ?: emptyList()
         return questions

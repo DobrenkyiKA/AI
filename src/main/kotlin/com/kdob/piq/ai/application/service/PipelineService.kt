@@ -21,6 +21,7 @@ import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
 import com.kdob.piq.ai.infrastructure.web.dto.TopicsArtifactForm
 import com.kdob.piq.ai.infrastructure.web.dto.*
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -38,6 +39,9 @@ class PipelineService(
 
     @Transactional(readOnly = true)
     fun findByName(name: String): PipelineResponse? = pipelineRepository.findByName(name)?.toResponse()
+
+    fun getAvailableStepTypes(): List<PipelineStepTypeResponse> =
+        generationSteps.map { PipelineStepTypeResponse(it.getStepType(), it.getLabel()) }
 
     fun getArtifact(name: String, stepIndex: Int): String {
         val existing = pipelineRepository.findByName(name)
@@ -141,7 +145,7 @@ class PipelineService(
         val generationStep = generationSteps.find { it.getStepType() == step.stepType }
             ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
 
-        generationStep.generate(pipeline, step)
+        generationStep.generate(step)
     }
 
     @Transactional

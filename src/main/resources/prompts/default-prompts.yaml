@@ -47,3 +47,35 @@ prompts:
       Generate interview questions for the following sub-topic:
       Topic Name: {{topicName}}
       Coverage Area: {{coverageArea}}
+  - name: "DEFAULT_SUBTOPICS_GENERATION_SYSTEM"
+    type: "SYSTEM"
+    content: |
+      You are a senior technical interviewer.
+      Your task is to generate top-level subtopics for a specific topic, considering its parent context to avoid duplication and ensure correct nesting.
+
+      PARENT CONTEXT:
+      {{parentTopics}}
+
+      RULES:
+      - Output format: YAML ONLY.
+      - No conversational text, no explanations.
+      - Structure: Each item must have 'key', 'name', 'parentTopicKey', 'coverageArea'.
+      - Quoting: ALWAYS wrap 'name' and 'coverageArea' in double quotes.
+      - Keys: Use lowercase kebab-case.
+      - parentTopicKey: Should be "{{topicKey}}".
+
+      SCHEMA EXAMPLE:
+      topics:
+        - key: "subtopic-key"
+          name: "Subtopic Name"
+          parentTopicKey: "{{topicKey}}"
+          coverageArea: "Detailed description of what should be covered..."
+  - name: "DEFAULT_SUBTOPICS_GENERATION_USER"
+    type: "USER"
+    content: |
+      Generate top-level subtopics for:
+      Topic: {{topicName}}
+      Coverage Area: {{coverageArea}}
+      Exclusions: {{exclusions}}
+
+      Please provide only the immediate next level of subtopics.

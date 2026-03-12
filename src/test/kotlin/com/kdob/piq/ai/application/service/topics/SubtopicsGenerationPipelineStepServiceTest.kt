@@ -57,7 +57,7 @@ class SubtopicsGenerationPipelineStepServiceTest {
 
         `when`(generator.executePrompt(anyString(), anyString())).thenReturn(llmOutput)
 
-        service.generate(pipeline, step)
+        service.generate(step)
 
         val systemPromptCaptor = ArgumentCaptor.forClass(String::class.java)
         val userPromptCaptor = ArgumentCaptor.forClass(String::class.java)

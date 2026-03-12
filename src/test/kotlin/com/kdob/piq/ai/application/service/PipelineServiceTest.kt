@@ -205,7 +205,7 @@ class PipelineServiceTest {
 
         service.runStep(name, 0)
 
-        verify(topicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(topicsGenerationService).generate(any(PipelineStepEntity::class.java))
     }
 
     @Test
@@ -218,7 +218,7 @@ class PipelineServiceTest {
 
         service.runStep(name, 1)
 
-        verify(questionsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(questionsGenerationService).generate(any(PipelineStepEntity::class.java))
     }
 
     @Test
@@ -231,8 +231,8 @@ class PipelineServiceTest {
 
         service.runPipelineFrom(name, 0)
 
-        verify(topicsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
-        verify(questionsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(topicsGenerationService).generate(any(PipelineStepEntity::class.java))
+        verify(questionsGenerationService).generate(any(PipelineStepEntity::class.java))
     }
 
     @Test
@@ -245,7 +245,7 @@ class PipelineServiceTest {
 
         service.runPipelineFrom(name, 1)
 
-        verify(questionsGenerationService).generate(eq(pipeline) ?: pipeline, any(PipelineStepEntity::class.java))
+        verify(questionsGenerationService).generate(any(PipelineStepEntity::class.java))
     }
 
     @Test

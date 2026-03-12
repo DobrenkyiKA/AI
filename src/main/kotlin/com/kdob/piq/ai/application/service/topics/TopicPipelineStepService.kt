@@ -1,46 +1,32 @@
 package com.kdob.piq.ai.application.service.topics
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.GeminiChat
-import com.kdob.piq.ai.application.service.PipelineStepService
-import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.domain.model.PipelineStatus
-import com.kdob.piq.ai.domain.model.PipelineTopic
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
-import com.kdob.piq.ai.infrastructure.persistence.mapping.toPipelineTopicEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 
 @Service
 class TopicPipelineStepService(
     private val generator: GeminiChat,
-    private val pipelineRepository: PipelineRepository,
-    private val artifactStorage: ArtifactStorage,
+    pipelineRepository: PipelineRepository,
+    artifactStorage: ArtifactStorage,
     private val questionCatalogClient: QuestionCatalogClient
-) : PipelineStepService {
-    private val yamlMapper = ObjectMapper(
-        YAMLFactory()
-            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-    ).registerKotlinModule()
+) : AbstractPipelineStepService(pipelineRepository, artifactStorage) {
 
     override fun getStepType(): String = "TOPICS_GENERATION"
 
     @Transactional
-    override fun generate(pipeline: PipelineEntity, step: PipelineStepEntity) {
+    override fun generate(step: PipelineStepEntity) {
+        val pipeline = step.pipeline
         val topicDetail = questionCatalogClient.findTopic(pipeline.topicKey)
             ?: throw IllegalStateException("Main topic not found: ${pipeline.topicKey}")
 
-        val systemPrompt = interpolate(step.systemPrompt?.content ?: "", pipeline, topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions)
-        val userPrompt = interpolate(step.userPrompt?.content ?: "", pipeline, topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions)
+        val systemPrompt = interpolate(step.systemPrompt?.content ?: "", topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions, step)
+        val userPrompt = interpolate(step.userPrompt?.content ?: "", topicDetail.name, topicDetail.coverageArea, topicDetail.exclusions, step)
 
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val subTopics = parseSubTopics(rawOutput)
@@ -50,66 +36,11 @@ class TopicPipelineStepService(
             if (it.parentTopicKey == null) it.copy(parentTopicKey = pipeline.topicKey) else it
         }
 
-        if (step.artifact != null) {
-            step.artifact = null
-            pipelineRepository.saveAndFlush(pipeline)
-        }
-
-        val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = pipeline)
-        topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        topicsArtifact.topics.addAll(topicsWithParent.map { it.toPipelineTopicEntity(topicsArtifact) })
-
-        step.artifact = topicsArtifact
-        pipeline.status = PipelineStatus.DRAFT
-        pipeline.updatedAt = Instant.now()
-        pipelineRepository.save(pipeline)
-
-        val yamlContent = yamlMapper.writeValueAsString(
-            mapOf("topics" to topicsWithParent)
-        )
-        artifactStorage.saveTopicsArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
+        saveTopicsArtifact(pipeline, step, topicsWithParent)
     }
 
-    private fun interpolate(prompt: String, pipeline: PipelineEntity, topicName: String, coverageArea: String, exclusions: String): String {
-        val result = prompt
-            .replace("{{topicName}}", topicName)
-            .replace("{{topicKey}}", pipeline.topicKey)
-            .replace("{{coverageArea}}", coverageArea)
-
-        return if (exclusions.isNotBlank()) {
-            result.replace("{{exclusions}}", exclusions)
-        } else {
-            result.lines()
-                .filter { !it.contains("{{exclusions}}") && !it.contains("Strict Exclusions") }
-                .joinToString("\n")
-        }
-    }
-
-    @Transactional
-    fun generate(pipelineName: String) {
-        val pipeline = pipelineRepository.findByName(pipelineName)
-            ?: throw IllegalArgumentException("Pipeline not found: $pipelineName")
-
-        val step = pipeline.steps.find { it.stepType == getStepType() }
-            ?: throw IllegalStateException("Step ${getStepType()} not found in pipeline $pipelineName")
-
-        generate(pipeline, step)
-    }
-
-    private fun parseSubTopics(rawOutput: String): List<PipelineTopic> {
-        val cleaned = rawOutput.trim().removeSurrounding("```yaml", "```").trim()
-        val data = yamlMapper.readValue(cleaned, Map::class.java)
-
-        @Suppress("UNCHECKED_CAST")
-        val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
-        
-        return topicsList.map { 
-            PipelineTopic(
-                key = it["key"] as String,
-                name = it["name"] as String,
-                parentTopicKey = it["parentTopicKey"] as? String,
-                coverageArea = it["coverageArea"] as String,
-            )
-        }
+    private fun interpolate(prompt: String, topicName: String, coverageArea: String, exclusions: String, step: PipelineStepEntity): String {
+        val result = interpolateCommon(prompt, step.pipeline, topicName, coverageArea)
+        return handleExclusions(result, exclusions)
     }
 }

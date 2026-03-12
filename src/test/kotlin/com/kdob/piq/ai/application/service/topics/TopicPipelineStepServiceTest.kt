@@ -75,7 +75,8 @@ class TopicPipelineStepServiceTest {
                 coverageArea: List, Set, Map
         """.trimIndent())
 
-        service.generate(pipelineName)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
+        service.generate(step)
 
         verify(repository).save(pipeline)
         verify(artifactStorage).saveTopicsArtifact(eq(topicKey) ?: "", eq(pipelineName) ?: "", anyString() ?: "")
@@ -120,7 +121,8 @@ class TopicPipelineStepServiceTest {
                 coverageArea: Basics of Java
         """.trimIndent())
 
-        service.generate(pipelineName)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
+        service.generate(step)
 
         val captor = ArgumentCaptor.forClass(String::class.java)
         verify(generator).executePrompt(anyString() ?: "", captor.capture() ?: "")
@@ -155,7 +157,8 @@ class TopicPipelineStepServiceTest {
                 coverageArea: Basics of Java
         """.trimIndent())
 
-        service.generate(pipelineName)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
+        service.generate(step)
 
         val captor = ArgumentCaptor.forClass(String::class.java)
         verify(generator).executePrompt(anyString() ?: "", captor.capture() ?: "")
@@ -185,7 +188,8 @@ class TopicPipelineStepServiceTest {
                 coverageArea: "@FunctionalInterface annotation"
         """.trimIndent())
 
-        service.generate(pipelineName)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
+        service.generate(step)
         
         val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" }
         val topicsArtifact = topicsStep?.artifact as? TopicsPipelineArtifactEntity

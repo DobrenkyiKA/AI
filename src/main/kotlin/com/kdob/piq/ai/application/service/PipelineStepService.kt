@@ -4,6 +4,7 @@ import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 
 interface PipelineStepService {
-    fun generate(pipeline: PipelineEntity, step: PipelineStepEntity)
+    fun generate(step: PipelineStepEntity)
     fun getStepType(): String
+    fun getLabel(): String = getStepType().split("_").joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
 }

@@ -1,10 +1,8 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
 import com.kdob.piq.ai.application.service.PipelineService
-import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineRequest
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineArtifactUpdateRequest
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
-import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineRequest
+import com.kdob.piq.ai.infrastructure.web.dto.*
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -19,6 +17,11 @@ class PipelineController(
     @GetMapping
     fun getAllPipelines(): List<PipelineResponse> {
         return pipelineService.findAll()
+    }
+
+    @GetMapping("/step-types")
+    fun getAvailableStepTypes(): List<PipelineStepTypeResponse> {
+        return pipelineService.getAvailableStepTypes()
     }
 
     @GetMapping("/{pipelineName}")

@@ -47,22 +47,13 @@ class QuestionPipelineStepServiceTest {
     }
 
     @Test
-    fun `should throw exception if pipeline not found`() {
-        `when`(repository.findByName("unknown")).thenReturn(null)
-
-        assertThrows<IllegalArgumentException> {
-            service.generate("unknown")
-        }
-    }
-
-    @Test
     fun `should throw exception if topics artifact not found`() {
         val pipeline = PipelineEntity(name = "test", topicKey = "test-topic")
         addStepToPipeline(pipeline)
-        `when`(repository.findByName("test")).thenReturn(pipeline)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
 
         assertThrows<IllegalStateException> {
-            service.generate("test")
+            service.generate(step)
         }
     }
 
@@ -73,10 +64,10 @@ class QuestionPipelineStepServiceTest {
         val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = pipeline)
         topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
         addTopicsStep(pipeline, topicsArtifact)
-        `when`(repository.findByName("test")).thenReturn(pipeline)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
 
         assertThrows<IllegalStateException> {
-            service.generate("test")
+            service.generate(step)
         }
     }
 
@@ -106,7 +97,8 @@ class QuestionPipelineStepServiceTest {
               - Question 2
         """.trimIndent())
 
-        service.generate(pipelineName)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
+        service.generate(step)
 
         verify(repository).save(pipeline)
         verify(artifactStorage).saveQuestionsArtifact(eq("java-core") ?: "", eq(pipelineName) ?: "", anyString() ?: "")
@@ -145,7 +137,8 @@ class QuestionPipelineStepServiceTest {
               - "What is @FunctionalInterface?"
         """.trimIndent())
 
-        service.generate(pipelineName)
+        val step = pipeline.steps.find { it.stepType == service.getStepType() }!!
+        service.generate(step)
 
         val questionsStep = pipeline.steps.find { it.stepType == "QUESTIONS_GENERATION" }
         val questionsArtifact = questionsStep?.artifact as? QuestionsPipelineArtifactEntity
