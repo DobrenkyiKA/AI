@@ -62,7 +62,7 @@ class PipelineService(
             ?: throw IllegalArgumentException("Step at index $stepIndex not found")
 
         when (step.stepType) {
-            "TOPICS_GENERATION" -> {
+            "TOPICS_GENERATION", "SUBTOPICS_GENERATION" -> {
                 val updatedForm = yamlMapper.readValue(yamlContent, TopicsArtifactForm::class.java)
                 TopicsArtifactValidator.validate(updatedForm)
 
@@ -110,7 +110,7 @@ class PipelineService(
     fun updatePipeline(name: String, yamlContent: String): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
-        val topicsStepIndex = existing.steps.indexOfFirst { it.stepType == "TOPICS_GENERATION" }
+        val topicsStepIndex = existing.steps.indexOfFirst { it.stepType == "TOPICS_GENERATION" || it.stepType == "SUBTOPICS_GENERATION" }
         if (topicsStepIndex == -1) throw IllegalStateException("Topics generation step not found")
         val topicsStep = existing.steps[topicsStepIndex]
 
@@ -185,7 +185,7 @@ class PipelineService(
         val existing = pipelineRepository.findByName(pipelineName)
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
 
-        val topicsStep = existing.steps.find { it.stepType == "TOPICS_GENERATION" }
+        val topicsStep = existing.steps.find { it.stepType == "TOPICS_GENERATION" || it.stepType == "SUBTOPICS_GENERATION" }
             ?: throw IllegalStateException("TOPICS_GENERATION step not found for pipeline: $pipelineName")
         val topicsArtifact = topicsStep.artifact as? TopicsPipelineArtifactEntity
             ?: throw IllegalStateException("Topics artifact not found for pipeline: $pipelineName")

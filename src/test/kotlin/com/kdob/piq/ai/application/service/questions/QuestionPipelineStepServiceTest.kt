@@ -109,7 +109,7 @@ class QuestionPipelineStepServiceTest {
         service.generate(pipelineName)
 
         verify(repository).save(pipeline)
-        verify(artifactStorage).saveQuestionsArtifact(eq(pipelineName) ?: "", anyString() ?: "")
+        verify(artifactStorage).saveQuestionsArtifact(eq("java-core") ?: "", eq(pipelineName) ?: "", anyString() ?: "")
         assertEquals(PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL, pipeline.status)
         
         val questionsStep = pipeline.steps.find { it.stepType == "QUESTIONS_GENERATION" }

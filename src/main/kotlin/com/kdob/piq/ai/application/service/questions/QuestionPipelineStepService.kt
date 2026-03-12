@@ -34,8 +34,8 @@ class QuestionPipelineStepService(
 
     @Transactional
     override fun generate(pipeline: PipelineEntity, step: PipelineStepEntity) {
-        val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" }
-            ?: throw IllegalStateException("TOPICS_GENERATION step not found for pipeline: ${pipeline.name}")
+        val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" || it.stepType == "SUBTOPICS_GENERATION" }
+            ?: throw IllegalStateException("Topics generation step not found for pipeline: ${pipeline.name}")
         val topicsArtifact = topicsStep.artifact as? TopicsPipelineArtifactEntity
             ?: throw IllegalStateException("Topics artifact not found for pipeline: ${pipeline.name}")
 

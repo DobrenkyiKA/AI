@@ -19,7 +19,7 @@ class ArtifactStorage(
     }
 
     fun loadArtifact(topicKey: String, pipelineName: String, stepType: String): String = when (stepType) {
-        "TOPICS_GENERATION" -> storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
+        "TOPICS_GENERATION", "SUBTOPICS_GENERATION" -> storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
         "QUESTIONS_GENERATION" -> storageClient.loadQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml")
         else -> throw IllegalArgumentException("Unknown step type: $stepType")
     }
@@ -30,7 +30,7 @@ class ArtifactStorage(
 
     fun deleteArtifact(topicKey: String, pipelineName: String, stepType: String) {
         when (stepType) {
-            "TOPICS_GENERATION" -> storageClient.deleteTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
+            "TOPICS_GENERATION", "SUBTOPICS_GENERATION" -> storageClient.deleteTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
             "QUESTIONS_GENERATION" -> storageClient.deleteQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml")
             else -> throw IllegalArgumentException("Unknown step type: $stepType")
         }

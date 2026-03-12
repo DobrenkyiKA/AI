@@ -78,7 +78,7 @@ class TopicPipelineStepServiceTest {
         service.generate(pipelineName)
 
         verify(repository).save(pipeline)
-        verify(artifactStorage).saveTopicsArtifact(eq(pipelineName) ?: "", anyString() ?: "")
+        verify(artifactStorage).saveTopicsArtifact(eq(topicKey) ?: "", eq(pipelineName) ?: "", anyString() ?: "")
         assertEquals(PipelineStatus.DRAFT, pipeline.status)
         val topicsStep = pipeline.steps.find { it.stepType == "TOPICS_GENERATION" }
         assertEquals(ArtifactStatus.PENDING_FOR_APPROVAL, topicsStep?.artifact?.status)

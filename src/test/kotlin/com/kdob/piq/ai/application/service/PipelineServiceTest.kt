@@ -147,11 +147,12 @@ class PipelineServiceTest {
     @Test
     fun `should delete pipeline and its artifacts`() {
         val name = "java-core-interview-v1"
+        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
 
         service.deletePipeline(name)
 
         verify(repository).deleteByName(name)
-        verify(artifactStorage).deleteArtifacts(name)
+        verify(artifactStorage).deleteArtifacts("java-core", name)
     }
 
     @Test
@@ -161,7 +162,7 @@ class PipelineServiceTest {
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
         `when`(repository.findByName(name)).thenReturn(pipeline)
-        `when`(artifactStorage.loadArtifact(name, "TOPICS_GENERATION")).thenReturn(expectedYaml)
+        `when`(artifactStorage.loadArtifact("java-core", name, "TOPICS_GENERATION")).thenReturn(expectedYaml)
 
         val result = service.getArtifact(name, 0)
 
@@ -191,7 +192,7 @@ class PipelineServiceTest {
         val topicsArtifact = topicsStep?.artifact as? TopicsPipelineArtifactEntity
         assert(topicsArtifact?.topics?.size == 1)
         assert(topicsArtifact?.topics?.first()?.key == "java-gc-v2")
-        verify(artifactStorage).saveTopicsArtifact(name, yamlContent)
+        verify(artifactStorage).saveTopicsArtifact("java-core", name, yamlContent)
         verify(repository).save(existingEntity)
     }
 
