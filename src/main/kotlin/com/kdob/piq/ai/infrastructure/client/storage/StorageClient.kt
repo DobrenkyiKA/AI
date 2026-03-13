@@ -40,6 +40,25 @@ interface StorageClient {
         fileName: String
     )
 
+    fun saveTopicTreeArtifact(
+        topicKey: String,
+        pipelineName: String,
+        fileName: String,
+        content: String
+    )
+
+    fun loadTopicTreeArtifact(
+        topicKey: String,
+        pipelineName: String,
+        fileName: String
+    ): String
+
+    fun deleteTopicTreeArtifact(
+        topicKey: String,
+        pipelineName: String,
+        fileName: String
+    )
+
     fun deleteVersion(
         topicKey: String,
         pipelineName: String

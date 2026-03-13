@@ -56,6 +56,29 @@ class StorageHttpClient(
             .toBodilessEntity()
     }
 
+    override fun saveTopicTreeArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
+        restClient.put()
+            .uri("/versions/{group}/{version}/topic-tree/{fileName}", topicKey, pipelineName, fileName)
+            .contentType(MediaType.TEXT_PLAIN)
+            .body(content)
+            .retrieve()
+            .toBodilessEntity()
+    }
+
+    override fun loadTopicTreeArtifact(topicKey: String, pipelineName: String, fileName: String): String {
+        return restClient.get()
+            .uri("/versions/{group}/{version}/topic-tree/{fileName}", topicKey, pipelineName, fileName)
+            .retrieve()
+            .body(String::class.java) ?: ""
+    }
+
+    override fun deleteTopicTreeArtifact(topicKey: String, pipelineName: String, fileName: String) {
+        restClient.delete()
+            .uri("/versions/{group}/{version}/topic-tree/{fileName}", topicKey, pipelineName, fileName)
+            .retrieve()
+            .toBodilessEntity()
+    }
+
     override fun deleteVersion(topicKey: String, pipelineName: String) {
         restClient.delete()
             .uri("/versions/{group}/{version}", topicKey, pipelineName)

@@ -12,6 +12,7 @@ import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsPipelineArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
@@ -101,6 +102,18 @@ class PipelineService(
                     existing.status = PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL
                 }
                 artifactStorage.saveQuestionsArtifact(existing.topicKey, name, yamlContent)
+            }
+
+            "TOPIC_TREE_GENERATION" -> {
+                val topicTreeArtifact = step.artifact as? TopicTreeArtifactEntity
+                    ?: throw IllegalStateException("Topic tree artifact not found")
+                topicTreeArtifact.status = status
+                if (status == ArtifactStatus.APPROVED) {
+                    existing.status = PipelineStatus.TOPIC_TREE_APPROVED
+                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
+                    existing.status = PipelineStatus.TOPIC_TREE_GENERATED
+                }
+                artifactStorage.saveTopicTreeArtifact(existing.topicKey, name, yamlContent)
             }
 
             else -> throw IllegalArgumentException("Unsupported step type: ${step.stepType}")

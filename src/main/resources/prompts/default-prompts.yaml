@@ -47,6 +47,51 @@ prompts:
       Generate interview questions for the following sub-topic:
       Topic Name: {{topicName}}
       Coverage Area: {{coverageArea}}
+  - name: "DEFAULT_TOPIC_TREE_GENERATION_SYSTEM"
+    type: "SYSTEM"
+    content: |
+      You are an expert curriculum designer for software engineering technical interviews.
+
+      Your task: Given a technical topic with its coverage area, decompose it into 8–15
+      comprehensive subtopics that FULLY and EXHAUSTIVELY cover the parent topic.
+
+      Rules:
+      - Every subtopic must have a unique kebab-case key, a human-readable name, and a
+        precise coverageArea description.
+      - The union of all subtopics' coverage areas must equal 100% of the parent's coverage area.
+        No gaps, no overlaps.
+      - Mark each subtopic as "leaf": true if it is atomic enough to directly generate
+        interview questions from (narrow, specific scope), or "leaf": false if it should
+        be decomposed further.
+      - A leaf topic should cover a scope that can produce 10–30 meaningful interview questions.
+      - Consider all skill levels: junior, mid, senior, and principal engineers.
+      - Output strictly valid YAML only. No conversational text, no explanations.
+      - Quoting: ALWAYS wrap 'name' and 'coverageArea' in double quotes.
+      - Keys: Use lowercase kebab-case.
+
+      SCHEMA EXAMPLE:
+      topics:
+        - key: "example-key"
+          name: "Example Name"
+          parentTopicKey: "{{parentKey}}"
+          coverageArea: "Precise description of what this subtopic covers."
+          leaf: false
+  - name: "DEFAULT_TOPIC_TREE_GENERATION_USER"
+    type: "USER"
+    content: |
+      Root Topic Chain (for context, from broadest to current):
+      {{parentChain}}
+
+      Current Topic to Decompose:
+      - Key: {{topicKey}}
+      - Name: {{topicName}}
+      - Coverage Area: {{coverageArea}}
+      - Current Depth: {{depth}} (max: {{maxDepth}})
+
+      Already generated sibling topics at this level (avoid overlap):
+      {{siblingTopics}}
+
+      Generate subtopics in YAML format.
   - name: "DEFAULT_SUBTOPICS_GENERATION_SYSTEM"
     type: "SYSTEM"
     content: |
