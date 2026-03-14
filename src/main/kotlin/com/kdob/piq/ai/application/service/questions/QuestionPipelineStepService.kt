@@ -22,7 +22,7 @@ class QuestionPipelineStepService(
     artifactStorage: ArtifactStorage,
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage) {
 
-    override fun getStepType(): String = "QUESTIONS_GENERATION"
+    override fun getStepType(): String = "LEGACY_QUESTIONS_GENERATION"
 
     @Transactional
     override fun generate(step: PipelineStepEntity) {

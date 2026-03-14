@@ -11,6 +11,7 @@ import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
+import com.kdob.piq.ai.infrastructure.persistence.entity.AnswersArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
@@ -104,7 +105,7 @@ class PipelineService(
                 artifactStorage.saveQuestionsArtifact(existing.topicKey, name, yamlContent)
             }
 
-            "TOPIC_TREE_GENERATION", "TOPIC_TREE_REVIEW" -> {
+            "TOPIC_TREE_GENERATION" -> {
                 val topicTreeArtifact = step.artifact as? TopicTreeArtifactEntity
                     ?: throw IllegalStateException("Topic tree artifact not found")
                 topicTreeArtifact.status = status
@@ -114,6 +115,30 @@ class PipelineService(
                     existing.status = PipelineStatus.TOPIC_TREE_GENERATED
                 }
                 artifactStorage.saveTopicTreeArtifact(existing.topicKey, name, yamlContent)
+            }
+
+            "LONG_ANSWERS_GENERATION" -> {
+                val answersArtifact = step.artifact as? AnswersArtifactEntity
+                    ?: throw IllegalStateException("Answers artifact not found")
+                answersArtifact.status = status
+                if (status == ArtifactStatus.APPROVED) {
+                    existing.status = PipelineStatus.ANSWERS_APPROVED
+                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
+                    existing.status = PipelineStatus.ANSWERS_GENERATED
+                }
+                artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
+            }
+
+            "SHORT_ANSWERS_GENERATION" -> {
+                val answersArtifact = step.artifact as? AnswersArtifactEntity
+                    ?: throw IllegalStateException("Short answers artifact not found")
+                answersArtifact.status = status
+                if (status == ArtifactStatus.APPROVED) {
+                    existing.status = PipelineStatus.SHORT_ANSWERS_APPROVED
+                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
+                    existing.status = PipelineStatus.SHORT_ANSWERS_GENERATED
+                }
+                artifactStorage.saveShortAnswersArtifact(existing.topicKey, name, yamlContent)
             }
 
             else -> throw IllegalArgumentException("Unsupported step type: ${step.stepType}")
