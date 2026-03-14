@@ -1,7 +1,8 @@
 package com.kdob.piq.ai.application.service.questions
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
-import com.kdob.piq.ai.application.service.GeminiChat
+import com.kdob.piq.ai.application.service.GoogleAiChatService
+import com.kdob.piq.ai.application.service.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -16,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class QuestionPipelineStepService(
-    private val generator: GeminiChat,
+    private val generator: OpenAiChatService,
     pipelineRepository: PipelineRepository,
     artifactStorage: ArtifactStorage,
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage) {

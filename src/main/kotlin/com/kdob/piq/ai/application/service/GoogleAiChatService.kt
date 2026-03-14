@@ -4,7 +4,7 @@ import org.springframework.ai.chat.client.ChatClient
 import org.springframework.stereotype.Component
 
 @Component
-class GeminiChat(chatClientBuilder: ChatClient.Builder) {
+class GoogleAiChatService(chatClientBuilder: ChatClient.Builder) {
     val chatClient = chatClientBuilder.build()
 
     fun executePrompt(system: String, user: String): String =

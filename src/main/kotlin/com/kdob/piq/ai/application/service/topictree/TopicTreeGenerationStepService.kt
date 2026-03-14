@@ -1,7 +1,8 @@
 package com.kdob.piq.ai.application.service.topictree
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
-import com.kdob.piq.ai.application.service.GeminiChat
+import com.kdob.piq.ai.application.service.GoogleAiChatService
+import com.kdob.piq.ai.application.service.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.TopicTreeNode
@@ -18,7 +19,7 @@ import java.util.LinkedList
 
 @Service
 class TopicTreeGenerationStepService(
-    private val generator: GeminiChat,
+    private val generator: OpenAiChatService,
     pipelineRepository: PipelineRepository,
     artifactStorage: ArtifactStorage,
     private val questionCatalogClient: QuestionCatalogClient

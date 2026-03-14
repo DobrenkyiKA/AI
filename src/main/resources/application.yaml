@@ -1,8 +1,14 @@
 
 spring:
+  devtools:
+    restart:
+      enabled: false
   application:
     name: ai
   ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      model: gpt-4.1-nano
     google:
       genai:
         project-id: ${GEMINI_FLASH_3_PROJECT_ID}
