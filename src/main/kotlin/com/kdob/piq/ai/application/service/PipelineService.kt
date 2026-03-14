@@ -104,7 +104,7 @@ class PipelineService(
                 artifactStorage.saveQuestionsArtifact(existing.topicKey, name, yamlContent)
             }
 
-            "TOPIC_TREE_GENERATION" -> {
+            "TOPIC_TREE_GENERATION", "TOPIC_TREE_REVIEW" -> {
                 val topicTreeArtifact = step.artifact as? TopicTreeArtifactEntity
                     ?: throw IllegalStateException("Topic tree artifact not found")
                 topicTreeArtifact.status = status
