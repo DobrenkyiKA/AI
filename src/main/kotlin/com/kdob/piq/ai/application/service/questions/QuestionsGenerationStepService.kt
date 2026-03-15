@@ -4,64 +4,148 @@ import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
+import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 
 @Service
 class QuestionsGenerationStepService(
     private val generator: OpenAiChatService,
     pipelineRepository: PipelineRepository,
     artifactStorage: ArtifactStorage,
+    private val generationLogRepository: GenerationLogRepository,
+    transactionManager: PlatformTransactionManager
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage) {
 
     private val logger = LoggerFactory.getLogger(QuestionsGenerationStepService::class.java)
+    private val transactionTemplate = TransactionTemplate(transactionManager)
 
     override fun getStepType(): String = "QUESTIONS_GENERATION"
 
-    @Transactional
     override fun generate(step: PipelineStepEntity) {
-        val pipeline = step.pipeline
+        val pipelineId = step.pipeline.id!!
 
-        val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
-            ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: ${pipeline.name}")
-        val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
-            ?: throw IllegalStateException("Topic tree artifact not found for pipeline: ${pipeline.name}")
-
-        check(topicTreeArtifact.status == ArtifactStatus.APPROVED) {
-            "Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}"
+        var artifact = transactionTemplate.execute {
+            val p = pipelineRepository.findById(pipelineId)!!
+            val s: PipelineStepEntity = p.steps.find { it.id == step.id }!!
+            s.artifact as? AnswersArtifactEntity
         }
 
-        clearOldArtifact(pipeline, step)
+        if (artifact == null) {
+            log(pipelineId, "Starting new Questions Generation...")
+            artifact = initializeArtifact(pipelineId, step.id!!)
+        } else {
+            log(pipelineId, "Resuming Questions Generation...")
+        }
 
-        val answersArtifact = AnswersArtifactEntity(pipeline = pipeline)
+        while (true) {
+            val currentPipeline = pipelineRepository.findById(pipelineId)!!
+            if (currentPipeline.status == PipelineStatus.GENERATION_PAUSED) {
+                log(pipelineId, "Generation PAUSED by user.")
+                return
+            }
+            if (currentPipeline.status == PipelineStatus.GENERATION_ABORTED) {
+                log(pipelineId, "Generation ABORTED by user.")
+                return
+            }
 
-        val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
+            val nextTopic = findNextTopicToGenerate(pipelineId, step.id!!)
+            if (nextTopic == null) {
+                log(pipelineId, "Questions Generation completed successfully.")
+                finalizeArtifact(pipelineId, step.id!!)
+                return
+            }
 
-        for (node in topicTreeArtifact.nodes) {
+            try {
+                generateForTopic(pipelineId, step.id!!, nextTopic)
+            } catch (e: Exception) {
+                log(pipelineId, "Error during generation for ${nextTopic.name}: ${e.message}")
+                throw e
+            }
+        }
+    }
+
+    private fun initializeArtifact(pipelineId: Long, stepId: Long): AnswersArtifactEntity {
+        return transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
+
+            val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
+                ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: ${pipeline.name}")
+            val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
+                ?: throw IllegalStateException("Topic tree artifact not found for pipeline: ${pipeline.name}")
+
+            check(topicTreeArtifact.status == ArtifactStatus.APPROVED) {
+                "Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}"
+            }
+
+            val artifact = AnswersArtifactEntity(pipeline = pipeline)
+            artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+            step.artifact = artifact
+
+            pipelineRepository.saveAndFlush(pipeline)
+            saveIncrementalYaml(pipeline, artifact)
+            log(pipelineId, "Initialized Answers Artifact.")
+            artifact
+        }!!
+    }
+
+    private fun findNextTopicToGenerate(pipelineId: Long, stepId: Long): TopicTreeNodeEntity? {
+        return transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
+            val artifact = step.artifact as AnswersArtifactEntity
+
+            val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }!!
+            val topicTreeArtifact = topicTreeStep.artifact as TopicTreeArtifactEntity
+
+            val generatedTopicKeys = artifact.topicsWithQA.map { it.key }.toSet()
+            topicTreeArtifact.nodes.find { it.key !in generatedTopicKeys }
+        }
+    }
+
+    private fun generateForTopic(pipelineId: Long, stepId: Long, node: TopicTreeNodeEntity) {
+        val (systemPrompt, userPrompt) = transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
+
+            val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }!!
+            val topicTreeArtifact = topicTreeStep.artifact as TopicTreeArtifactEntity
+
             val isLeaf = node.leaf
+            val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
             val children = nodesByParent[node.key] ?: emptyList()
             val parentChain = buildParentChain(node, topicTreeArtifact.nodes)
 
-            val systemPrompt = interpolateQuestionPrompt(
+            val sys = interpolateQuestionPrompt(
                 step.systemPrompt?.content ?: "", node, isLeaf, children, parentChain
             )
-            val userPrompt = interpolateQuestionPrompt(
+            val usr = interpolateQuestionPrompt(
                 step.userPrompt?.content ?: "", node, isLeaf, children, parentChain
             )
+            Pair(sys, usr)
+        }!!
 
-            logger.info("Generating questions for topic: {} (leaf: {})", node.name, isLeaf)
-            val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
-            val questions = parseQuestionsWithLevels(rawOutput)
+        log(pipelineId, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
+        val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
+        val questions = parseQuestionsWithLevels(rawOutput)
+
+        transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
+            val artifact = step.artifact as AnswersArtifactEntity
 
             if (questions.isNotEmpty()) {
                 val topicQA = TopicQAEntity(
                     key = node.key,
                     name = node.name,
-                    answersArtifact = answersArtifact
+                    answersArtifact = artifact
                 )
                 topicQA.entries.addAll(questions.map { (text, level) ->
                     QAEntryEntity(
@@ -70,19 +154,36 @@ class QuestionsGenerationStepService(
                         topicQA = topicQA
                     )
                 })
-                answersArtifact.topicsWithQA.add(topicQA)
+                artifact.topicsWithQA.add(topicQA)
             }
+
+            pipelineRepository.saveAndFlush(pipeline)
+            saveIncrementalYaml(pipeline, artifact)
+            log(pipelineId, "Saved ${questions.size} questions for topic: ${node.name}")
         }
+    }
 
-        step.artifact = answersArtifact
-        answersArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        updatePipeline(pipeline, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
+    private fun finalizeArtifact(pipelineId: Long, stepId: Long) {
+        transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            updatePipeline(pipeline, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
+        }
+    }
 
-        val totalQuestions = answersArtifact.topicsWithQA.sumOf { it.entries.size }
+    private fun log(pipelineId: Long, message: String) {
+        logger.info("[Pipeline {}] {}", pipelineId, message)
+        transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            generationLogRepository.save(GenerationLogEntity(pipeline, message))
+        }
+    }
+
+    private fun saveIncrementalYaml(pipeline: PipelineEntity, artifact: AnswersArtifactEntity) {
+        val totalQuestions = artifact.topicsWithQA.sumOf { it.entries.size }
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf(
                 "totalQuestions" to totalQuestions,
-                "topics" to answersArtifact.topicsWithQA.map { topicQA ->
+                "topics" to artifact.topicsWithQA.map { topicQA ->
                     mapOf(
                         "key" to topicQA.key,
                         "name" to topicQA.name,
@@ -97,11 +198,6 @@ class QuestionsGenerationStepService(
             )
         )
         artifactStorage.saveQuestionsArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
-
-        logger.info(
-            "Questions generated for pipeline '{}': {} questions across {} topics",
-            pipeline.name, totalQuestions, answersArtifact.topicsWithQA.size
-        )
     }
 
     private fun buildParentChain(node: TopicTreeNodeEntity, allNodes: Set<TopicTreeNodeEntity>): String {
