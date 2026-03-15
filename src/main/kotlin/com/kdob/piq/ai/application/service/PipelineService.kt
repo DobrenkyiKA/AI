@@ -62,48 +62,13 @@ class PipelineService(
         val step = existing.steps.getOrNull(stepIndex)
             ?: throw IllegalArgumentException("Step at index $stepIndex not found")
 
-        when (step.stepType) {
-            "TOPIC_TREE_GENERATION" -> {
-                val topicTreeArtifact = step.artifact as? TopicTreeArtifactEntity
-                    ?: throw IllegalStateException("Topic tree artifact not found")
-                topicTreeArtifact.status = status
-                if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.ARTIFACT_APPROVED
-                }
-                artifactStorage.saveTopicTreeArtifact(existing.topicKey, name, yamlContent)
-            }
+        val generationStep = generationSteps.find { it.getStepType() == step.stepType }
+            ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
 
-            "QUESTIONS_GENERATION" -> {
-                val answersArtifact = step.artifact as? AnswersArtifactEntity
-                    ?: throw IllegalStateException("Questions artifact not found")
-                answersArtifact.status = status
-                if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.ARTIFACT_APPROVED
-                }
-                artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
-            }
+        generationStep.updateArtifact(step, yamlContent, status)
 
-            "LONG_ANSWERS_GENERATION" -> {
-                val answersArtifact = step.artifact as? AnswersArtifactEntity
-                    ?: throw IllegalStateException("Answers artifact not found")
-                answersArtifact.status = status
-                if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.ARTIFACT_APPROVED
-                }
-                artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
-            }
-
-            "SHORT_ANSWERS_GENERATION" -> {
-                val answersArtifact = step.artifact as? AnswersArtifactEntity
-                    ?: throw IllegalStateException("Short answers artifact not found")
-                answersArtifact.status = status
-                if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.ARTIFACT_APPROVED
-                }
-                artifactStorage.saveShortAnswersArtifact(existing.topicKey, name, yamlContent)
-            }
-
-            else -> throw IllegalArgumentException("Unsupported step type: ${step.stepType}")
+        if (status == ArtifactStatus.APPROVED) {
+            existing.status = PipelineStatus.ARTIFACT_APPROVED
         }
 
         existing.updatedAt = Instant.now()
@@ -255,12 +220,43 @@ class PipelineService(
         return normalized
     }
 
+    @Transactional
     fun pausePipeline(pipelineName: String) {
-        statusService.updateStatus(pipelineName, PipelineStatus.GENERATION_PAUSED)
+        val pipeline = pipelineRepository.findByName(pipelineName)
+            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+        pipeline.status = PipelineStatus.PAUSED
+        pipeline.steps.find { it.artifact != null && it.artifact?.status == ArtifactStatus.PENDING_FOR_APPROVAL }
+            ?.let { it.artifact?.status = ArtifactStatus.PAUSED }
+        pipelineRepository.save(pipeline)
     }
 
+    @Transactional
     fun abortPipeline(pipelineName: String) {
-        statusService.updateStatus(pipelineName, PipelineStatus.GENERATION_ABORTED)
+        val pipeline = pipelineRepository.findByName(pipelineName)
+            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+        pipeline.status = PipelineStatus.ABORTED
+        pipeline.steps.find { it.artifact != null && (it.artifact?.status == ArtifactStatus.PENDING_FOR_APPROVAL || it.artifact?.status == ArtifactStatus.PAUSED) }
+            ?.let { step ->
+                step.artifact?.status = ArtifactStatus.ABORTED
+                artifactStorage.deleteArtifact(pipeline.topicKey, pipelineName, step.stepType)
+            }
+        pipelineRepository.save(pipeline)
+    }
+
+    @Transactional
+    fun removeArtifact(pipelineName: String, stepIndex: Int): PipelineResponse {
+        val pipeline = pipelineRepository.findByName(pipelineName)
+            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+        val step = pipeline.steps.getOrNull(stepIndex)
+            ?: throw IllegalArgumentException("Step index $stepIndex not found")
+
+        if (step.artifact != null) {
+            artifactStorage.deleteArtifact(pipeline.topicKey, pipelineName, step.stepType)
+            step.artifact = null
+            pipeline.updatedAt = Instant.now()
+            return pipelineRepository.save(pipeline).toResponse()
+        }
+        return pipeline.toResponse()
     }
 
     private fun PipelineEntity.toResponse(): PipelineResponse {

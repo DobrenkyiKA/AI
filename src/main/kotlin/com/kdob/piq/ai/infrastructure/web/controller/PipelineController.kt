@@ -97,6 +97,14 @@ class PipelineController(
         return getPipeline(pipelineName)
     }
 
+    @DeleteMapping("/{pipelineName}/artifact/{step}")
+    fun removeArtifact(
+        @PathVariable pipelineName: String,
+        @PathVariable step: Int
+    ): PipelineResponse {
+        return pipelineService.removeArtifact(pipelineName, step)
+    }
+
     @PostMapping("/{pipelineName}/pause")
     fun pausePipeline(@PathVariable pipelineName: String): PipelineResponse {
         pipelineService.pausePipeline(pipelineName)

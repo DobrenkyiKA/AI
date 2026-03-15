@@ -11,7 +11,6 @@ import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 
 @Service
@@ -46,11 +45,11 @@ class QuestionsGenerationStepService(
 
         while (true) {
             val currentPipeline = pipelineRepository.findById(pipelineId)!!
-            if (currentPipeline.status == PipelineStatus.GENERATION_PAUSED) {
+            if (currentPipeline.status == PipelineStatus.PAUSED) {
                 log(pipelineId, "Generation PAUSED by user.")
                 return
             }
-            if (currentPipeline.status == PipelineStatus.GENERATION_ABORTED) {
+            if (currentPipeline.status == PipelineStatus.ABORTED) {
                 log(pipelineId, "Generation ABORTED by user.")
                 return
             }
@@ -69,6 +68,37 @@ class QuestionsGenerationStepService(
                 throw e
             }
         }
+    }
+
+    override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
+        val artifact = step.artifact as? AnswersArtifactEntity
+            ?: throw IllegalStateException("Answers artifact not found")
+        artifact.status = status
+        
+        val data = parseYaml(yamlContent)
+        @Suppress("UNCHECKED_CAST")
+        val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
+        
+        artifact.topicsWithQA.clear()
+        for (t in topicsList) {
+            val topicQA = TopicQAEntity(
+                key = t["key"] as String,
+                name = t["name"] as String,
+                answersArtifact = artifact
+            )
+            @Suppress("UNCHECKED_CAST")
+            val questions = t["questions"] as? List<Map<String, Any>> ?: emptyList()
+            topicQA.entries.addAll(questions.map { q ->
+                QAEntryEntity(
+                    questionText = q["text"] as String,
+                    level = q["level"] as String,
+                    topicQA = topicQA
+                )
+            })
+            artifact.topicsWithQA.add(topicQA)
+        }
+        
+        artifactStorage.saveQuestionsArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
     private fun initializeArtifact(pipelineId: Long, stepId: Long): AnswersArtifactEntity {

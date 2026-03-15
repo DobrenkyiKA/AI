@@ -54,11 +54,11 @@ class TopicTreeGenerationStepService(
 
         while (true) {
             val currentPipeline = pipelineRepository.findById(pipelineId)!!
-            if (currentPipeline.status == PipelineStatus.GENERATION_PAUSED) {
+            if (currentPipeline.status == PipelineStatus.PAUSED) {
                 log(pipelineId, "Generation PAUSED by user.")
                 return
             }
-            if (currentPipeline.status == PipelineStatus.GENERATION_ABORTED) {
+            if (currentPipeline.status == PipelineStatus.ABORTED) {
                 log(pipelineId, "Generation ABORTED by user.")
                 return
             }
@@ -77,6 +77,31 @@ class TopicTreeGenerationStepService(
                 throw e
             }
         }
+    }
+
+    override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
+        val artifact = step.artifact as? TopicTreeArtifactEntity
+            ?: throw IllegalStateException("Topic tree artifact not found")
+        artifact.status = status
+        
+        val data = parseYaml(yamlContent)
+        @Suppress("UNCHECKED_CAST")
+        val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
+        
+        artifact.nodes.clear()
+        for (it in topicsList) {
+            val node = TopicTreeNode(
+                key = it["key"] as String,
+                name = it["name"] as String,
+                parentTopicKey = it["parentTopicKey"] as? String,
+                coverageArea = it["coverageArea"] as String,
+                depth = (it["depth"] as Number).toInt(),
+                leaf = it["leaf"] as? Boolean ?: false
+            )
+            artifact.nodes.add(node.toTopicTreeNodeEntity(artifact))
+        }
+        
+        artifactStorage.saveTopicTreeArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
     private fun initializeArtifact(pipelineId: Long, stepId: Long): TopicTreeArtifactEntity {

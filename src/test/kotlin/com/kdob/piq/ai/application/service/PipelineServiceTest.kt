@@ -43,6 +43,18 @@ class PipelineServiceTest {
     fun setup() {
         `when`(topicTreeGenerationService.getStepType()).thenReturn("TOPIC_TREE_GENERATION")
         `when`(questionsGenerationService.getStepType()).thenReturn("QUESTIONS_GENERATION")
+
+        val updateArtifactAnswer = { invocation: org.mockito.invocation.InvocationOnMock ->
+            val step = invocation.arguments[0] as PipelineStepEntity
+            val status = invocation.arguments[2] as ArtifactStatus
+            step.artifact?.status = status
+            null
+        }
+        doAnswer(updateArtifactAnswer).`when`(topicTreeGenerationService)
+            .updateArtifact(any(PipelineStepEntity::class.java), anyString(), any(ArtifactStatus::class.java))
+        doAnswer(updateArtifactAnswer).`when`(questionsGenerationService)
+            .updateArtifact(any(PipelineStepEntity::class.java), anyString(), any(ArtifactStatus::class.java))
+
         `when`(promptRepository.save(any(PromptEntity::class.java))).thenAnswer { it.arguments[0] as PromptEntity }
         `when`(promptRepository.findByName(org.mockito.ArgumentMatchers.anyString())).thenAnswer { invocation ->
             val name = invocation.arguments[0] as String
@@ -396,5 +408,65 @@ class PipelineServiceTest {
 
         assertEquals(PipelineStatus.ARTIFACT_APPROVED, pipeline.status)
         assertEquals(ArtifactStatus.APPROVED, topicTreeArtifact.status)
+    }
+
+    @Test
+    fun `should pause pipeline and update artifact status`() {
+        val name = "test-pipeline"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        val step = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        val artifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        step.artifact = artifact
+        pipeline.steps.add(step)
+
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
+
+        service.pausePipeline(name)
+
+        assertEquals(PipelineStatus.PAUSED, pipeline.status)
+        assertEquals(ArtifactStatus.PAUSED, artifact.status)
+        verify(repository).save(pipeline)
+    }
+
+    @Test
+    fun `should abort pipeline and delete artifact file`() {
+        val name = "test-pipeline"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        val step = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        val artifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        step.artifact = artifact
+        pipeline.steps.add(step)
+
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
+
+        service.abortPipeline(name)
+
+        assertEquals(PipelineStatus.ABORTED, pipeline.status)
+        assertEquals(ArtifactStatus.ABORTED, artifact.status)
+        verify(artifactStorage).deleteArtifact(pipeline.topicKey, name, "TOPIC_TREE_GENERATION")
+        verify(repository).save(pipeline)
+    }
+
+    @Test
+    fun `should remove artifact entity and file`() {
+        val name = "test-pipeline"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        val step = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        val artifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        step.artifact = artifact
+        pipeline.steps.add(step)
+
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
+
+        service.removeArtifact(name, 0)
+
+        assertEquals(null, step.artifact)
+        verify(artifactStorage).deleteArtifact(pipeline.topicKey, name, "TOPIC_TREE_GENERATION")
+        verify(repository).save(pipeline)
     }
 }

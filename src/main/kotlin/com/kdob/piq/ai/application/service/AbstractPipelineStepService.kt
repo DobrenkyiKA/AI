@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
@@ -20,6 +21,12 @@ abstract class AbstractPipelineStepService(
         YAMLFactory()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     ).registerKotlinModule()
+
+    override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
+        // Default implementation only updates status if specialized logic is not provided
+        val artifact = step.artifact ?: throw IllegalStateException("Artifact not found for step: ${step.id}")
+        artifact.status = status
+    }
 
     protected fun clearOldArtifact(pipeline: PipelineEntity, step: PipelineStepEntity) {
         if (step.artifact != null) {
