@@ -6,6 +6,7 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "pipeline_artifacts")
 @Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name = "dtype", discriminatorType = DiscriminatorType.STRING)
 @Access(AccessType.FIELD)
 abstract class PipelineArtifactEntity(
     @OneToOne(fetch = FetchType.LAZY)

@@ -4,6 +4,7 @@ import jakarta.persistence.*
 
 @Entity
 @Table(name = "topic_tree_artifacts")
+@DiscriminatorValue("TOPIC_TREE")
 @Access(AccessType.FIELD)
 open class TopicTreeArtifactEntity(
     pipeline: PipelineEntity,

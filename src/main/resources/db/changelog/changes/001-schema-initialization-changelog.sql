@@ -40,6 +40,7 @@ CREATE SEQUENCE pipeline_artifacts_id_sequence START WITH 1 INCREMENT BY 50 CACH
 CREATE TABLE public.pipeline_artifacts
 (
     id          BIGINT,
+    dtype       VARCHAR(50) NOT NULL,
     pipeline_id BIGINT      NOT NULL,
     status      VARCHAR(40) NOT NULL,
     CONSTRAINT pk_pipeline_artifacts_id PRIMARY KEY (id),
