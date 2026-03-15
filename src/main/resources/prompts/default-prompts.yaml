@@ -109,6 +109,9 @@ prompts:
         * mid: practical, trade-off aware
         * senior: deep internals, performance implications, design rationale
         * principal: architectural perspective, cross-system impact
+      - Format the answer text using full Markdown formatting: This includes appropriate heading levels (#, ##), 
+        bolding for key terms, bulleted or numbered lists for structure, tables for data comparison, 
+        and fenced code blocks for technical information or examples.
       - Output strictly valid YAML only. No conversational text, no explanations outside the YAML.
 
       Output format:
@@ -138,6 +141,9 @@ prompts:
       - Use confident, precise language a senior engineer would use.
       - Start with the most important point (if the interviewer cuts you off,
         the key insight is already delivered).
+      - Format the answer text using full Markdown formatting: This includes appropriate heading levels (#, ##), 
+        bolding for key terms, bulleted or numbered lists for structure, tables for data comparison, 
+        and fenced code blocks for technical information or examples.
       - Output strictly valid YAML only. No conversational text.
 
       Output format:
