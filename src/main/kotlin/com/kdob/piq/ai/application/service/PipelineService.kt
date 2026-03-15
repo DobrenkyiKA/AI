@@ -30,7 +30,8 @@ class PipelineService(
     private val promptRepository: PromptRepository,
     private val artifactStorage: ArtifactStorage,
     private val generationSteps: List<PipelineStepService>,
-    private val questionCatalogClient: QuestionCatalogClient
+    private val questionCatalogClient: QuestionCatalogClient,
+    private val statusService: PipelineStatusService
 ) {
     private val logger = LoggerFactory.getLogger(PipelineService::class.java)
     @Transactional(readOnly = true)
@@ -122,10 +123,10 @@ class PipelineService(
         artifactStorage.deleteArtifacts(existing.topicKey, name)
     }
 
-    @Transactional
     fun runStep(pipelineName: String, stepIndex: Int) {
-        val pipeline = pipelineRepository.findByName(pipelineName)
-            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+        statusService.updateStatus(pipelineName, PipelineStatus.GENERATION_IN_PROGRESS)
+
+        val pipeline = statusService.getPipelineWithSteps(pipelineName)
 
         val step = pipeline.steps.getOrNull(stepIndex)
             ?: throw IllegalArgumentException("Step at index $stepIndex not found")
@@ -133,17 +134,11 @@ class PipelineService(
         val generationStep = generationSteps.find { it.getStepType() == step.stepType }
             ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
 
-        pipeline.status = PipelineStatus.GENERATION_IN_PROGRESS
-        pipeline.updatedAt = Instant.now()
-        pipelineRepository.save(pipeline)
-
         try {
             generationStep.generate(step)
         } catch (e: Exception) {
             logger.error("Step '{}' failed for pipeline '{}': {}", step.stepType, pipelineName, e.message, e)
-            pipeline.status = PipelineStatus.FAILED
-            pipeline.updatedAt = Instant.now()
-            pipelineRepository.save(pipeline)
+            statusService.updateStatus(pipelineName, PipelineStatus.FAILED)
             throw e
         }
     }
@@ -174,23 +169,20 @@ class PipelineService(
         return pipelineRepository.save(existing).toResponse()
     }
 
-    @Transactional
     fun runPipelineFrom(pipelineName: String, startStep: Int) {
-        val pipeline = pipelineRepository.findByName(pipelineName)
-            ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
+        val pipeline = statusService.getPipelineWithSteps(pipelineName)
         val maxStep = pipeline.steps.size - 1
         for (stepIndex in startStep..maxStep) {
             if (stepIndex > startStep) {
-                val previousStep = pipeline.steps[stepIndex - 1]
+                val currentPipeline = statusService.getPipelineWithSteps(pipelineName)
+                val previousStep = currentPipeline.steps[stepIndex - 1]
                 val previousArtifact = previousStep.artifact
                 if (previousArtifact == null || previousArtifact.status != ArtifactStatus.APPROVED) {
                     logger.info(
                         "Pipeline '{}' paused at step {}: previous artifact not approved (status: {})",
                         pipelineName, stepIndex, previousArtifact?.status
                     )
-                    pipeline.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
-                    pipeline.updatedAt = Instant.now()
-                    pipelineRepository.save(pipeline)
+                    statusService.updateStatus(pipelineName, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
                     return
                 }
             }

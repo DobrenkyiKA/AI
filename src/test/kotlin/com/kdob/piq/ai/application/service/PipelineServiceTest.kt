@@ -26,12 +26,14 @@ class PipelineServiceTest {
     private val topicTreeGenerationService = mock(TopicTreeGenerationStepService::class.java)
     private val questionsGenerationService = mock(QuestionsGenerationStepService::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
+    private val statusService = mock(PipelineStatusService::class.java)
     private val service = PipelineService(
         repository,
         promptRepository,
         artifactStorage,
         listOf(topicTreeGenerationService, questionsGenerationService),
-        questionCatalogClient
+        questionCatalogClient,
+        statusService
     )
 
     @BeforeEach
@@ -167,32 +169,19 @@ class PipelineServiceTest {
         assertEquals(expectedYaml, result)
     }
 
+
     @Test
-    fun `should run topic tree generation step`() {
+    fun `should runStep update status to GENERATION_IN_PROGRESS before running step`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
 
         service.runStep(name, 0)
 
+        verify(statusService).updateStatus(name, PipelineStatus.GENERATION_IN_PROGRESS)
         verify(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
-        verify(repository).save(pipeline)
-    }
-
-    @Test
-    fun `should set GENERATION_IN_PROGRESS before running step`() {
-        val name = "java-core-interview-v1"
-        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
-        `when`(repository.findByName(name)).thenReturn(pipeline)
-
-        doAnswer {
-            assertEquals(PipelineStatus.GENERATION_IN_PROGRESS, pipeline.status)
-            null
-        }.`when`(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
-
-        service.runStep(name, 0)
     }
 
     @Test
@@ -201,6 +190,7 @@ class PipelineServiceTest {
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
         doThrow(RuntimeException("AI service error")).`when`(topicTreeGenerationService)
             .generate(any(PipelineStepEntity::class.java))
 
@@ -208,7 +198,7 @@ class PipelineServiceTest {
             service.runStep(name, 0)
         }
 
-        assertEquals(PipelineStatus.FAILED, pipeline.status)
+        verify(statusService).updateStatus(name, PipelineStatus.FAILED)
     }
 
     @Test
@@ -218,6 +208,7 @@ class PipelineServiceTest {
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
         `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
 
         service.runStep(name, 1)
 
@@ -231,6 +222,8 @@ class PipelineServiceTest {
         val step0 = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
         pipeline.steps.add(step0)
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
+        
+        `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
@@ -244,7 +237,7 @@ class PipelineServiceTest {
 
         verify(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
         verify(questionsGenerationService, never()).generate(any(PipelineStepEntity::class.java))
-        assertEquals(PipelineStatus.WAITING_ARTIFACT_APPROVAL, pipeline.status)
+        verify(statusService).updateStatus(name, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
     }
 
     @Test
@@ -254,10 +247,14 @@ class PipelineServiceTest {
         val step0 = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
         pipeline.steps.add(step0)
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
+        
+        `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
         topicTreeArtifact.status = ArtifactStatus.APPROVED
+        
+        // Mock generation setting artifact
         doAnswer {
             step0.artifact = topicTreeArtifact
             null
@@ -275,6 +272,8 @@ class PipelineServiceTest {
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
+        
+        `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         service.runPipelineFrom(name, 1)
@@ -285,7 +284,9 @@ class PipelineServiceTest {
     @Test
     fun `should fail for unsupported step run`() {
         val name = "java-core-interview-v1"
-        `when`(repository.findByName(name)).thenReturn(PipelineEntity(name = name, topicKey = "java-core"))
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
 
         assertThrows<IllegalArgumentException> {
             service.runStep(name, 99)
