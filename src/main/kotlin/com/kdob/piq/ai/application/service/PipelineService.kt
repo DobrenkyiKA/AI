@@ -3,7 +3,6 @@ package com.kdob.piq.ai.application.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.topics.TopicsArtifactValidator
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
@@ -12,16 +11,12 @@ import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.persistence.entity.AnswersArtifactEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.QuestionsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicsPipelineArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
-import com.kdob.piq.ai.infrastructure.persistence.mapping.toPipelineTopicEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
-import com.kdob.piq.ai.infrastructure.web.dto.TopicsArtifactForm
 import com.kdob.piq.ai.infrastructure.web.dto.*
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import org.springframework.stereotype.Service
@@ -53,12 +48,6 @@ class PipelineService(
         return artifactStorage.loadArtifact(existing.topicKey, name, step.stepType)
     }
 
-    fun getTopicsArtifact(name: String): String {
-        val existing = pipelineRepository.findByName(name)
-            ?: throw NoSuchElementException("Pipeline not found: $name")
-        return artifactStorage.loadTopicsArtifact(existing.topicKey, name)
-    }
-
     @Transactional
     fun updateArtifact(name: String, stepIndex: Int, yamlContent: String, status: ArtifactStatus): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
@@ -68,43 +57,6 @@ class PipelineService(
             ?: throw IllegalArgumentException("Step at index $stepIndex not found")
 
         when (step.stepType) {
-            "TOPICS_GENERATION", "SUBTOPICS_GENERATION" -> {
-                val updatedForm = yamlMapper.readValue(yamlContent, TopicsArtifactForm::class.java)
-                TopicsArtifactValidator.validate(updatedForm)
-
-                val questionsStep = existing.steps.find { it.stepType == "QUESTIONS_GENERATION" }
-                questionsStep?.artifact = null
-                artifactStorage.deleteArtifact(existing.topicKey, name, "QUESTIONS_GENERATION")
-
-                if (step.artifact != null) {
-                    step.artifact = null
-                    pipelineRepository.saveAndFlush(existing)
-                }
-
-                val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = existing)
-                topicsArtifact.status = status
-                topicsArtifact.topics.addAll(updatedForm.topics.map { it.toPipelineTopicEntity(topicsArtifact) })
-                step.artifact = topicsArtifact
-
-                if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.APPROVED
-                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.DRAFT
-                }
-                artifactStorage.saveTopicsArtifact(existing.topicKey, name, yamlContent)
-            }
-
-            "QUESTIONS_GENERATION" -> {
-                val questionsArtifact = step.artifact as? QuestionsPipelineArtifactEntity ?: throw IllegalStateException("Questions artifact not found")
-                questionsArtifact.status = status
-                if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.QUESTIONS_APPROVED
-                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.QUESTIONS_PENDING_FOR_APPROVAL
-                }
-                artifactStorage.saveQuestionsArtifact(existing.topicKey, name, yamlContent)
-            }
-
             "TOPIC_TREE_GENERATION" -> {
                 val topicTreeArtifact = step.artifact as? TopicTreeArtifactEntity
                     ?: throw IllegalStateException("Topic tree artifact not found")
@@ -115,6 +67,18 @@ class PipelineService(
                     existing.status = PipelineStatus.TOPIC_TREE_GENERATED
                 }
                 artifactStorage.saveTopicTreeArtifact(existing.topicKey, name, yamlContent)
+            }
+
+            "QUESTIONS_GENERATION" -> {
+                val answersArtifact = step.artifact as? AnswersArtifactEntity
+                    ?: throw IllegalStateException("Questions artifact not found")
+                answersArtifact.status = status
+                if (status == ArtifactStatus.APPROVED) {
+                    existing.status = PipelineStatus.QUESTIONS_APPROVED
+                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
+                    existing.status = PipelineStatus.QUESTIONS_GENERATED
+                }
+                artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
             }
 
             "LONG_ANSWERS_GENERATION" -> {
@@ -146,22 +110,6 @@ class PipelineService(
 
         existing.updatedAt = Instant.now()
         return pipelineRepository.save(existing).toResponse()
-    }
-
-    @Transactional
-    fun updatePipeline(name: String, yamlContent: String): PipelineResponse {
-        val existing = pipelineRepository.findByName(name)
-            ?: throw NoSuchElementException("Pipeline not found: $name")
-        val topicsStepIndex = existing.steps.indexOfFirst { it.stepType == "TOPICS_GENERATION" || it.stepType == "SUBTOPICS_GENERATION" }
-        if (topicsStepIndex == -1) throw IllegalStateException("Topics generation step not found")
-        val topicsStep = existing.steps[topicsStepIndex]
-
-        return updateArtifact(
-            name,
-            topicsStepIndex,
-            yamlContent,
-            topicsStep.artifact?.status ?: ArtifactStatus.PENDING_FOR_APPROVAL
-        )
     }
 
     @Transactional
@@ -223,33 +171,32 @@ class PipelineService(
     }
 
     @Transactional
-    fun publishTopicsArtifact(pipelineName: String) {
+    fun publishArtifact(pipelineName: String) {
         val existing = pipelineRepository.findByName(pipelineName)
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
 
-        val topicsStep = existing.steps.find { it.stepType == "TOPICS_GENERATION" || it.stepType == "SUBTOPICS_GENERATION" }
-            ?: throw IllegalStateException("TOPICS_GENERATION step not found for pipeline: $pipelineName")
-        val topicsArtifact = topicsStep.artifact as? TopicsPipelineArtifactEntity
-            ?: throw IllegalStateException("Topics artifact not found for pipeline: $pipelineName")
+        val topicTreeStep = existing.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
+            ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: $pipelineName")
+        val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
+            ?: throw IllegalStateException("Topic tree artifact not found for pipeline: $pipelineName")
 
-        if (topicsArtifact.status != ArtifactStatus.APPROVED) {
-            throw IllegalStateException("Topics artifact is not APPROVED. Current status: ${topicsArtifact.status}")
+        if (topicTreeArtifact.status != ArtifactStatus.APPROVED) {
+            throw IllegalStateException("Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}")
         }
 
         val rootTopic = questionCatalogClient.findTopic(existing.topicKey)
             ?: throw IllegalStateException("Root topic not found in catalog: ${existing.topicKey}")
 
-        val topicsByParent = topicsArtifact.topics.groupBy { it.parentTopicKey }
+        val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
 
         fun publishRecursive(parentKey: String, parentPath: String) {
-            val children = topicsByParent[parentKey] ?: return
+            val children = nodesByParent[parentKey] ?: return
             for (child in children) {
                 val request = CreateTopicClientRequest(
                     key = child.key,
                     name = child.name,
                     parentPath = parentPath,
-                    coverageArea = child.coverageArea,
-                    exclusions = "" // Artifact topics don't have exclusions, they are filtered out during generation
+                    coverageArea = child.coverageArea
                 )
                 val response = questionCatalogClient.createTopic(request)
                 publishRecursive(child.key, response.path)
@@ -317,11 +264,9 @@ class PipelineService(
         providedName: String?,
         providedContent: String?
     ): PromptEntity {
-        // 1. If name is provided, try to find and use it
         if (!providedName.isNullOrBlank()) {
             val existing = promptRepository.findByName(providedName)
             if (existing != null) {
-                // If content is also provided, update it (requirement 4: change provided default prompts)
                 if (!providedContent.isNullOrBlank() && providedContent != existing.content) {
                     existing.content = providedContent
                     return promptRepository.save(existing)
@@ -330,7 +275,6 @@ class PipelineService(
             }
         }
 
-        // 2. If content is provided but no name (or name not found), create/update pipeline-specific prompt
         if (!providedContent.isNullOrBlank()) {
             val promptName = providedName ?: "$pipelineName-$stepType-${type.name.lowercase()}"
             val existing = promptRepository.findByName(promptName)
@@ -342,7 +286,6 @@ class PipelineService(
             }
         }
 
-        // 3. Fallback to default prompt for the step type if nothing else is provided
         val defaultPromptName = "DEFAULT_${stepType}_${type.name}"
         return promptRepository.findByName(defaultPromptName)
             ?: throw IllegalStateException("Default prompt not found: $defaultPromptName. Make sure default prompts are loaded on startup.")

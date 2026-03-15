@@ -14,28 +14,28 @@ class ArtifactStorageTest {
     private val yaml = "content: test"
 
     @Test
-    fun `should save topics artifact using topic key and pipeline name`() {
-        storage.saveTopicsArtifact(topicKey, pipelineName, yaml)
+    fun `should save topic tree artifact using topic key and pipeline name`() {
+        storage.saveTopicTreeArtifact(topicKey, pipelineName, yaml)
 
-        verify(storageClient).saveTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml", yaml)
+        verify(storageClient).saveTopicTreeArtifact(topicKey, pipelineName, "topic-tree-artifact.yaml", yaml)
     }
 
     @Test
-    fun `should load topics artifact using topic key and pipeline name`() {
-        `when`(storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")).thenReturn(yaml)
+    fun `should load topic tree artifact using topic key and pipeline name`() {
+        `when`(storageClient.loadTopicTreeArtifact(topicKey, pipelineName, "topic-tree-artifact.yaml")).thenReturn(yaml)
 
-        val result = storage.loadTopicsArtifact(topicKey, pipelineName)
+        val result = storage.loadTopicTreeArtifact(topicKey, pipelineName)
 
         assertEquals(yaml, result)
-        verify(storageClient).loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")
+        verify(storageClient).loadTopicTreeArtifact(topicKey, pipelineName, "topic-tree-artifact.yaml")
     }
 
     @Test
     fun `demonstrate consistency between save and load`() {
-        `when`(storageClient.loadTopicsArtifact(topicKey, pipelineName, "topics-artifact.yaml")).thenReturn(yaml)
+        `when`(storageClient.loadTopicTreeArtifact(topicKey, pipelineName, "topic-tree-artifact.yaml")).thenReturn(yaml)
 
-        storage.saveTopicsArtifact(topicKey, pipelineName, yaml)
-        val result = storage.loadTopicsArtifact(topicKey, pipelineName)
+        storage.saveTopicTreeArtifact(topicKey, pipelineName, yaml)
+        val result = storage.loadTopicTreeArtifact(topicKey, pipelineName)
 
         assertEquals(yaml, result)
     }

@@ -30,11 +30,6 @@ class PipelineController(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Pipeline not found")
     }
 
-    @GetMapping("/{pipelineName}/artifact")
-    fun getPipelineArtifact(@PathVariable pipelineName: String): String {
-        return pipelineService.getTopicsArtifact(pipelineName)
-    }
-
     @GetMapping("/{pipelineName}/artifact/{step}")
     fun getArtifactByStep(
         @PathVariable pipelineName: String,
@@ -50,14 +45,6 @@ class PipelineController(
         @RequestBody request: PipelineArtifactUpdateRequest
     ): PipelineResponse {
         return pipelineService.updateArtifact(pipelineName, step, request.content, request.status)
-    }
-
-    @PutMapping("/{pipelineName}")
-    fun updatePipeline(
-        @PathVariable pipelineName: String,
-        @RequestBody yaml: String
-    ): PipelineResponse {
-        return pipelineService.updatePipeline(pipelineName, yaml)
     }
 
     @PatchMapping("/{pipelineName}")
@@ -104,9 +91,9 @@ class PipelineController(
         return getPipeline(pipelineName)
     }
 
-    @PostMapping("/{pipelineName}/publish-topics")
-    fun publishTopicsArtifact(@PathVariable pipelineName: String): PipelineResponse {
-        pipelineService.publishTopicsArtifact(pipelineName)
+    @PostMapping("/{pipelineName}/publish")
+    fun publishArtifact(@PathVariable pipelineName: String): PipelineResponse {
+        pipelineService.publishArtifact(pipelineName)
         return getPipeline(pipelineName)
     }
 }

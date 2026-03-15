@@ -3,8 +3,8 @@ package com.kdob.piq.ai.application.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.kdob.piq.ai.application.service.topics.TopicPipelineStepService
-import com.kdob.piq.ai.application.service.questions.QuestionPipelineStepService
+import com.kdob.piq.ai.application.service.topictree.TopicTreeGenerationStepService
+import com.kdob.piq.ai.application.service.questions.QuestionsGenerationStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -25,20 +25,20 @@ class PipelineServiceTest {
     private val repository = mock(PipelineRepository::class.java)
     private val promptRepository = mock(PromptRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val topicsGenerationService = mock(TopicPipelineStepService::class.java)
-    private val questionsGenerationService = mock(QuestionPipelineStepService::class.java)
+    private val topicTreeGenerationService = mock(TopicTreeGenerationStepService::class.java)
+    private val questionsGenerationService = mock(QuestionsGenerationStepService::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val service = PipelineService(
         repository,
         promptRepository,
         artifactStorage,
-        listOf(topicsGenerationService, questionsGenerationService),
+        listOf(topicTreeGenerationService, questionsGenerationService),
         questionCatalogClient
     )
 
     @BeforeEach
     fun setup() {
-        `when`(topicsGenerationService.getStepType()).thenReturn("TOPICS_GENERATION")
+        `when`(topicTreeGenerationService.getStepType()).thenReturn("TOPIC_TREE_GENERATION")
         `when`(questionsGenerationService.getStepType()).thenReturn("QUESTIONS_GENERATION")
         `when`(promptRepository.save(any(PromptEntity::class.java))).thenAnswer { it.arguments[0] as PromptEntity }
         `when`(promptRepository.findByName(org.mockito.ArgumentMatchers.anyString())).thenAnswer { invocation ->
@@ -51,8 +51,6 @@ class PipelineServiceTest {
             }
         }
     }
-    private val yamlMapper = ObjectMapper(YAMLFactory())
-        .registerKotlinModule()
 
     @Test
     fun `should create pipeline with normalized name`() {
@@ -76,6 +74,8 @@ class PipelineServiceTest {
             PipelineEntity(name = "dummy", topicKey = "dummy-topic") as T
         } else if (type == PromptEntity::class.java) {
             PromptEntity(type = PromptType.SYSTEM, name = "dummy", content = "dummy") as T
+        } else if (type == CreateTopicClientRequest::class.java) {
+            CreateTopicClientRequest(key = "", name = "", parentPath = "") as T
         } else {
             @Suppress("UNCHECKED_CAST")
             null as T
@@ -87,7 +87,7 @@ class PipelineServiceTest {
         val name = "test-pipeline"
         val topicKey = "java-core"
         val stepRequest = com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest(
-            type = "TOPICS_GENERATION"
+            type = "TOPIC_TREE_GENERATION"
         )
 
         `when`(repository.findByName(name)).thenReturn(null)
@@ -97,9 +97,9 @@ class PipelineServiceTest {
 
         assertEquals(1, result.steps.size)
         val step = result.steps[0]
-        assertEquals("TOPICS_GENERATION", step.type)
-        assertEquals("DEFAULT_TOPICS_GENERATION_SYSTEM", step.systemPromptName)
-        assertEquals("DEFAULT_TOPICS_GENERATION_USER", step.userPromptName)
+        assertEquals("TOPIC_TREE_GENERATION", step.type)
+        assertEquals("DEFAULT_TOPIC_TREE_GENERATION_SYSTEM", step.systemPromptName)
+        assertEquals("DEFAULT_TOPIC_TREE_GENERATION_USER", step.userPromptName)
         assertEquals("default content", step.systemPrompt)
     }
 
@@ -110,12 +110,12 @@ class PipelineServiceTest {
         `when`(repository.findByName(name)).thenReturn(pipeline)
         `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
 
-        val defaultPrompt = PromptEntity(type = PromptType.SYSTEM, name = "DEFAULT_TOPICS_GENERATION_SYSTEM", content = "original content")
-        `when`(promptRepository.findByName("DEFAULT_TOPICS_GENERATION_SYSTEM")).thenReturn(defaultPrompt)
+        val defaultPrompt = PromptEntity(type = PromptType.SYSTEM, name = "DEFAULT_TOPIC_TREE_GENERATION_SYSTEM", content = "original content")
+        `when`(promptRepository.findByName("DEFAULT_TOPIC_TREE_GENERATION_SYSTEM")).thenReturn(defaultPrompt)
 
         val updateRequest = com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest(
-            type = "TOPICS_GENERATION",
-            systemPromptName = "DEFAULT_TOPICS_GENERATION_SYSTEM",
+            type = "TOPIC_TREE_GENERATION",
+            systemPromptName = "DEFAULT_TOPIC_TREE_GENERATION_SYSTEM",
             systemPrompt = "new improved content"
         )
 
@@ -160,9 +160,9 @@ class PipelineServiceTest {
         val name = "java-core-interview-v1"
         val expectedYaml = "topics: []"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         `when`(repository.findByName(name)).thenReturn(pipeline)
-        `when`(artifactStorage.loadArtifact("java-core", name, "TOPICS_GENERATION")).thenReturn(expectedYaml)
+        `when`(artifactStorage.loadArtifact("java-core", name, "TOPIC_TREE_GENERATION")).thenReturn(expectedYaml)
 
         val result = service.getArtifact(name, 0)
 
@@ -170,49 +170,22 @@ class PipelineServiceTest {
     }
 
     @Test
-    fun `should update pipeline and its artifacts`() {
-        val name = "java-core-interview-v1"
-        val yamlContent = """
-              topics:
-                - key: java-gc-v2
-                  name: JVM Garbage Collection v2
-                  coverageArea: Updated memory management
-        """.trimIndent()
-
-        val existingEntity =
-            com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity(name = name, topicKey = "java-core")
-        existingEntity.steps.add(PipelineStepEntity(existingEntity, "TOPICS_GENERATION", 0))
-        `when`(repository.findByName(name)).thenReturn(existingEntity)
-        `when`(repository.save(existingEntity)).thenReturn(existingEntity)
-        `when`(repository.saveAndFlush(existingEntity)).thenReturn(existingEntity)
-
-        service.updatePipeline(name, yamlContent)
-
-        val topicsStep = existingEntity.steps.find { it.stepType == "TOPICS_GENERATION" }
-        val topicsArtifact = topicsStep?.artifact as? TopicsPipelineArtifactEntity
-        assert(topicsArtifact?.topics?.size == 1)
-        assert(topicsArtifact?.topics?.first()?.key == "java-gc-v2")
-        verify(artifactStorage).saveTopicsArtifact("java-core", name, yamlContent)
-        verify(repository).save(existingEntity)
-    }
-
-    @Test
-    fun `should run topics generation step`() {
+    fun `should run topic tree generation step`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         service.runStep(name, 0)
 
-        verify(topicsGenerationService).generate(any(PipelineStepEntity::class.java))
+        verify(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
     }
 
     @Test
     fun `should run questions generation step`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
@@ -222,16 +195,16 @@ class PipelineServiceTest {
     }
 
     @Test
-    fun `should run pipeline from topics generation`() {
+    fun `should run pipeline from topic tree generation`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         service.runPipelineFrom(name, 0)
 
-        verify(topicsGenerationService).generate(any(PipelineStepEntity::class.java))
+        verify(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
         verify(questionsGenerationService).generate(any(PipelineStepEntity::class.java))
     }
 
@@ -239,7 +212,7 @@ class PipelineServiceTest {
     fun `should run pipeline from questions generation`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0))
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
@@ -259,31 +232,35 @@ class PipelineServiceTest {
     }
 
     @Test
-    fun `should publish approved topics artifact`() {
+    fun `should publish approved topic tree artifact`() {
         val name = "java-core-interview-v1"
         val topicKey = "java-core"
         val pipeline = PipelineEntity(name = name, topicKey = topicKey)
-        val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = pipeline)
-        topicsArtifact.status = ArtifactStatus.APPROVED
+        val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        topicTreeArtifact.status = ArtifactStatus.APPROVED
 
-        val child1 = PipelineTopicEntity(
+        val child1 = TopicTreeNodeEntity(
             key = "java-fundamentals",
             name = "Java Fundamentals",
             parentTopicKey = topicKey,
             coverageArea = "Basics",
-            topicsArtifact = topicsArtifact
+            depth = 1,
+            leaf = true,
+            topicTreeArtifact = topicTreeArtifact
         )
-        val child2 = PipelineTopicEntity(
+        val child2 = TopicTreeNodeEntity(
             key = "java-collections",
             name = "Java Collections",
             parentTopicKey = "java-fundamentals",
             coverageArea = "Collections",
-            topicsArtifact = topicsArtifact
+            depth = 2,
+            leaf = true,
+            topicTreeArtifact = topicTreeArtifact
         )
-        topicsArtifact.topics.add(child1)
-        topicsArtifact.topics.add(child2)
-        val step = PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0)
-        step.artifact = topicsArtifact
+        topicTreeArtifact.nodes.add(child1)
+        topicTreeArtifact.nodes.add(child2)
+        val step = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        step.artifact = topicTreeArtifact
         pipeline.steps.add(step)
 
         `when`(repository.findByName(name)).thenReturn(pipeline)
@@ -299,15 +276,14 @@ class PipelineServiceTest {
             TopicClientResponse(req.key, req.name, "${req.parentPath}/${req.key}")
         }
 
-        service.publishTopicsArtifact(name)
+        service.publishArtifact(name)
 
         verify(questionCatalogClient).createTopic(
             CreateTopicClientRequest(
                 "java-fundamentals",
                 "Java Fundamentals",
                 "/java-core",
-                "Basics",
-                ""
+                "Basics"
             )
         )
         verify(questionCatalogClient).createTopic(
@@ -315,26 +291,25 @@ class PipelineServiceTest {
                 "java-collections",
                 "Java Collections",
                 "/java-core/java-fundamentals",
-                "Collections",
-                ""
+                "Collections"
             )
         )
     }
 
     @Test
-    fun `should fail to publish if topics artifact is not approved`() {
+    fun `should fail to publish if topic tree artifact is not approved`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        val topicsArtifact = TopicsPipelineArtifactEntity(pipeline = pipeline)
-        topicsArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
-        val step = PipelineStepEntity(pipeline, "TOPICS_GENERATION", 0)
-        step.artifact = topicsArtifact
+        val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        topicTreeArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        val step = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        step.artifact = topicTreeArtifact
         pipeline.steps.add(step)
 
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         assertThrows<IllegalStateException> {
-            service.publishTopicsArtifact(name)
+            service.publishArtifact(name)
         }
     }
 }

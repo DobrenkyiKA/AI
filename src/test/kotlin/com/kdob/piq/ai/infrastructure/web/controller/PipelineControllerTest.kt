@@ -76,17 +76,6 @@ class PipelineControllerTest {
     }
 
     @Test
-    fun `should return artifact content`() {
-        val name = "test-pipeline"
-        val yaml = "pipeline: { name: 'test-pipeline' }"
-        `when`(intakeService.getTopicsArtifact(name)).thenReturn(yaml)
-
-        mockMvc.perform(get("/pipeline/$name/artifact"))
-            .andExpect(status().isOk)
-            .andExpect(content().string(yaml))
-    }
-
-    @Test
     fun `should return artifact by step`() {
         val name = "test-pipeline"
         val yaml = "step content"
@@ -109,20 +98,6 @@ class PipelineControllerTest {
         mockMvc.perform(put("/pipeline/$name/artifact/1")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"content\": \"$yaml\", \"status\": \"$status\"}"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.pipelineName").value(name))
-    }
-
-    @Test
-    fun `should update pipeline and return updated response`() {
-        val name = "test-pipeline"
-        val yaml = "pipeline: { name: 'test-pipeline', topics: [] }"
-        val response = PipelineEntity(name = name, topicKey = "test-topic").toResponse()
-        `when`(intakeService.updatePipeline(name, yaml)).thenReturn(response)
-
-        mockMvc.perform(put("/pipeline/$name")
-            .contentType(MediaType.TEXT_PLAIN)
-            .content(yaml))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.pipelineName").value(name))
     }
@@ -167,6 +142,19 @@ class PipelineControllerTest {
             .andExpect(jsonPath("$.pipelineName").value(name))
         
         verify(intakeService).runPipelineFrom(name, step)
+    }
+
+    @Test
+    fun `should publish artifact and return updated response`() {
+        val name = "test-pipeline"
+        val response = PipelineEntity(name = name, topicKey = "test-topic").toResponse()
+        `when`(intakeService.findByName(name)).thenReturn(response)
+
+        mockMvc.perform(post("/pipeline/$name/publish"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.pipelineName").value(name))
+        
+        verify(intakeService).publishArtifact(name)
     }
 
     private fun PipelineEntity.toResponse() = PipelineResponse(

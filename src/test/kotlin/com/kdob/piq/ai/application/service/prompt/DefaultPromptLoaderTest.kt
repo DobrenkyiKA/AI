@@ -22,11 +22,13 @@ class DefaultPromptLoaderTest {
         assertNotNull(defaultPrompts)
         
         val promptNames = defaultPrompts.prompts.map { it.name }
-        assertTrue(promptNames.contains("DEFAULT_TOPICS_GENERATION_SYSTEM"))
-        assertTrue(promptNames.contains("DEFAULT_TOPICS_GENERATION_USER"))
+        assertTrue(promptNames.contains("DEFAULT_TOPIC_TREE_GENERATION_SYSTEM"))
+        assertTrue(promptNames.contains("DEFAULT_TOPIC_TREE_GENERATION_USER"))
         assertTrue(promptNames.contains("DEFAULT_QUESTIONS_GENERATION_SYSTEM"))
         assertTrue(promptNames.contains("DEFAULT_QUESTIONS_GENERATION_USER"))
-        assertTrue(promptNames.contains("DEFAULT_SUBTOPICS_GENERATION_SYSTEM"))
-        assertTrue(promptNames.contains("DEFAULT_SUBTOPICS_GENERATION_USER"))
+        assertTrue(promptNames.contains("DEFAULT_LONG_ANSWERS_GENERATION_SYSTEM"))
+        assertTrue(promptNames.contains("DEFAULT_LONG_ANSWERS_GENERATION_USER"))
+        assertTrue(promptNames.contains("DEFAULT_SHORT_ANSWERS_GENERATION_SYSTEM"))
+        assertTrue(promptNames.contains("DEFAULT_SHORT_ANSWERS_GENERATION_USER"))
     }
 }

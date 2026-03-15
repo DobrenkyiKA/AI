@@ -10,52 +10,6 @@ class StorageHttpClient(
     @Qualifier("storageRestClient") private val restClient: RestClient
 ) : StorageClient {
 
-    override fun saveTopicsArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
-        restClient.put()
-            .uri("/versions/{group}/{version}/topics/{fileName}", topicKey, pipelineName, fileName)
-            .contentType(MediaType.TEXT_PLAIN)
-            .body(content)
-            .retrieve()
-            .toBodilessEntity()
-    }
-
-    override fun saveQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
-        restClient.put()
-            .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
-            .contentType(MediaType.TEXT_PLAIN)
-            .body(content)
-            .retrieve()
-            .toBodilessEntity()
-    }
-
-    override fun loadTopicsArtifact(topicKey: String, pipelineName: String, fileName: String): String {
-        return restClient.get()
-            .uri("/versions/{group}/{version}/topics/{fileName}", topicKey, pipelineName, fileName)
-            .retrieve()
-            .body(String::class.java) ?: ""
-    }
-
-    override fun loadQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String): String {
-        return restClient.get()
-            .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
-            .retrieve()
-            .body(String::class.java) ?: ""
-    }
-
-    override fun deleteTopicsArtifact(topicKey: String, pipelineName: String, fileName: String) {
-        restClient.delete()
-            .uri("/versions/{group}/{version}/topics/{fileName}", topicKey, pipelineName, fileName)
-            .retrieve()
-            .toBodilessEntity()
-    }
-
-    override fun deleteQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String) {
-        restClient.delete()
-            .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
-            .retrieve()
-            .toBodilessEntity()
-    }
-
     override fun saveTopicTreeArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
         restClient.put()
             .uri("/versions/{group}/{version}/topic-tree/{fileName}", topicKey, pipelineName, fileName)
