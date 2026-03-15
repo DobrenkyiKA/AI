@@ -69,11 +69,11 @@ class TopicTreeGenerationStepService(
 
             val systemPrompt = interpolate(
                 step.systemPrompt?.content ?: "",
-                current, parentChain, siblingTopics, maxDepth
+                current, parentChain, siblingTopics
             )
             val userPrompt = interpolate(
                 step.userPrompt?.content ?: "",
-                current, parentChain, siblingTopics, maxDepth
+                current, parentChain, siblingTopics
             )
 
             logger.info("Generating subtopics for: {} (depth: {})", current.name, current.depth)
@@ -96,7 +96,7 @@ class TopicTreeGenerationStepService(
             }
         }
 
-        saveTopicTreeArtifact(pipeline, step, allNodes, maxDepth)
+        saveTopicTreeArtifact(pipeline, step, allNodes)
     }
 
     private fun buildParentChain(
@@ -123,8 +123,7 @@ class TopicTreeGenerationStepService(
         prompt: String,
         topic: TopicTreeNode,
         parentChain: String,
-        siblingTopics: String,
-        maxDepth: Int
+        siblingTopics: String
     ): String {
         return prompt
             .replace("{{topicKey}}", topic.key)
@@ -133,7 +132,7 @@ class TopicTreeGenerationStepService(
             .replace("{{parentChain}}", parentChain)
             .replace("{{siblingTopics}}", siblingTopics.ifBlank { "None" })
             .replace("{{depth}}", topic.depth.toString())
-            .replace("{{maxDepth}}", maxDepth.toString())
+            .replace("{{maxDepth}}", DEFAULT_MAX_DEPTH.toString())
             .replace("{{parentKey}}", topic.key)
     }
 
@@ -157,12 +156,11 @@ class TopicTreeGenerationStepService(
     private fun saveTopicTreeArtifact(
         pipeline: com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity,
         step: PipelineStepEntity,
-        nodes: List<TopicTreeNode>,
-        maxDepth: Int
+        nodes: List<TopicTreeNode>
     ) {
         clearOldArtifact(pipeline, step)
 
-        val artifact = TopicTreeArtifactEntity(pipeline = pipeline, maxDepth = maxDepth)
+        val artifact = TopicTreeArtifactEntity(pipeline = pipeline, maxDepth = DEFAULT_MAX_DEPTH)
         artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
         artifact.nodes.addAll(nodes.map { it.toTopicTreeNodeEntity(artifact) })
 
@@ -173,7 +171,7 @@ class TopicTreeGenerationStepService(
             mapOf(
                 "rootTopicKey" to pipeline.topicKey,
                 "totalTopics" to nodes.size,
-                "maxDepth" to maxDepth,
+                "maxDepth" to DEFAULT_MAX_DEPTH,
                 "topics" to nodes.map { node ->
                     mapOf(
                         "key" to node.key,
@@ -190,7 +188,7 @@ class TopicTreeGenerationStepService(
 
         logger.info(
             "Topic tree generated for pipeline '{}': {} topics, max depth {}",
-            pipeline.name, nodes.size, maxDepth
+            pipeline.name, nodes.size, DEFAULT_MAX_DEPTH
         )
     }
 }
