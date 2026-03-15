@@ -1,11 +1,9 @@
 package com.kdob.piq.ai.application.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.topictree.TopicTreeGenerationStepService
 import com.kdob.piq.ai.application.service.questions.QuestionsGenerationStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
+import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
@@ -179,6 +177,38 @@ class PipelineServiceTest {
         service.runStep(name, 0)
 
         verify(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
+        verify(repository).save(pipeline)
+    }
+
+    @Test
+    fun `should set GENERATION_IN_PROGRESS before running step`() {
+        val name = "java-core-interview-v1"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+
+        doAnswer {
+            assertEquals(PipelineStatus.ARTIFACT_GENERATION_IN_PROGRESS, pipeline.status)
+            null
+        }.`when`(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
+
+        service.runStep(name, 0)
+    }
+
+    @Test
+    fun `should set FAILED status when step throws exception`() {
+        val name = "java-core-interview-v1"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        doThrow(RuntimeException("AI service error")).`when`(topicTreeGenerationService)
+            .generate(any(PipelineStepEntity::class.java))
+
+        assertThrows<RuntimeException> {
+            service.runStep(name, 0)
+        }
+
+        assertEquals(PipelineStatus.FAILED, pipeline.status)
     }
 
     @Test
@@ -195,12 +225,43 @@ class PipelineServiceTest {
     }
 
     @Test
-    fun `should run pipeline from topic tree generation`() {
+    fun `should run pipeline from topic tree generation and stop when artifact not approved`() {
         val name = "java-core-interview-v1"
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
-        pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
+        val step0 = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        pipeline.steps.add(step0)
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
         `when`(repository.findByName(name)).thenReturn(pipeline)
+
+        val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        topicTreeArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        doAnswer {
+            step0.artifact = topicTreeArtifact
+            null
+        }.`when`(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
+
+        service.runPipelineFrom(name, 0)
+
+        verify(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
+        verify(questionsGenerationService, never()).generate(any(PipelineStepEntity::class.java))
+        assertEquals(PipelineStatus.WAITING_ARTIFACT_APPROVAL, pipeline.status)
+    }
+
+    @Test
+    fun `should run all steps when artifacts are approved`() {
+        val name = "java-core-interview-v1"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        val step0 = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        pipeline.steps.add(step0)
+        pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+
+        val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        topicTreeArtifact.status = ArtifactStatus.APPROVED
+        doAnswer {
+            step0.artifact = topicTreeArtifact
+            null
+        }.`when`(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
 
         service.runPipelineFrom(name, 0)
 

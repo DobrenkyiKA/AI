@@ -122,7 +122,7 @@ class QuestionsGenerationStepServiceTest {
 
         verify(repository).save(pipeline)
         verify(artifactStorage).saveQuestionsArtifact(eq("java") ?: "", eq("java-pipeline") ?: "", anyString() ?: "")
-        assertEquals(PipelineStatus.QUESTIONS_GENERATED, pipeline.status)
+        assertEquals(PipelineStatus.WAITING_ARTIFACT_APPROVAL, pipeline.status)
 
         val artifact = step.artifact as? AnswersArtifactEntity
         assertNotNull(artifact)

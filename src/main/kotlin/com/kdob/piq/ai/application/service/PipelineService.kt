@@ -19,6 +19,7 @@ import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
 import com.kdob.piq.ai.infrastructure.web.dto.*
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -31,6 +32,7 @@ class PipelineService(
     private val generationSteps: List<PipelineStepService>,
     private val questionCatalogClient: QuestionCatalogClient
 ) {
+    private val logger = LoggerFactory.getLogger(PipelineService::class.java)
     @Transactional(readOnly = true)
     fun findAll(): List<PipelineResponse> = pipelineRepository.findAll().map { it.toResponse() }
 
@@ -64,7 +66,7 @@ class PipelineService(
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.TOPIC_TREE_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.TOPIC_TREE_GENERATED
+                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveTopicTreeArtifact(existing.topicKey, name, yamlContent)
             }
@@ -76,7 +78,7 @@ class PipelineService(
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.QUESTIONS_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.QUESTIONS_GENERATED
+                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
             }
@@ -88,7 +90,7 @@ class PipelineService(
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.ANSWERS_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.ANSWERS_GENERATED
+                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
             }
@@ -100,7 +102,7 @@ class PipelineService(
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.SHORT_ANSWERS_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.SHORT_ANSWERS_GENERATED
+                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveShortAnswersArtifact(existing.topicKey, name, yamlContent)
             }
@@ -131,7 +133,19 @@ class PipelineService(
         val generationStep = generationSteps.find { it.getStepType() == step.stepType }
             ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
 
-        generationStep.generate(step)
+        pipeline.status = PipelineStatus.ARTIFACT_GENERATION_IN_PROGRESS
+        pipeline.updatedAt = Instant.now()
+        pipelineRepository.save(pipeline)
+
+        try {
+            generationStep.generate(step)
+        } catch (e: Exception) {
+            logger.error("Step '{}' failed for pipeline '{}': {}", step.stepType, pipelineName, e.message, e)
+            pipeline.status = PipelineStatus.FAILED
+            pipeline.updatedAt = Instant.now()
+            pipelineRepository.save(pipeline)
+            throw e
+        }
     }
 
     @Transactional
@@ -165,8 +179,22 @@ class PipelineService(
         val pipeline = pipelineRepository.findByName(pipelineName)
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
         val maxStep = pipeline.steps.size - 1
-        for (step in startStep..maxStep) {
-            runStep(pipelineName, step)
+        for (stepIndex in startStep..maxStep) {
+            if (stepIndex > startStep) {
+                val previousStep = pipeline.steps[stepIndex - 1]
+                val previousArtifact = previousStep.artifact
+                if (previousArtifact == null || previousArtifact.status != ArtifactStatus.APPROVED) {
+                    logger.info(
+                        "Pipeline '{}' paused at step {}: previous artifact not approved (status: {})",
+                        pipelineName, stepIndex, previousArtifact?.status
+                    )
+                    pipeline.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
+                    pipeline.updatedAt = Instant.now()
+                    pipelineRepository.save(pipeline)
+                    return
+                }
+            }
+            runStep(pipelineName, stepIndex)
         }
     }
 

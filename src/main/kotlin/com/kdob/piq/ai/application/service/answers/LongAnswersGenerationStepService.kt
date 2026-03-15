@@ -31,8 +31,8 @@ class LongAnswersGenerationStepService(
         val questionsArtifact = questionsStep.artifact as? AnswersArtifactEntity
             ?: throw IllegalStateException("Questions artifact not found for pipeline: ${pipeline.name}")
 
-        if (questionsArtifact.status != ArtifactStatus.APPROVED) {
-            throw IllegalStateException("Questions artifact is not APPROVED. Current status: ${questionsArtifact.status}")
+        check(questionsArtifact.status == ArtifactStatus.APPROVED) {
+            "Questions artifact is not APPROVED. Current status: ${questionsArtifact.status}"
         }
 
         clearOldArtifact(pipeline, step)
@@ -71,7 +71,8 @@ class LongAnswersGenerationStepService(
         }
 
         step.artifact = answersArtifact
-        updatePipeline(pipeline, PipelineStatus.ANSWERS_GENERATED)
+        answersArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        updatePipeline(pipeline, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
 
         val totalAnswers = answersArtifact.topicsWithQA.sumOf { it.entries.size }
         val yamlContent = yamlMapper.writeValueAsString(

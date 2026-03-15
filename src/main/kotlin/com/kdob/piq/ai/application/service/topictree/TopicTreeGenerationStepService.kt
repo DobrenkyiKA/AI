@@ -167,7 +167,7 @@ class TopicTreeGenerationStepService(
         artifact.nodes.addAll(nodes.map { it.toTopicTreeNodeEntity(artifact) })
 
         step.artifact = artifact
-        updatePipeline(pipeline, PipelineStatus.TOPIC_TREE_GENERATED)
+        updatePipeline(pipeline, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
 
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf(

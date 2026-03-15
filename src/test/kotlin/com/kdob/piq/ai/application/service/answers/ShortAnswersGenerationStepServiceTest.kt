@@ -106,7 +106,7 @@ class ShortAnswersGenerationStepServiceTest {
 
         verify(repository).save(pipeline)
         verify(artifactStorage).saveShortAnswersArtifact(eq("java") ?: "", eq("java-pipeline") ?: "", anyString() ?: "")
-        assertEquals(PipelineStatus.SHORT_ANSWERS_GENERATED, pipeline.status)
+        assertEquals(PipelineStatus.WAITING_ARTIFACT_APPROVAL, pipeline.status)
 
         val artifact = step.artifact as? AnswersArtifactEntity
         assertNotNull(artifact)

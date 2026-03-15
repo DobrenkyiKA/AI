@@ -31,8 +31,8 @@ class QuestionsGenerationStepService(
         val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
             ?: throw IllegalStateException("Topic tree artifact not found for pipeline: ${pipeline.name}")
 
-        if (topicTreeArtifact.status != ArtifactStatus.APPROVED) {
-            throw IllegalStateException("Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}")
+        check(topicTreeArtifact.status == ArtifactStatus.APPROVED) {
+            "Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}"
         }
 
         clearOldArtifact(pipeline, step)
@@ -75,7 +75,8 @@ class QuestionsGenerationStepService(
         }
 
         step.artifact = answersArtifact
-        updatePipeline(pipeline, PipelineStatus.QUESTIONS_GENERATED)
+        answersArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        updatePipeline(pipeline, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
 
         val totalQuestions = answersArtifact.topicsWithQA.sumOf { it.entries.size }
         val yamlContent = yamlMapper.writeValueAsString(
