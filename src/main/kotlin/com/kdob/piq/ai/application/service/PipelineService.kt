@@ -64,7 +64,7 @@ class PipelineService(
                     ?: throw IllegalStateException("Topic tree artifact not found")
                 topicTreeArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.TOPIC_TREE_APPROVED
+                    existing.status = PipelineStatus.ARTIFACT_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
                     existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
@@ -76,7 +76,7 @@ class PipelineService(
                     ?: throw IllegalStateException("Questions artifact not found")
                 answersArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.QUESTIONS_APPROVED
+                    existing.status = PipelineStatus.ARTIFACT_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
                     existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
@@ -88,7 +88,7 @@ class PipelineService(
                     ?: throw IllegalStateException("Answers artifact not found")
                 answersArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.ANSWERS_APPROVED
+                    existing.status = PipelineStatus.ARTIFACT_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
                     existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
@@ -100,7 +100,7 @@ class PipelineService(
                     ?: throw IllegalStateException("Short answers artifact not found")
                 answersArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
-                    existing.status = PipelineStatus.SHORT_ANSWERS_APPROVED
+                    existing.status = PipelineStatus.ARTIFACT_APPROVED
                 } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
                     existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
@@ -133,7 +133,7 @@ class PipelineService(
         val generationStep = generationSteps.find { it.getStepType() == step.stepType }
             ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
 
-        pipeline.status = PipelineStatus.ARTIFACT_GENERATION_IN_PROGRESS
+        pipeline.status = PipelineStatus.GENERATION_IN_PROGRESS
         pipeline.updatedAt = Instant.now()
         pipelineRepository.save(pipeline)
 

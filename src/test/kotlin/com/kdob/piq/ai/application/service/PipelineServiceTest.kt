@@ -188,7 +188,7 @@ class PipelineServiceTest {
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         doAnswer {
-            assertEquals(PipelineStatus.ARTIFACT_GENERATION_IN_PROGRESS, pipeline.status)
+            assertEquals(PipelineStatus.GENERATION_IN_PROGRESS, pipeline.status)
             null
         }.`when`(topicTreeGenerationService).generate(any(PipelineStepEntity::class.java))
 
@@ -372,5 +372,45 @@ class PipelineServiceTest {
         assertThrows<IllegalStateException> {
             service.publishArtifact(name)
         }
+    }
+
+    @Test
+    fun `should update pipeline status to ARTIFACT_APPROVED when artifact is approved`() {
+        val name = "java-core-interview-v1"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        val step = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        topicTreeArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        step.artifact = topicTreeArtifact
+        pipeline.steps.add(step)
+        pipeline.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
+
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
+
+        service.updateArtifact(name, 0, "some yaml", ArtifactStatus.APPROVED)
+
+        assertEquals(PipelineStatus.ARTIFACT_APPROVED, pipeline.status)
+        assertEquals(ArtifactStatus.APPROVED, topicTreeArtifact.status)
+    }
+
+    @Test
+    fun `should update pipeline status to WAITING_ARTIFACT_APPROVAL when artifact is to be regenerated`() {
+        val name = "java-core-interview-v1"
+        val pipeline = PipelineEntity(name = name, topicKey = "java-core")
+        val step = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
+        val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
+        topicTreeArtifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+        step.artifact = topicTreeArtifact
+        pipeline.steps.add(step)
+        pipeline.status = PipelineStatus.ARTIFACT_APPROVED
+
+        `when`(repository.findByName(name)).thenReturn(pipeline)
+        `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
+
+        service.updateArtifact(name, 0, "some yaml", ArtifactStatus.TO_BE_REGENERATED)
+
+        assertEquals(PipelineStatus.WAITING_ARTIFACT_APPROVAL, pipeline.status)
+        assertEquals(ArtifactStatus.TO_BE_REGENERATED, topicTreeArtifact.status)
     }
 }
