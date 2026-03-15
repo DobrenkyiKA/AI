@@ -26,6 +26,7 @@ class PipelineStatusService(
         val pipeline = pipelineRepository.findByName(pipelineName)
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
         pipeline.steps.size // Force load
+        pipeline.steps.forEach { it.artifact?.status } // Force load artifacts and their status
         return pipeline
     }
 }

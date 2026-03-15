@@ -66,8 +66,6 @@ class PipelineService(
                 topicTreeArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.ARTIFACT_APPROVED
-                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveTopicTreeArtifact(existing.topicKey, name, yamlContent)
             }
@@ -78,8 +76,6 @@ class PipelineService(
                 answersArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.ARTIFACT_APPROVED
-                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
             }
@@ -90,8 +86,6 @@ class PipelineService(
                 answersArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.ARTIFACT_APPROVED
-                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveAnswersArtifact(existing.topicKey, name, yamlContent)
             }
@@ -102,8 +96,6 @@ class PipelineService(
                 answersArtifact.status = status
                 if (status == ArtifactStatus.APPROVED) {
                     existing.status = PipelineStatus.ARTIFACT_APPROVED
-                } else if (status == ArtifactStatus.TO_BE_REGENERATED) {
-                    existing.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
                 }
                 artifactStorage.saveShortAnswersArtifact(existing.topicKey, name, yamlContent)
             }
@@ -123,6 +115,7 @@ class PipelineService(
         artifactStorage.deleteArtifacts(existing.topicKey, name)
     }
 
+    @Transactional
     fun runStep(pipelineName: String, stepIndex: Int) {
         statusService.updateStatus(pipelineName, PipelineStatus.GENERATION_IN_PROGRESS)
 
