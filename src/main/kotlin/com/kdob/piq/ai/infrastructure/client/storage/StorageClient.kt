@@ -21,6 +21,25 @@ interface StorageClient {
         fileName: String
     )
 
+    fun saveQuestionsArtifact(
+        topicKey: String,
+        pipelineName: String,
+        fileName: String,
+        content: String
+    )
+
+    fun loadQuestionsArtifact(
+        topicKey: String,
+        pipelineName: String,
+        fileName: String
+    ): String
+
+    fun deleteQuestionsArtifact(
+        topicKey: String,
+        pipelineName: String,
+        fileName: String
+    )
+
     fun saveAnswersArtifact(
         topicKey: String,
         pipelineName: String,

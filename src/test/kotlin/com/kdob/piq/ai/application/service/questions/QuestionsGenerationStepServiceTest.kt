@@ -121,7 +121,7 @@ class QuestionsGenerationStepServiceTest {
         service.generate(step)
 
         verify(repository).save(pipeline)
-        verify(artifactStorage).saveAnswersArtifact(eq("java") ?: "", eq("java-pipeline") ?: "", anyString() ?: "")
+        verify(artifactStorage).saveQuestionsArtifact(eq("java") ?: "", eq("java-pipeline") ?: "", anyString() ?: "")
         assertEquals(PipelineStatus.QUESTIONS_GENERATED, pipeline.status)
 
         val artifact = step.artifact as? AnswersArtifactEntity

@@ -1,10 +1,8 @@
 package com.kdob.piq.ai.application.service
 
 import org.springframework.ai.chat.client.ChatClient
-import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import org.stringtemplate.v4.ST
 
 
 @Component

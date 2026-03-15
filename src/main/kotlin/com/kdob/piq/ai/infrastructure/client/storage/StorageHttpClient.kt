@@ -33,6 +33,29 @@ class StorageHttpClient(
             .toBodilessEntity()
     }
 
+    override fun saveQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
+        restClient.put()
+            .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
+            .contentType(MediaType.TEXT_PLAIN)
+            .body(content)
+            .retrieve()
+            .toBodilessEntity()
+    }
+
+    override fun loadQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String): String {
+        return restClient.get()
+            .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
+            .retrieve()
+            .body(String::class.java) ?: ""
+    }
+
+    override fun deleteQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String) {
+        restClient.delete()
+            .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
+            .retrieve()
+            .toBodilessEntity()
+    }
+
     override fun saveAnswersArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
         restClient.put()
             .uri("/versions/{group}/{version}/answers/{fileName}", topicKey, pipelineName, fileName)

@@ -95,7 +95,7 @@ class QuestionsGenerationStepService(
                 }
             )
         )
-        artifactStorage.saveAnswersArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
+        artifactStorage.saveQuestionsArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
 
         logger.info(
             "Questions generated for pipeline '{}': {} questions across {} topics",

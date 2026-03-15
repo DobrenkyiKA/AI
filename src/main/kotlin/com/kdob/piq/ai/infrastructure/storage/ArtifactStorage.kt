@@ -14,6 +14,13 @@ class ArtifactStorage(
     fun loadTopicTreeArtifact(topicKey: String, pipelineName: String): String =
         storageClient.loadTopicTreeArtifact(topicKey, pipelineName, "topic-tree-artifact.yaml")
 
+    fun saveQuestionsArtifact(topicKey: String, pipelineName: String, yaml: String) {
+        storageClient.saveQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml", yaml)
+    }
+
+    fun loadQuestionsArtifact(topicKey: String, pipelineName: String): String =
+        storageClient.loadQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml")
+
     fun saveAnswersArtifact(topicKey: String, pipelineName: String, yaml: String) {
         storageClient.saveAnswersArtifact(topicKey, pipelineName, "answers-artifact.yaml", yaml)
     }
@@ -30,7 +37,7 @@ class ArtifactStorage(
 
     fun loadArtifact(topicKey: String, pipelineName: String, stepType: String): String = when (stepType) {
         "TOPIC_TREE_GENERATION" -> storageClient.loadTopicTreeArtifact(topicKey, pipelineName, "topic-tree-artifact.yaml")
-        "QUESTIONS_GENERATION" -> storageClient.loadAnswersArtifact(topicKey, pipelineName, "answers-artifact.yaml")
+        "QUESTIONS_GENERATION" -> storageClient.loadQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml")
         "LONG_ANSWERS_GENERATION" -> storageClient.loadAnswersArtifact(topicKey, pipelineName, "answers-artifact.yaml")
         "SHORT_ANSWERS_GENERATION" -> storageClient.loadShortAnswersArtifact(topicKey, pipelineName, "short-answers-artifact.yaml")
         else -> throw IllegalArgumentException("Unknown step type: $stepType")
@@ -43,7 +50,7 @@ class ArtifactStorage(
     fun deleteArtifact(topicKey: String, pipelineName: String, stepType: String) {
         when (stepType) {
             "TOPIC_TREE_GENERATION" -> storageClient.deleteTopicTreeArtifact(topicKey, pipelineName, "topic-tree-artifact.yaml")
-            "QUESTIONS_GENERATION" -> storageClient.deleteAnswersArtifact(topicKey, pipelineName, "answers-artifact.yaml")
+            "QUESTIONS_GENERATION" -> storageClient.deleteQuestionsArtifact(topicKey, pipelineName, "questions-artifact.yaml")
             "LONG_ANSWERS_GENERATION" -> storageClient.deleteAnswersArtifact(topicKey, pipelineName, "answers-artifact.yaml")
             "SHORT_ANSWERS_GENERATION" -> storageClient.deleteShortAnswersArtifact(topicKey, pipelineName, "short-answers-artifact.yaml")
             else -> throw IllegalArgumentException("Unknown step type: $stepType")
