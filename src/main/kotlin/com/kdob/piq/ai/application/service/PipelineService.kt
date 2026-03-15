@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
+import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
@@ -20,6 +21,7 @@ import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
 import com.kdob.piq.ai.infrastructure.web.dto.*
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import org.slf4j.LoggerFactory
+import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -31,7 +33,8 @@ class PipelineService(
     private val artifactStorage: ArtifactStorage,
     private val generationSteps: List<PipelineStepService>,
     private val questionCatalogClient: QuestionCatalogClient,
-    private val statusService: PipelineStatusService
+    private val statusService: PipelineStatusService,
+    private val generationLogRepository: GenerationLogRepository
 ) {
     private val logger = LoggerFactory.getLogger(PipelineService::class.java)
     @Transactional(readOnly = true)
@@ -115,7 +118,7 @@ class PipelineService(
         artifactStorage.deleteArtifacts(existing.topicKey, name)
     }
 
-    @Transactional
+    @Async
     fun runStep(pipelineName: String, stepIndex: Int) {
         statusService.updateStatus(pipelineName, PipelineStatus.GENERATION_IN_PROGRESS)
 
@@ -162,6 +165,7 @@ class PipelineService(
         return pipelineRepository.save(existing).toResponse()
     }
 
+    @Async
     fun runPipelineFrom(pipelineName: String, startStep: Int) {
         val pipeline = statusService.getPipelineWithSteps(pipelineName)
         val maxStep = pipeline.steps.size - 1
@@ -251,24 +255,38 @@ class PipelineService(
         return normalized
     }
 
-    private fun PipelineEntity.toResponse() = PipelineResponse(
-        pipelineName = name,
-        topicKey = topicKey,
-        status = status.name,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-        steps = steps.mapIndexed { index, step ->
-            PipelineStepResponse(
-                step = index,
-                type = step.stepType,
-                status = step.artifact?.status,
-                systemPromptName = step.systemPrompt?.name,
-                systemPrompt = step.systemPrompt?.content ?: "",
-                userPromptName = step.userPrompt?.name,
-                userPrompt = step.userPrompt?.content ?: ""
-            )
-        }
-    )
+    fun pausePipeline(pipelineName: String) {
+        statusService.updateStatus(pipelineName, PipelineStatus.GENERATION_PAUSED)
+    }
+
+    fun abortPipeline(pipelineName: String) {
+        statusService.updateStatus(pipelineName, PipelineStatus.GENERATION_ABORTED)
+    }
+
+    private fun PipelineEntity.toResponse(): PipelineResponse {
+        val logs = generationLogRepository.findByPipelineNameOrderByCreatedAtAsc(name)
+            .map { GenerationLogResponse(it.message, it.createdAt) }
+
+        return PipelineResponse(
+            pipelineName = name,
+            topicKey = topicKey,
+            status = status.name,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            logs = logs,
+            steps = steps.mapIndexed { index, step ->
+                PipelineStepResponse(
+                    step = index,
+                    type = step.stepType,
+                    status = step.artifact?.status,
+                    systemPromptName = step.systemPrompt?.name,
+                    systemPrompt = step.systemPrompt?.content ?: "",
+                    userPromptName = step.userPrompt?.name,
+                    userPrompt = step.userPrompt?.content ?: ""
+                )
+            }
+        )
+    }
 
     private fun getOrCreatePrompt(
         pipelineName: String,

@@ -9,7 +9,13 @@ data class PipelineResponse(
     val status: String,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val steps: List<PipelineStepResponse>
+    val steps: List<PipelineStepResponse>,
+    val logs: List<GenerationLogResponse> = emptyList()
+)
+
+data class GenerationLogResponse(
+    val message: String,
+    val createdAt: Instant
 )
 
 data class PipelineStepResponse(

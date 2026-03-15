@@ -9,6 +9,7 @@ class JpaPipelineRepositoryImpl (
     private val springDataPipelineRepository: SpringDataPipelineRepository
 ): PipelineRepository {
     override fun findAll(): List<PipelineEntity> = springDataPipelineRepository.findAll()
+    override fun findById(id: Long): PipelineEntity? = springDataPipelineRepository.findById(id).orElse(null)
     override fun save(pipeline: PipelineEntity): PipelineEntity = springDataPipelineRepository.save(pipeline)
     override fun saveAndFlush(pipeline: PipelineEntity): PipelineEntity = springDataPipelineRepository.saveAndFlush(pipeline)
     override fun findByName(name: String): PipelineEntity? = springDataPipelineRepository.findByName(name)

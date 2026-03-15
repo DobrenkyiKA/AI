@@ -7,6 +7,7 @@ import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
+import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
@@ -27,13 +28,15 @@ class PipelineServiceTest {
     private val questionsGenerationService = mock(QuestionsGenerationStepService::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val statusService = mock(PipelineStatusService::class.java)
+    private val generationLogRepository = mock(GenerationLogRepository::class.java)
     private val service = PipelineService(
         repository,
         promptRepository,
         artifactStorage,
         listOf(topicTreeGenerationService, questionsGenerationService),
         questionCatalogClient,
-        statusService
+        statusService,
+        generationLogRepository
     )
 
     @BeforeEach

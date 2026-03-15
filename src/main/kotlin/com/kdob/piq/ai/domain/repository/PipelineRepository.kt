@@ -5,6 +5,7 @@ import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 
 interface PipelineRepository {
     fun findAll(): List<PipelineEntity>
+    fun findById(id: Long): PipelineEntity?
     fun save(pipeline: PipelineEntity): PipelineEntity
     fun saveAndFlush(pipeline: PipelineEntity): PipelineEntity
     fun findByName(name: String): PipelineEntity?

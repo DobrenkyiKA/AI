@@ -9,26 +9,26 @@ open class TopicTreeNodeEntity(
 
     @Basic(optional = false)
     @Column(nullable = false)
-    open val key: String,
+    open var key: String,
 
     @Basic(optional = false)
-    open val name: String,
+    open var name: String,
 
     @Basic(optional = true)
     @Column(name = "parent_topic_key")
-    open val parentTopicKey: String?,
+    open var parentTopicKey: String?,
 
     @Basic(optional = false)
     @Column(name = "coverage_area", columnDefinition = "TEXT")
-    open val coverageArea: String,
+    open var coverageArea: String,
 
     @Basic(optional = false)
     @Column(nullable = false)
-    open val depth: Int = 0,
+    open var depth: Int = 0,
 
     @Basic(optional = false)
     @Column(nullable = false)
-    open val leaf: Boolean = true,
+    open var leaf: Boolean = true,
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "topic_tree_artifact_id", nullable = false)

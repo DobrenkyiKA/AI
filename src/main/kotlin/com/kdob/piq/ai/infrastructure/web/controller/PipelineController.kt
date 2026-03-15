@@ -96,4 +96,16 @@ class PipelineController(
         pipelineService.publishArtifact(pipelineName)
         return getPipeline(pipelineName)
     }
+
+    @PostMapping("/{pipelineName}/pause")
+    fun pausePipeline(@PathVariable pipelineName: String): PipelineResponse {
+        pipelineService.pausePipeline(pipelineName)
+        return getPipeline(pipelineName)
+    }
+
+    @PostMapping("/{pipelineName}/abort")
+    fun abortPipeline(@PathVariable pipelineName: String): PipelineResponse {
+        pipelineService.abortPipeline(pipelineName)
+        return getPipeline(pipelineName)
+    }
 }
