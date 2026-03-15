@@ -28,7 +28,7 @@ class TopicTreeGenerationStepService(
     private val logger = LoggerFactory.getLogger(TopicTreeGenerationStepService::class.java)
 
     companion object {
-        const val DEFAULT_MAX_DEPTH = 3
+        const val DEFAULT_MAX_DEPTH = 6
     }
 
     override fun getStepType(): String = "TOPIC_TREE_GENERATION"
