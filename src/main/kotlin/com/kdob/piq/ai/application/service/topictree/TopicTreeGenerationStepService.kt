@@ -235,18 +235,24 @@ class TopicTreeGenerationStepService(
         rootNode: TopicTreeNode
     ): String {
         val chain = mutableListOf<TopicTreeNode>()
-        var parentKey = current.parentTopicKey
-        while (parentKey != null) {
-            val parent = allNodes.find { it.key == parentKey } ?: if (rootNode.key == parentKey) rootNode else break
-            chain.add(0, parent)
-            parentKey = parent.parentTopicKey
+        var curr: TopicTreeNode? = current
+        val visited = mutableSetOf<String>()
+
+        while (curr != null && curr.key !in visited) {
+            visited.add(curr.key)
+            chain.add(0, curr)
+            if (curr.key == rootNode.key) break
+            val parentKey = curr.parentTopicKey
+            curr = if (parentKey != null) {
+                allNodes.find { it.key == parentKey } ?: if (rootNode.key == parentKey) rootNode else null
+            } else null
         }
+
         if (chain.isEmpty() || chain.first().key != rootNode.key) {
             chain.add(0, rootNode)
         }
-        chain.add(current)
 
-        return chain.joinToString("\n") { "- ${it.name} (depth: ${it.depth}): ${it.coverageArea}" }
+        return chain.distinctBy { it.key }.joinToString("\n") { "- ${it.name} (depth: ${it.depth}): ${it.coverageArea}" }
     }
 
     private fun interpolate(

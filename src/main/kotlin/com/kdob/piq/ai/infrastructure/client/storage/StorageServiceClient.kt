@@ -51,6 +51,7 @@ class StorageServiceClient(
     fun getPromptFile(version: String, fileName: String): String? {
         return storageRestClient.get()
             .uri("/versions/prompts/$version/$fileName")
+            .accept(MediaType.valueOf("text/plain;charset=UTF-8"))
             .retrieve()
             .body(String::class.java)
     }
@@ -58,7 +59,7 @@ class StorageServiceClient(
     fun savePromptFile(version: String, fileName: String, content: String) {
         storageRestClient.put()
             .uri("/versions/prompts/$version/$fileName")
-            .contentType(MediaType.TEXT_PLAIN)
+            .contentType(MediaType.valueOf("text/plain;charset=UTF-8"))
             .body(content)
             .retrieve()
             .toBodilessEntity()
@@ -67,7 +68,7 @@ class StorageServiceClient(
     fun commit(version: String, message: String) {
         storageRestClient.post()
             .uri("/versions/prompts/$version/commit")
-            .contentType(MediaType.TEXT_PLAIN)
+            .contentType(MediaType.valueOf("text/plain;charset=UTF-8"))
             .body(message)
             .retrieve()
             .toBodilessEntity()

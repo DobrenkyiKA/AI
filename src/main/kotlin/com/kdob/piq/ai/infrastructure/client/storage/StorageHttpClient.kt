@@ -13,7 +13,7 @@ class StorageHttpClient(
     override fun saveTopicTreeArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
         restClient.put()
             .uri("/versions/{group}/{version}/topic-tree/{fileName}", topicKey, pipelineName, fileName)
-            .contentType(MediaType.TEXT_PLAIN)
+            .contentType(MediaType.valueOf("text/plain;charset=UTF-8"))
             .body(content)
             .retrieve()
             .toBodilessEntity()
@@ -22,6 +22,7 @@ class StorageHttpClient(
     override fun loadTopicTreeArtifact(topicKey: String, pipelineName: String, fileName: String): String {
         return restClient.get()
             .uri("/versions/{group}/{version}/topic-tree/{fileName}", topicKey, pipelineName, fileName)
+            .accept(MediaType.valueOf("text/plain;charset=UTF-8"))
             .retrieve()
             .body(String::class.java) ?: ""
     }
@@ -36,7 +37,7 @@ class StorageHttpClient(
     override fun saveQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
         restClient.put()
             .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
-            .contentType(MediaType.TEXT_PLAIN)
+            .contentType(MediaType.valueOf("text/plain;charset=UTF-8"))
             .body(content)
             .retrieve()
             .toBodilessEntity()
@@ -45,6 +46,7 @@ class StorageHttpClient(
     override fun loadQuestionsArtifact(topicKey: String, pipelineName: String, fileName: String): String {
         return restClient.get()
             .uri("/versions/{group}/{version}/questions/{fileName}", topicKey, pipelineName, fileName)
+            .accept(MediaType.valueOf("text/plain;charset=UTF-8"))
             .retrieve()
             .body(String::class.java) ?: ""
     }
@@ -59,7 +61,7 @@ class StorageHttpClient(
     override fun saveAnswersArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
         restClient.put()
             .uri("/versions/{group}/{version}/answers/{fileName}", topicKey, pipelineName, fileName)
-            .contentType(MediaType.TEXT_PLAIN)
+            .contentType(MediaType.valueOf("text/plain;charset=UTF-8"))
             .body(content)
             .retrieve()
             .toBodilessEntity()
@@ -68,6 +70,7 @@ class StorageHttpClient(
     override fun loadAnswersArtifact(topicKey: String, pipelineName: String, fileName: String): String {
         return restClient.get()
             .uri("/versions/{group}/{version}/answers/{fileName}", topicKey, pipelineName, fileName)
+            .accept(MediaType.valueOf("text/plain;charset=UTF-8"))
             .retrieve()
             .body(String::class.java) ?: ""
     }
@@ -82,7 +85,7 @@ class StorageHttpClient(
     override fun saveShortAnswersArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {
         restClient.put()
             .uri("/versions/{group}/{version}/short-answers/{fileName}", topicKey, pipelineName, fileName)
-            .contentType(MediaType.TEXT_PLAIN)
+            .contentType(MediaType.valueOf("text/plain;charset=UTF-8"))
             .body(content)
             .retrieve()
             .toBodilessEntity()
@@ -91,6 +94,7 @@ class StorageHttpClient(
     override fun loadShortAnswersArtifact(topicKey: String, pipelineName: String, fileName: String): String {
         return restClient.get()
             .uri("/versions/{group}/{version}/short-answers/{fileName}", topicKey, pipelineName, fileName)
+            .accept(MediaType.valueOf("text/plain;charset=UTF-8"))
             .retrieve()
             .body(String::class.java) ?: ""
     }
