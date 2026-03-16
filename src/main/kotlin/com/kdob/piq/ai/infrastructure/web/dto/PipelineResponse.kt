@@ -15,6 +15,7 @@ data class PipelineResponse(
 
 data class GenerationLogResponse(
     val message: String,
+    val stepOrder: Int?,
     val createdAt: Instant
 )
 

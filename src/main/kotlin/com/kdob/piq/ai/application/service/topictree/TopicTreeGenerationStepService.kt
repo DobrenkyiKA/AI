@@ -46,34 +46,34 @@ class TopicTreeGenerationStepService(
         }
 
         if (artifact == null) {
-            log(pipelineId, "Starting new Topic Tree Generation...")
+            log(pipelineId, step.stepOrder, "Starting new Topic Tree Generation...")
             artifact = initializeArtifact(pipelineId, step.id!!)
         } else {
-            log(pipelineId, "Resuming Topic Tree Generation...")
+            log(pipelineId, step.stepOrder, "Resuming Topic Tree Generation...")
         }
 
         while (true) {
             val currentPipeline = pipelineRepository.findById(pipelineId)!!
             if (currentPipeline.status == PipelineStatus.PAUSED) {
-                log(pipelineId, "Generation PAUSED by user.")
+                log(pipelineId, step.stepOrder, "Generation PAUSED by user.")
                 return
             }
             if (currentPipeline.status == PipelineStatus.ABORTED) {
-                log(pipelineId, "Generation ABORTED by user.")
+                log(pipelineId, step.stepOrder, "Generation ABORTED by user.")
                 return
             }
 
             val nodeToExpand = findNodeToExpand(pipelineId, step.id!!)
             if (nodeToExpand == null) {
-                log(pipelineId, "Topic Tree Generation completed successfully.")
+                log(pipelineId, step.stepOrder, "Topic Tree Generation completed successfully.")
                 finalizeArtifact(pipelineId, step.id!!)
                 return
             }
 
             try {
-                expandNode(pipelineId, step.id!!, nodeToExpand)
+                expandNode(pipelineId, step.id!!, step.stepOrder, nodeToExpand)
             } catch (e: Exception) {
-                log(pipelineId, "Error during expansion of ${nodeToExpand.name}: ${e.message}")
+                log(pipelineId, step.stepOrder, "Error during expansion of ${nodeToExpand.name}: ${e.message}")
                 throw e
             }
         }
@@ -128,7 +128,7 @@ class TopicTreeGenerationStepService(
             
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, "Initialized Topic Tree with root: ${rootNode.name}")
+            log(pipelineId, step.stepOrder, "Initialized Topic Tree with root: ${rootNode.name}")
             artifact
         }!!
     }
@@ -148,7 +148,7 @@ class TopicTreeGenerationStepService(
         }
     }
 
-    internal fun expandNode(pipelineId: Long, stepId: Long, node: TopicTreeNode) {
+    internal fun expandNode(pipelineId: Long, stepId: Long, stepOrder: Int, node: TopicTreeNode) {
         val (systemPrompt, userPrompt, maxDepth) = transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
@@ -166,7 +166,7 @@ class TopicTreeGenerationStepService(
             Triple(sys, usr, artifact.maxDepth)
         }!!
 
-        log(pipelineId, "Generating subtopics for: ${node.name} (depth: ${node.depth})")
+        log(pipelineId, stepOrder, "Generating subtopics for: ${node.name} (depth: ${node.depth})")
         
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val subtopics = parseTopicTreeNodes(rawOutput, node.key, node.depth + 1)
@@ -182,13 +182,13 @@ class TopicTreeGenerationStepService(
             if (validSubtopics.isEmpty()) {
                 val nodeInDb = artifact.nodes.find { it.key == node.key }!!
                 nodeInDb.leaf = true
-                log(pipelineId, "No NEW subtopics found for ${node.name}. Marked as leaf.")
+                log(pipelineId, stepOrder, "No NEW subtopics found for ${node.name}. Marked as leaf.")
             } else {
                 for (sub in validSubtopics) {
                     val leaf = sub.leaf || sub.depth >= maxDepth
                     artifact.nodes.add(sub.copy(leaf = leaf).toTopicTreeNodeEntity(artifact))
                 }
-                log(pipelineId, "Generated ${validSubtopics.size} subtopics for ${node.name}.")
+                log(pipelineId, stepOrder, "Generated ${validSubtopics.size} subtopics for ${node.name}.")
             }
             
             pipelineRepository.saveAndFlush(pipeline)
@@ -203,11 +203,11 @@ class TopicTreeGenerationStepService(
         }
     }
 
-    private fun log(pipelineId: Long, message: String) {
-        logger.info("[Pipeline $pipelineId] $message")
+    private fun log(pipelineId: Long, stepOrder: Int, message: String) {
+        logger.info("[Pipeline $pipelineId, Step $stepOrder] $message")
         transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            generationLogRepository.save(GenerationLogEntity(pipeline, message))
+            generationLogRepository.save(GenerationLogEntity(pipeline, message, stepOrder))
         }
     }
 

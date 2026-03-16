@@ -15,6 +15,9 @@ open class GenerationLogEntity(
     @Column(name = "message", nullable = false, columnDefinition = "TEXT")
     open val message: String,
 
+    @Column(name = "step_order")
+    open val stepOrder: Int? = null,
+
     @Basic(optional = false)
     @Column(name = "created_at", nullable = false)
     open val createdAt: Instant = Instant.now()

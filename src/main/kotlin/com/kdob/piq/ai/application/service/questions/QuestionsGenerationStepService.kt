@@ -37,34 +37,34 @@ class QuestionsGenerationStepService(
         }
 
         if (artifact == null) {
-            log(pipelineId, "Starting new Questions Generation...")
-            artifact = initializeArtifact(pipelineId, step.id!!)
+            log(pipelineId, step.stepOrder, "Starting new Questions Generation...")
+            artifact = initializeArtifact(pipelineId, step.id!!, step.stepOrder)
         } else {
-            log(pipelineId, "Resuming Questions Generation...")
+            log(pipelineId, step.stepOrder, "Resuming Questions Generation...")
         }
 
         while (true) {
             val currentPipeline = pipelineRepository.findById(pipelineId)!!
             if (currentPipeline.status == PipelineStatus.PAUSED) {
-                log(pipelineId, "Generation PAUSED by user.")
+                log(pipelineId, step.stepOrder, "Generation PAUSED by user.")
                 return
             }
             if (currentPipeline.status == PipelineStatus.ABORTED) {
-                log(pipelineId, "Generation ABORTED by user.")
+                log(pipelineId, step.stepOrder, "Generation ABORTED by user.")
                 return
             }
 
             val nextTopic = findNextTopicToGenerate(pipelineId, step.id!!)
             if (nextTopic == null) {
-                log(pipelineId, "Questions Generation completed successfully.")
+                log(pipelineId, step.stepOrder, "Questions Generation completed successfully.")
                 finalizeArtifact(pipelineId, step.id!!)
                 return
             }
 
             try {
-                generateForTopic(pipelineId, step.id!!, nextTopic)
+                generateForTopic(pipelineId, step.id!!, step.stepOrder, nextTopic)
             } catch (e: Exception) {
-                log(pipelineId, "Error during generation for ${nextTopic.name}: ${e.message}")
+                log(pipelineId, step.stepOrder, "Error during generation for ${nextTopic.name}: ${e.message}")
                 throw e
             }
         }
@@ -101,7 +101,7 @@ class QuestionsGenerationStepService(
         artifactStorage.saveQuestionsArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
-    private fun initializeArtifact(pipelineId: Long, stepId: Long): AnswersArtifactEntity {
+    private fun initializeArtifact(pipelineId: Long, stepId: Long, stepOrder: Int): AnswersArtifactEntity {
         return transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
@@ -121,7 +121,7 @@ class QuestionsGenerationStepService(
 
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, "Initialized Answers Artifact.")
+            log(pipelineId, stepOrder, "Initialized Answers Artifact.")
             artifact
         }!!
     }
@@ -140,7 +140,7 @@ class QuestionsGenerationStepService(
         }
     }
 
-    private fun generateForTopic(pipelineId: Long, stepId: Long, node: TopicTreeNodeEntity) {
+    private fun generateForTopic(pipelineId: Long, stepId: Long, stepOrder: Int, node: TopicTreeNodeEntity) {
         val (systemPrompt, userPrompt) = transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
@@ -162,7 +162,7 @@ class QuestionsGenerationStepService(
             Pair(sys, usr)
         }!!
 
-        log(pipelineId, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
+        log(pipelineId, stepOrder, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val questions = parseQuestionsWithLevels(rawOutput)
 
@@ -189,7 +189,7 @@ class QuestionsGenerationStepService(
 
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, "Saved ${questions.size} questions for topic: ${node.name}")
+            log(pipelineId, stepOrder, "Saved ${questions.size} questions for topic: ${node.name}")
         }
     }
 
@@ -200,11 +200,11 @@ class QuestionsGenerationStepService(
         }
     }
 
-    private fun log(pipelineId: Long, message: String) {
+    private fun log(pipelineId: Long, stepOrder: Int, message: String) {
         logger.info("[Pipeline {}] {}", pipelineId, message)
         transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            generationLogRepository.save(GenerationLogEntity(pipeline, message))
+            generationLogRepository.save(GenerationLogEntity(pipeline, message, stepOrder))
         }
     }
 

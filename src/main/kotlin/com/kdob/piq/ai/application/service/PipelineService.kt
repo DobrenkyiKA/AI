@@ -313,7 +313,7 @@ class PipelineService(
 
     private fun PipelineEntity.toResponse(): PipelineResponse {
         val logs = generationLogRepository.findByPipelineNameOrderByCreatedAtAsc(name)
-            .map { GenerationLogResponse(it.message, it.createdAt) }
+            .map { GenerationLogResponse(it.message, it.stepOrder, it.createdAt) }
 
         return PipelineResponse(
             pipelineName = name,
