@@ -1,7 +1,7 @@
 package com.kdob.piq.ai.application.service
 
-import com.kdob.piq.ai.application.service.questions.QuestionsGenerationStepService
-import com.kdob.piq.ai.application.service.topictree.TopicTreeGenerationStepService
+import com.kdob.piq.ai.application.service.questions.QuestionsGenerationPipelineStepService
+import com.kdob.piq.ai.application.service.topictree.TopicTreeGenerationPipelineStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
@@ -26,8 +26,8 @@ class PipelineServiceTest {
     private val repository = mock(PipelineRepository::class.java)
     private val promptRepository = mock(PromptRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
-    private val topicTreeGenerationService = mock(TopicTreeGenerationStepService::class.java)
-    private val questionsGenerationService = mock(QuestionsGenerationStepService::class.java)
+    private val topicTreeGenerationService = mock(TopicTreeGenerationPipelineStepService::class.java)
+    private val questionsGenerationService = mock(QuestionsGenerationPipelineStepService::class.java)
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val statusService = mock(PipelineStatusService::class.java)
     private val generationLogRepository = mock(GenerationLogRepository::class.java)

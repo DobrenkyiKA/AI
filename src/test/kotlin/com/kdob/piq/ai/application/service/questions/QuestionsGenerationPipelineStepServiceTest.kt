@@ -17,13 +17,13 @@ import org.mockito.Mockito.*
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 
-class QuestionsGenerationStepServiceTest {
+class QuestionsGenerationPipelineStepServiceTest {
     private val generator = mock(OpenAiChatService::class.java)
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
     private val generationLogRepository = mock(GenerationLogRepository::class.java)
     private val transactionManager = mock(PlatformTransactionManager::class.java)
-    private val service = QuestionsGenerationStepService(generator, repository, artifactStorage, generationLogRepository, transactionManager)
+    private val service = QuestionsGenerationPipelineStepService(generator, repository, artifactStorage, generationLogRepository, transactionManager)
 
     @BeforeEach
     fun setup() {

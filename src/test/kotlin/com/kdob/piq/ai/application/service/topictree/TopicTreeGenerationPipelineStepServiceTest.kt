@@ -21,7 +21,7 @@ import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.*
 import org.springframework.transaction.PlatformTransactionManager
 
-class TopicTreeGenerationStepServiceTest {
+class TopicTreeGenerationPipelineStepServiceTest {
 
     private val generator = mock(OpenAiChatService::class.java)
     private val repository = mock(PipelineRepository::class.java)
@@ -30,7 +30,7 @@ class TopicTreeGenerationStepServiceTest {
     private val generationLogRepository = mock(GenerationLogRepository::class.java)
     private val transactionManager = mock(PlatformTransactionManager::class.java)
     
-    private val service = TopicTreeGenerationStepService(
+    private val service = TopicTreeGenerationPipelineStepService(
         generator, 
         repository, 
         artifactStorage, 

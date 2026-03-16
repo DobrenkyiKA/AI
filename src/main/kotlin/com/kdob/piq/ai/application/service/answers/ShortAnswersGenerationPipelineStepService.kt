@@ -8,39 +8,39 @@ import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 
+private const val SHORT_ANSWERS_GENERATION_STEP_TYPE = "SHORT_ANSWERS_GENERATION"
+
 @Service
-class LongAnswersGenerationStepService(
+class ShortAnswersGenerationPipelineStepService(
     private val generator: OpenAiChatService,
     pipelineRepository: PipelineRepository,
     artifactStorage: ArtifactStorage,
-    private val generationLogRepository: GenerationLogRepository,
+    generationLogRepository: GenerationLogRepository,
     transactionManager: PlatformTransactionManager
-) : AbstractPipelineStepService(pipelineRepository, artifactStorage) {
+) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
 
-    private val logger = LoggerFactory.getLogger(LongAnswersGenerationStepService::class.java)
     private val transactionTemplate = TransactionTemplate(transactionManager)
 
-    override fun getStepType(): String = "LONG_ANSWERS_GENERATION"
+    override fun getStepType(): String = SHORT_ANSWERS_GENERATION_STEP_TYPE
 
     override fun generate(step: PipelineStepEntity) {
         val pipelineId = step.pipeline.id!!
 
-        var artifact = transactionTemplate.execute {
+        val artifact = transactionTemplate.execute {
             val p = pipelineRepository.findById(pipelineId)!!
             val s: PipelineStepEntity = p.steps.find { it.id == step.id }!!
             s.artifact as? AnswersArtifactEntity
         }
 
         if (artifact == null) {
-            log(pipelineId, step.stepOrder, "Starting new Long Answers Generation...")
-            artifact = initializeArtifact(pipelineId, step.id!!, step.stepOrder)
+            log(pipelineId, step.stepOrder, "Starting new Short Answers Generation...")
+            initializeArtifact(pipelineId, step.id!!, step.stepOrder)
         } else {
-            log(pipelineId, step.stepOrder, "Resuming Long Answers Generation...")
+            log(pipelineId, step.stepOrder, "Resuming Short Answers Generation...")
         }
 
         while (true) {
@@ -56,7 +56,7 @@ class LongAnswersGenerationStepService(
 
             val nextTopicQA = findNextTopicToGenerate(pipelineId, step.id!!)
             if (nextTopicQA == null) {
-                log(pipelineId, step.stepOrder, "Long Answers Generation completed successfully.")
+                log(pipelineId, step.stepOrder, "Short Answers Generation completed successfully.")
                 finalizeArtifact(pipelineId, step.id!!)
                 return
             }
@@ -74,11 +74,12 @@ class LongAnswersGenerationStepService(
         val artifact = step.artifact as? AnswersArtifactEntity
             ?: throw IllegalStateException("Answers artifact not found")
         artifact.status = status
-        
+
         val data = parseYaml(yamlContent)
+
         @Suppress("UNCHECKED_CAST")
         val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
-        
+
         val incomingByKey = topicsList.associateBy { it["key"] as String }
         artifact.topicsWithQA.removeIf { it.key !in incomingByKey }
         val existingByKey = artifact.topicsWithQA.associateBy { it.key }
@@ -86,6 +87,7 @@ class LongAnswersGenerationStepService(
         for (t in topicsList) {
             val key = t["key"] as String
             val name = t["name"] as String
+
             @Suppress("UNCHECKED_CAST")
             val questions = t["questions"] as? List<Map<String, Any>> ?: emptyList()
             val existing = existingByKey[key]
@@ -117,21 +119,21 @@ class LongAnswersGenerationStepService(
             }
         }
 
-        artifactStorage.saveAnswersArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
+        artifactStorage.saveShortAnswersArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
-    private fun initializeArtifact(pipelineId: Long, stepId: Long, stepOrder: Int): AnswersArtifactEntity {
+    private fun initializeArtifact(pipelineId: Long, stepId: Long, stepOrder: Int) {
         return transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
 
-            val questionsStep = pipeline.steps.find { it.stepType == "QUESTIONS_GENERATION" }
-                ?: throw IllegalStateException("QUESTIONS_GENERATION step not found for pipeline: ${pipeline.name}")
-            val questionsArtifact = questionsStep.artifact as? AnswersArtifactEntity
-                ?: throw IllegalStateException("Questions artifact not found for pipeline: ${pipeline.name}")
+            val answersStep = pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }
+                ?: throw IllegalStateException("LONG_ANSWERS_GENERATION step not found for pipeline: ${pipeline.name}")
+            val answersArtifact = answersStep.artifact as? AnswersArtifactEntity
+                ?: throw IllegalStateException("Answers artifact not found for pipeline: ${pipeline.name}")
 
-            check(questionsArtifact.status == ArtifactStatus.APPROVED) {
-                "Questions artifact is not APPROVED. Current status: ${questionsArtifact.status}"
+            check(answersArtifact.status == ArtifactStatus.APPROVED) {
+                "Answers artifact is not APPROVED. Current status: ${answersArtifact.status}"
             }
 
             val artifact = AnswersArtifactEntity(pipeline = pipeline)
@@ -140,9 +142,8 @@ class LongAnswersGenerationStepService(
 
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, stepOrder, "Initialized Long Answers Artifact.")
-            artifact
-        }!!
+            log(pipelineId, stepOrder, "Initialized Short Answers Artifact.")
+        }
     }
 
     private fun findNextTopicToGenerate(pipelineId: Long, stepId: Long): TopicQAEntity? {
@@ -151,29 +152,33 @@ class LongAnswersGenerationStepService(
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as AnswersArtifactEntity
 
-            val questionsStep = pipeline.steps.find { it.stepType == "QUESTIONS_GENERATION" }!!
-            val questionsArtifact = questionsStep.artifact as AnswersArtifactEntity
+            val longAnswersStep = pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }!!
+            val longAnswersArtifact = longAnswersStep.artifact as AnswersArtifactEntity
 
             val generatedTopicKeys = artifact.topicsWithQA.map { it.key }.toSet()
-            questionsArtifact.topicsWithQA.find { it.key !in generatedTopicKeys }
+            longAnswersArtifact.topicsWithQA.find { it.key !in generatedTopicKeys }
                 ?.also { it.entries.size } // force-initialize lazy collection before session closes
         }
     }
 
     private fun generateForTopic(pipelineId: Long, stepId: Long, stepOrder: Int, inputTopicQA: TopicQAEntity) {
-        log(pipelineId, stepOrder, "Generating long answers for topic: ${inputTopicQA.name} (${inputTopicQA.entries.size} questions)")
+        log(
+            pipelineId,
+            stepOrder,
+            "Generating short answers for topic: ${inputTopicQA.name} (${inputTopicQA.entries.size} questions)"
+        )
 
         val newEntries = mutableListOf<QAEntryEntity>()
 
         for (entry in inputTopicQA.entries) {
-            val systemPrompt = interpolateAnswerPrompt(
+            val systemPrompt = interpolateShortAnswerPrompt(
                 transactionTemplate.execute {
                     val p = pipelineRepository.findById(pipelineId)!!
                     val s: PipelineStepEntity = p.steps.find { it.id == stepId }!!
                     s.systemPrompt?.content ?: ""
                 }!!, inputTopicQA, entry
             )
-            val userPrompt = interpolateAnswerPrompt(
+            val userPrompt = interpolateShortAnswerPrompt(
                 transactionTemplate.execute {
                     val p = pipelineRepository.findById(pipelineId)!!
                     val s: PipelineStepEntity = p.steps.find { it.id == stepId }!!
@@ -181,16 +186,17 @@ class LongAnswersGenerationStepService(
                 }!!, inputTopicQA, entry
             )
 
-            logger.info("Generating answer for: {} [{}]", entry.questionText.take(80), entry.level)
+            getLogger().info("Generating short answer for: {} [{}]", entry.questionText.take(80), entry.level)
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
-            val answer = parseAnswer(rawOutput)
+            val shortAnswer = parseShortAnswer(rawOutput)
 
             newEntries.add(
                 QAEntryEntity(
                     questionText = entry.questionText,
                     level = entry.level,
-                    answer = answer,
-                    topicQA = inputTopicQA // temporary, will be replaced when saving
+                    answer = entry.answer,
+                    shortAnswer = shortAnswer,
+                    topicQA = inputTopicQA // temporary
                 )
             )
         }
@@ -211,6 +217,7 @@ class LongAnswersGenerationStepService(
                     questionText = entry.questionText,
                     level = entry.level,
                     answer = entry.answer,
+                    shortAnswer = entry.shortAnswer,
                     topicQA = newTopicQA
                 )
             })
@@ -219,7 +226,7 @@ class LongAnswersGenerationStepService(
 
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, stepOrder, "Saved ${newEntries.size} answers for topic: ${inputTopicQA.name}")
+            log(pipelineId, stepOrder, "Saved ${newEntries.size} short answers for topic: ${inputTopicQA.name}")
         }
     }
 
@@ -230,19 +237,11 @@ class LongAnswersGenerationStepService(
         }
     }
 
-    private fun log(pipelineId: Long, stepOrder: Int, message: String) {
-        logger.info("[Pipeline {}] {}", pipelineId, message)
-        transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            generationLogRepository.save(GenerationLogEntity(pipeline, message, stepOrder))
-        }
-    }
-
     private fun saveIncrementalYaml(pipeline: PipelineEntity, artifact: AnswersArtifactEntity) {
-        val totalAnswers = artifact.topicsWithQA.sumOf { it.entries.size }
+        val totalEntries = artifact.topicsWithQA.sumOf { it.entries.size }
         val yamlContent = yamlMapper.writeValueAsString(
             mapOf(
-                "totalAnswers" to totalAnswers,
+                "totalEntries" to totalEntries,
                 "topics" to artifact.topicsWithQA.map { topicQA ->
                     mapOf(
                         "key" to topicQA.key,
@@ -251,28 +250,29 @@ class LongAnswersGenerationStepService(
                             mapOf(
                                 "text" to entry.questionText,
                                 "level" to entry.level,
-                                "answer" to entry.answer
+                                "answer" to entry.answer,
+                                "shortAnswer" to entry.shortAnswer
                             )
                         }
                     )
                 }
             )
         )
-        artifactStorage.saveAnswersArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
+        artifactStorage.saveShortAnswersArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
     }
 
-    private fun interpolateAnswerPrompt(prompt: String, topicQA: TopicQAEntity, entry: QAEntryEntity): String {
+    private fun interpolateShortAnswerPrompt(prompt: String, topicQA: TopicQAEntity, entry: QAEntryEntity): String {
         return prompt
             .replace("{{topicName}}", topicQA.name)
-            .replace("{{coverageArea}}", "")
             .replace("{{level}}", entry.level)
             .replace("{{questionText}}", entry.questionText)
+            .replace("{{answer}}", entry.answer ?: "")
     }
 
-    private fun parseAnswer(rawOutput: String): String {
+    private fun parseShortAnswer(rawOutput: String): String {
         return try {
             val data = parseYaml(rawOutput)
-            data["answer"] as? String ?: rawOutput.trim()
+            data["shortAnswer"] as? String ?: rawOutput.trim()
         } catch (e: Exception) {
             rawOutput.trim()
         }

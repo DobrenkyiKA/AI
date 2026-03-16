@@ -8,46 +8,49 @@ import com.kdob.piq.ai.domain.model.TopicTreeNode
 import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
-import com.kdob.piq.ai.infrastructure.persistence.entity.*
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toTopicTreeNode
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toTopicTreeNodeEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 
+private const val TOPIC_TREE_GENERATION_STEP_TYPE = "TOPIC_TREE_GENERATION"
+
 @Service
-class TopicTreeGenerationStepService(
+class TopicTreeGenerationPipelineStepService(
     private val generator: OpenAiChatService,
     pipelineRepository: PipelineRepository,
     artifactStorage: ArtifactStorage,
     private val questionCatalogClient: QuestionCatalogClient,
-    private val generationLogRepository: GenerationLogRepository,
+    generationLogRepository: GenerationLogRepository,
     transactionManager: PlatformTransactionManager
-) : AbstractPipelineStepService(pipelineRepository, artifactStorage) {
+) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
 
-    private val logger = LoggerFactory.getLogger(TopicTreeGenerationStepService::class.java)
     private val transactionTemplate = TransactionTemplate(transactionManager)
+    private val catalogChainCache = java.util.concurrent.ConcurrentHashMap<String, List<TopicTreeNode>>()
 
     companion object {
         const val DEFAULT_MAX_DEPTH = 6
     }
 
-    override fun getStepType(): String = "TOPIC_TREE_GENERATION"
+    override fun getStepType(): String = TOPIC_TREE_GENERATION_STEP_TYPE
 
     override fun generate(step: PipelineStepEntity) {
         val pipelineId = step.pipeline.id!!
 
-        var artifact = transactionTemplate.execute {
-            val p = pipelineRepository.findById(pipelineId)!!
-            val s: PipelineStepEntity = p.steps.find { it.id == step.id }!!
-            s.artifact as? TopicTreeArtifactEntity
+        val artifact = transactionTemplate.execute {
+            val pipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipelineStepEntity: PipelineStepEntity = pipelineEntity.steps.find { it.id == step.id }!!
+            pipelineStepEntity.artifact as? TopicTreeArtifactEntity
         }
 
         if (artifact == null) {
             log(pipelineId, step.stepOrder, "Starting new Topic Tree Generation...")
-            artifact = initializeArtifact(pipelineId, step.id!!)
+            initializeArtifact(pipelineId, step.id!!)
         } else {
             log(pipelineId, step.stepOrder, "Resuming Topic Tree Generation...")
         }
@@ -66,7 +69,7 @@ class TopicTreeGenerationStepService(
             val nodeToExpand = findNodeToExpand(pipelineId, step.id!!)
             if (nodeToExpand == null) {
                 log(pipelineId, step.stepOrder, "Topic Tree Generation completed successfully.")
-                finalizeArtifact(pipelineId, step.id!!)
+                finalizeArtifact(pipelineId)
                 return
             }
 
@@ -85,6 +88,7 @@ class TopicTreeGenerationStepService(
         artifact.status = status
 
         val data = parseYaml(yamlContent)
+
         @Suppress("UNCHECKED_CAST")
         val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
 
@@ -120,17 +124,17 @@ class TopicTreeGenerationStepService(
         artifactStorage.saveTopicTreeArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
-    private fun initializeArtifact(pipelineId: Long, stepId: Long): TopicTreeArtifactEntity {
+    private fun initializeArtifact(pipelineId: Long, stepId: Long) {
         return transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-            
+
             val topicDetail = questionCatalogClient.findTopic(pipeline.topicKey)
                 ?: throw IllegalStateException("Root topic not found: ${pipeline.topicKey}")
 
             val artifact = TopicTreeArtifactEntity(pipeline = pipeline, maxDepth = DEFAULT_MAX_DEPTH)
             artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
-            
+
             val rootNode = TopicTreeNode(
                 key = topicDetail.key,
                 name = topicDetail.name,
@@ -141,12 +145,11 @@ class TopicTreeGenerationStepService(
             )
             artifact.nodes.add(rootNode.toTopicTreeNodeEntity(artifact))
             step.artifact = artifact
-            
+
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
             log(pipelineId, step.stepOrder, "Initialized Topic Tree with root: ${rootNode.name}")
-            artifact
-        }!!
+        }
     }
 
     private fun findNodeToExpand(pipelineId: Long, stepId: Long): TopicTreeNode? {
@@ -156,9 +159,9 @@ class TopicTreeGenerationStepService(
             val artifact = step.artifact as TopicTreeArtifactEntity
             val allNodes = artifact.nodes.toList()
             val parentKeysWithChildren = allNodes.mapNotNull { it.parentTopicKey }.toSet()
-            
-            val candidate = allNodes.find { 
-                !it.leaf && it.depth < artifact.maxDepth && it.key !in parentKeysWithChildren 
+
+            val candidate = allNodes.find {
+                !it.leaf && it.depth < artifact.maxDepth && it.key !in parentKeysWithChildren
             }
             candidate?.toTopicTreeNode()
         }
@@ -171,7 +174,7 @@ class TopicTreeGenerationStepService(
             val artifact = step.artifact as TopicTreeArtifactEntity
             val allNodes = artifact.nodes.map { it.toTopicTreeNode() }
             val rootNode = allNodes.find { it.parentTopicKey == null }!!
-            
+
             val parentChain = buildParentChain(node, allNodes, rootNode)
             val siblingTopics = allNodes
                 .filter { it.parentTopicKey == node.parentTopicKey && it.key != node.key }
@@ -180,10 +183,10 @@ class TopicTreeGenerationStepService(
             val sys = interpolate(step.systemPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
             val usr = interpolate(step.userPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
             Triple(sys, usr, artifact.maxDepth)
-        }!!
+        }
 
         log(pipelineId, stepOrder, "Generating subtopics for: ${node.name} (depth: ${node.depth})")
-        
+
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val subtopics = parseTopicTreeNodes(rawOutput, node.key, node.depth + 1)
 
@@ -191,7 +194,7 @@ class TopicTreeGenerationStepService(
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as TopicTreeArtifactEntity
-            
+
             val existingKeys = artifact.nodes.map { it.key }.toSet()
             val validSubtopics = subtopics.filter { it.key !in existingKeys && it.key != node.key }
 
@@ -206,26 +209,19 @@ class TopicTreeGenerationStepService(
                 }
                 log(pipelineId, stepOrder, "Generated ${validSubtopics.size} subtopics for ${node.name}.")
             }
-            
+
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
         }
     }
 
-    private fun finalizeArtifact(pipelineId: Long, stepId: Long) {
+    private fun finalizeArtifact(pipelineId: Long) {
         transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             updatePipeline(pipeline)
         }
     }
 
-    private fun log(pipelineId: Long, stepOrder: Int, message: String) {
-        logger.info("[Pipeline $pipelineId, Step $stepOrder] $message")
-        transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            generationLogRepository.save(GenerationLogEntity(pipeline, message, stepOrder))
-        }
-    }
 
     private fun saveIncrementalYaml(pipeline: PipelineEntity, artifact: TopicTreeArtifactEntity) {
         val nodes = artifact.nodes.map { it.toTopicTreeNode() }.sortedWith(compareBy({ it.depth }, { it.key }))
@@ -247,8 +243,6 @@ class TopicTreeGenerationStepService(
         val yamlContent = yamlMapper.writeValueAsString(yamlData)
         artifactStorage.saveTopicTreeArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
     }
-
-    private val catalogChainCache = java.util.concurrent.ConcurrentHashMap<String, List<TopicTreeNode>>()
 
     private fun getCatalogParentChain(rootKey: String): List<TopicTreeNode> {
         return catalogChainCache.getOrPut(rootKey) {
@@ -296,8 +290,8 @@ class TopicTreeGenerationStepService(
         val catalogParents = getCatalogParentChain(rootNode.key)
         val fullChain = catalogParents + chain
 
-        return fullChain.joinToString("\n") { 
-            "- ${it.name} (depth: ${it.depth}): ${it.coverageArea}" 
+        return fullChain.joinToString("\n") {
+            "- ${it.name} (depth: ${it.depth}): ${it.coverageArea}"
         }
     }
 
@@ -321,6 +315,7 @@ class TopicTreeGenerationStepService(
 
     private fun parseTopicTreeNodes(rawOutput: String, parentKey: String, depth: Int): List<TopicTreeNode> {
         val data = parseYaml(rawOutput)
+
         @Suppress("UNCHECKED_CAST")
         val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
 
