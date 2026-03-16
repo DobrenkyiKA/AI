@@ -78,24 +78,39 @@ class QuestionsGenerationStepService(
         val data = parseYaml(yamlContent)
         @Suppress("UNCHECKED_CAST")
         val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
-        
-        artifact.topicsWithQA.clear()
+
+        val incomingKeys = topicsList.map { it["key"] as String }.toSet()
+        artifact.topicsWithQA.removeIf { it.key !in incomingKeys }
         for (t in topicsList) {
-            val topicQA = TopicQAEntity(
-                key = t["key"] as String,
-                name = t["name"] as String,
-                answersArtifact = artifact
-            )
+            val key = t["key"] as String
+            val name = t["name"] as String
             @Suppress("UNCHECKED_CAST")
             val questions = t["questions"] as? List<Map<String, Any>> ?: emptyList()
-            topicQA.entries.addAll(questions.map { q ->
-                QAEntryEntity(
-                    questionText = q["text"] as String,
-                    level = q["level"] as String,
-                    topicQA = topicQA
+            val existing = artifact.topicsWithQA.find { it.key == key }
+            if (existing != null) {
+                existing.entries.clear()
+                existing.entries.addAll(questions.map { q ->
+                    QAEntryEntity(
+                        questionText = q["text"] as String,
+                        level = q["level"] as String,
+                        topicQA = existing
+                    )
+                })
+            } else {
+                val topicQA = TopicQAEntity(
+                    key = key,
+                    name = name,
+                    answersArtifact = artifact
                 )
-            })
-            artifact.topicsWithQA.add(topicQA)
+                topicQA.entries.addAll(questions.map { q ->
+                    QAEntryEntity(
+                        questionText = q["text"] as String,
+                        level = q["level"] as String,
+                        topicQA = topicQA
+                    )
+                })
+                artifact.topicsWithQA.add(topicQA)
+            }
         }
         
         artifactStorage.saveQuestionsArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
