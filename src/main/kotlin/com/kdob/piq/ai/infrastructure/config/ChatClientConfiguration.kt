@@ -10,7 +10,6 @@ class ChatClientConfiguration {
     @Bean("openAiChatClient")
     fun openAiChatClient(model: OpenAiChatModel): ChatClient =
         ChatClient.builder(model)
-            .defaultSystem("You are a helpful assistant powered by OpenAI.")
             .build()
 
 //    @Bean("googleChatClient")
