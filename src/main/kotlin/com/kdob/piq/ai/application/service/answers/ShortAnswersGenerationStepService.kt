@@ -156,6 +156,7 @@ class ShortAnswersGenerationStepService(
 
             val generatedTopicKeys = artifact.topicsWithQA.map { it.key }.toSet()
             longAnswersArtifact.topicsWithQA.find { it.key !in generatedTopicKeys }
+                ?.also { it.entries.size } // force-initialize lazy collection before session closes
         }
     }
 
