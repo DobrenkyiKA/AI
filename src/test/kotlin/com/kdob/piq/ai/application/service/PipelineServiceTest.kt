@@ -1,13 +1,13 @@
 package com.kdob.piq.ai.application.service
 
-import com.kdob.piq.ai.application.service.topictree.TopicTreeGenerationStepService
 import com.kdob.piq.ai.application.service.questions.QuestionsGenerationStepService
+import com.kdob.piq.ai.application.service.topictree.TopicTreeGenerationStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
+import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
-import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
 import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
@@ -29,6 +29,7 @@ class PipelineServiceTest {
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val statusService = mock(PipelineStatusService::class.java)
     private val generationLogRepository = mock(GenerationLogRepository::class.java)
+    private val promptSyncService = mock(com.kdob.piq.ai.application.service.prompt.PromptSyncService::class.java)
     private val service = PipelineService(
         repository,
         promptRepository,
@@ -36,7 +37,8 @@ class PipelineServiceTest {
         listOf(topicTreeGenerationService, questionsGenerationService),
         questionCatalogClient,
         statusService,
-        generationLogRepository
+        generationLogRepository,
+        promptSyncService
     )
 
     @BeforeEach
@@ -56,7 +58,7 @@ class PipelineServiceTest {
             .updateArtifact(any(PipelineStepEntity::class.java), anyString(), any(ArtifactStatus::class.java))
 
         `when`(promptRepository.save(any(PromptEntity::class.java))).thenAnswer { it.arguments[0] as PromptEntity }
-        `when`(promptRepository.findByName(org.mockito.ArgumentMatchers.anyString())).thenAnswer { invocation ->
+        `when`(promptRepository.findByName(anyString())).thenAnswer { invocation ->
             val name = invocation.arguments[0] as String
             if (name.startsWith("DEFAULT_")) {
                 val type = if (name.endsWith("SYSTEM")) PromptType.SYSTEM else PromptType.USER
@@ -125,7 +127,11 @@ class PipelineServiceTest {
         `when`(repository.findByName(name)).thenReturn(pipeline)
         `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
 
-        val defaultPrompt = PromptEntity(type = PromptType.SYSTEM, name = "DEFAULT_TOPIC_TREE_GENERATION_SYSTEM", content = "original content")
+        val defaultPrompt = PromptEntity(
+            type = PromptType.SYSTEM,
+            name = "DEFAULT_TOPIC_TREE_GENERATION_SYSTEM",
+            content = "original content"
+        )
         `when`(promptRepository.findByName("DEFAULT_TOPIC_TREE_GENERATION_SYSTEM")).thenReturn(defaultPrompt)
 
         val updateRequest = com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest(
@@ -237,7 +243,7 @@ class PipelineServiceTest {
         val step0 = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
         pipeline.steps.add(step0)
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
-        
+
         `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
@@ -262,13 +268,13 @@ class PipelineServiceTest {
         val step0 = PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0)
         pipeline.steps.add(step0)
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
-        
+
         `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
         `when`(repository.findByName(name)).thenReturn(pipeline)
 
         val topicTreeArtifact = TopicTreeArtifactEntity(pipeline = pipeline)
         topicTreeArtifact.status = ArtifactStatus.APPROVED
-        
+
         // Mock generation setting artifact
         doAnswer {
             step0.artifact = topicTreeArtifact
@@ -287,7 +293,7 @@ class PipelineServiceTest {
         val pipeline = PipelineEntity(name = name, topicKey = "java-core")
         pipeline.steps.add(PipelineStepEntity(pipeline, "TOPIC_TREE_GENERATION", 0))
         pipeline.steps.add(PipelineStepEntity(pipeline, "QUESTIONS_GENERATION", 1))
-        
+
         `when`(statusService.getPipelineWithSteps(name)).thenReturn(pipeline)
         `when`(repository.findByName(name)).thenReturn(pipeline)
 

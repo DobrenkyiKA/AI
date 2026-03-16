@@ -3,6 +3,7 @@ package com.kdob.piq.ai.application.service.prompt
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.storage.StorageServiceClient
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
@@ -17,6 +18,24 @@ class PromptSyncService(
     private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
     @Transactional
+    fun exportToNewVersion(commitMessage: String) {
+        val versions = storageServiceClient.getVersions()
+        val nextVersion = if (versions.isEmpty()) {
+            "Auto v1"
+        } else {
+            val autoVersions = versions.filter { it.startsWith("Auto v") }
+            if (autoVersions.isEmpty()) {
+                "Auto v1"
+            } else {
+                val lastAuto = autoVersions.last()
+                val currentNum = lastAuto.substringAfter("Auto v").toIntOrNull() ?: 0
+                "Auto v${currentNum + 1}"
+            }
+        }
+        exportToVersion(nextVersion, commitMessage)
+    }
+
+    @Transactional
     fun exportToVersion(version: String, commitMessage: String) {
         val prompts = promptRepository.findAll()
         val dto = DefaultPromptsDto(
@@ -29,13 +48,13 @@ class PromptSyncService(
             }
         )
         val content = yamlMapper.writeValueAsString(dto)
-        storageServiceClient.savePromptFile(version, "prompts.yaml", content)
+        storageServiceClient.savePromptFile(version, "default-prompts.yaml", content)
         storageServiceClient.commit(version, commitMessage)
     }
-
+    
     @Transactional
     fun importFromVersion(version: String) {
-        val content = storageServiceClient.getPromptFile(version, "prompts.yaml")
+        val content = storageServiceClient.getPromptFile(version, "default-prompts.yaml")
         if (content != null) {
             val dto = yamlMapper.readValue(content, DefaultPromptsDto::class.java)
             val importedNames = dto.prompts.map { it.name }.toSet()
@@ -69,3 +88,13 @@ class PromptSyncService(
         }
     }
 }
+
+data class DefaultPromptsDto(
+    val prompts: List<DefaultPromptDto> = emptyList()
+)
+
+data class DefaultPromptDto(
+    val name: String,
+    val type: PromptType,
+    val content: String
+)

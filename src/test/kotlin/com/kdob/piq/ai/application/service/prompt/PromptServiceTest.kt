@@ -14,12 +14,14 @@ import org.mockito.Mockito.*
 class PromptServiceTest {
 
     private lateinit var promptRepository: PromptRepository
+    private lateinit var promptSyncService: PromptSyncService
     private lateinit var promptService: PromptService
 
     @BeforeEach
     fun setUp() {
         promptRepository = mock(PromptRepository::class.java)
-        promptService = PromptService(promptRepository)
+        promptSyncService = mock(PromptSyncService::class.java)
+        promptService = PromptService(promptRepository, promptSyncService)
     }
 
     @Test
@@ -34,6 +36,7 @@ class PromptServiceTest {
         assertEquals(PromptType.SYSTEM, response.type)
         assertEquals("content", response.content)
         verify(promptRepository).save(any())
+        verify(promptSyncService).exportToNewVersion(anyString())
     }
 
     @Test
@@ -56,6 +59,7 @@ class PromptServiceTest {
 
         assertEquals("new-content", response.content)
         assertEquals("test-prompt", response.name)
+        verify(promptSyncService).exportToNewVersion(anyString())
     }
 
     @Test
@@ -69,12 +73,14 @@ class PromptServiceTest {
 
         assertEquals("new-name", response.name)
         verify(promptRepository).findByName("new-name")
+        verify(promptSyncService).exportToNewVersion(anyString())
     }
 
     @Test
     fun `should delete prompt`() {
         promptService.deletePrompt("test-prompt")
         verify(promptRepository).deleteByName("test-prompt")
+        verify(promptSyncService).exportToNewVersion(anyString())
     }
 
     private fun <T> any(): T = org.mockito.ArgumentMatchers.any()

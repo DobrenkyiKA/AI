@@ -11,7 +11,8 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class PromptService(
-    private val promptRepository: PromptRepository
+    private val promptRepository: PromptRepository,
+    private val promptSyncService: PromptSyncService
 ) {
 
     @Transactional(readOnly = true)
@@ -40,7 +41,9 @@ class PromptService(
             name = request.name,
             content = request.content
         )
-        return promptRepository.save(prompt).toResponse()
+        val saved = promptRepository.save(prompt).toResponse()
+        promptSyncService.exportToNewVersion("Auto-export after creating prompt: ${request.name}")
+        return saved
     }
 
     @Transactional
@@ -56,12 +59,15 @@ class PromptService(
         }
         request.content?.let { prompt.content = it }
         
-        return promptRepository.save(prompt).toResponse()
+        val saved = promptRepository.save(prompt).toResponse()
+        promptSyncService.exportToNewVersion("Auto-export after updating prompt: $name")
+        return saved
     }
 
     @Transactional
     fun deletePrompt(name: String) {
         promptRepository.deleteByName(name)
+        promptSyncService.exportToNewVersion("Auto-export after deleting prompt: $name")
     }
 
     private fun PromptEntity.toResponse() = PromptResponse(

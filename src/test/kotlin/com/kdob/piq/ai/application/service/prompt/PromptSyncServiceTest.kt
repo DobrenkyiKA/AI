@@ -37,7 +37,7 @@ class PromptSyncServiceTest {
         promptSyncService.exportToVersion(version, message)
 
         val contentCaptor = ArgumentCaptor.forClass(String::class.java)
-        verify(storageServiceClient).savePromptFile(eq(version), eq("prompts.yaml"), capture(contentCaptor))
+        verify(storageServiceClient).savePromptFile(eq(version), eq("default-prompts.yaml"), capture(contentCaptor))
         verify(storageServiceClient).commit(version, message)
 
         val content = contentCaptor.value
@@ -60,7 +60,7 @@ class PromptSyncServiceTest {
                 content: "brand new"
         """.trimIndent()
         
-        `when`(storageServiceClient.getPromptFile(version, "prompts.yaml")).thenReturn(yamlContent)
+        `when`(storageServiceClient.getPromptFile(version, "default-prompts.yaml")).thenReturn(yamlContent)
         
         val existingPrompt = PromptEntity(PromptType.SYSTEM, "existing", "old content")
         `when`(promptRepository.findByName("existing")).thenReturn(existingPrompt)
@@ -73,6 +73,27 @@ class PromptSyncServiceTest {
         assertEquals("new content", existingPrompt.content)
         
         verify(promptRepository, times(2)).save(any(PromptEntity::class.java))
+    }
+
+    @Test
+    fun `exportToNewVersion should create next Auto version`() {
+        `when`(storageServiceClient.getVersions()).thenReturn(listOf("v1", "Auto v1", "Auto v2"))
+        `when`(promptRepository.findAll()).thenReturn(emptyList())
+
+        promptSyncService.exportToNewVersion("Auto test")
+
+        verify(storageServiceClient).savePromptFile(eq("Auto v3"), eq("default-prompts.yaml"), anyString())
+        verify(storageServiceClient).commit(eq("Auto v3"), eq("Auto test"))
+    }
+
+    @Test
+    fun `exportToNewVersion should create Auto v1 if no versions`() {
+        `when`(storageServiceClient.getVersions()).thenReturn(emptyList())
+        `when`(promptRepository.findAll()).thenReturn(emptyList())
+
+        promptSyncService.exportToNewVersion("Auto test")
+
+        verify(storageServiceClient).savePromptFile(eq("Auto v1"), eq("default-prompts.yaml"), anyString())
     }
 
     private fun <T> capture(captor: ArgumentCaptor<T>): T {
@@ -106,7 +127,7 @@ class PromptSyncServiceTest {
                 content: "content"
         """.trimIndent()
         
-        `when`(storageServiceClient.getPromptFile(version, "prompts.yaml")).thenReturn(yamlContent)
+        `when`(storageServiceClient.getPromptFile(version, "default-prompts.yaml")).thenReturn(yamlContent)
         
         val keptPrompt = PromptEntity(PromptType.SYSTEM, "kept", "content")
         val removedPrompt = PromptEntity(PromptType.USER, "removed", "content")

@@ -3,6 +3,7 @@ package com.kdob.piq.ai.application.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.kdob.piq.ai.application.service.prompt.PromptSyncService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
@@ -11,15 +12,12 @@ import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
-import com.kdob.piq.ai.infrastructure.persistence.entity.AnswersArtifactEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
-import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
 import com.kdob.piq.ai.infrastructure.web.dto.*
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
@@ -34,9 +32,11 @@ class PipelineService(
     private val generationSteps: List<PipelineStepService>,
     private val questionCatalogClient: QuestionCatalogClient,
     private val statusService: PipelineStatusService,
-    private val generationLogRepository: GenerationLogRepository
+    private val generationLogRepository: GenerationLogRepository,
+    private val promptSyncService: PromptSyncService
 ) {
     private val logger = LoggerFactory.getLogger(PipelineService::class.java)
+
     @Transactional(readOnly = true)
     fun findAll(): List<PipelineResponse> = pipelineRepository.findAll().map { it.toResponse() }
 
@@ -105,7 +105,11 @@ class PipelineService(
     }
 
     @Transactional
-    fun updatePipelineMetadata(name: String, topicKey: String?, steps: List<UpdatePipelineStepRequest>?): PipelineResponse {
+    fun updatePipelineMetadata(
+        name: String,
+        topicKey: String?,
+        steps: List<UpdatePipelineStepRequest>?
+    ): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
 
@@ -120,10 +124,23 @@ class PipelineService(
                     pipeline = existing,
                     stepType = stepRequest.type,
                     stepOrder = index,
-                    systemPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPromptName, stepRequest.systemPrompt),
-                    userPrompt = getOrCreatePrompt(name, stepRequest.type, PromptType.USER, stepRequest.userPromptName, stepRequest.userPrompt)
+                    systemPrompt = getOrCreatePrompt(
+                        name,
+                        stepRequest.type,
+                        PromptType.SYSTEM,
+                        stepRequest.systemPromptName,
+                        stepRequest.systemPrompt
+                    ),
+                    userPrompt = getOrCreatePrompt(
+                        name,
+                        stepRequest.type,
+                        PromptType.USER,
+                        stepRequest.userPromptName,
+                        stepRequest.userPrompt
+                    )
                 )
             })
+            promptSyncService.exportToNewVersion("Auto-export after updating pipeline metadata: $name")
         }
 
         existing.updatedAt = Instant.now()
@@ -198,12 +215,26 @@ class PipelineService(
                 pipeline = pipelineEntity,
                 stepType = stepRequest.type,
                 stepOrder = index,
-                systemPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.SYSTEM, stepRequest.systemPromptName, stepRequest.systemPrompt),
-                userPrompt = getOrCreatePrompt(normalizedName, stepRequest.type, PromptType.USER, stepRequest.userPromptName, stepRequest.userPrompt)
+                systemPrompt = getOrCreatePrompt(
+                    normalizedName,
+                    stepRequest.type,
+                    PromptType.SYSTEM,
+                    stepRequest.systemPromptName,
+                    stepRequest.systemPrompt
+                ),
+                userPrompt = getOrCreatePrompt(
+                    normalizedName,
+                    stepRequest.type,
+                    PromptType.USER,
+                    stepRequest.userPromptName,
+                    stepRequest.userPrompt
+                )
             )
         })
 
-        return pipelineRepository.save(pipelineEntity).toResponse()
+        val response = pipelineRepository.save(pipelineEntity).toResponse()
+        promptSyncService.exportToNewVersion("Auto-export after creating pipeline: $normalizedName")
+        return response
     }
 
     private fun normalizeAndValidateName(name: String): String {

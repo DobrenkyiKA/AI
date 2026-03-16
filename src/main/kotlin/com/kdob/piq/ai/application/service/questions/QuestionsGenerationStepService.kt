@@ -196,7 +196,7 @@ class QuestionsGenerationStepService(
     private fun finalizeArtifact(pipelineId: Long, stepId: Long) {
         transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            updatePipeline(pipeline, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
+            updatePipeline(pipeline)
         }
     }
 

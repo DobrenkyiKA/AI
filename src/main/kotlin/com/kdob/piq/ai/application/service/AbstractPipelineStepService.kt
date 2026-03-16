@@ -28,15 +28,8 @@ abstract class AbstractPipelineStepService(
         artifact.status = status
     }
 
-    protected fun clearOldArtifact(pipeline: PipelineEntity, step: PipelineStepEntity) {
-        if (step.artifact != null) {
-            step.artifact = null
-            pipelineRepository.saveAndFlush(pipeline)
-        }
-    }
-
-    protected fun updatePipeline(pipeline: PipelineEntity, status: PipelineStatus) {
-        pipeline.status = status
+    protected fun updatePipeline(pipeline: PipelineEntity) {
+        pipeline.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
         pipeline.updatedAt = Instant.now()
         pipelineRepository.save(pipeline)
     }
