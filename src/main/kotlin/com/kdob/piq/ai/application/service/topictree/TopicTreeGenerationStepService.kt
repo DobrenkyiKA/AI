@@ -83,14 +83,13 @@ class TopicTreeGenerationStepService(
         val artifact = step.artifact as? TopicTreeArtifactEntity
             ?: throw IllegalStateException("Topic tree artifact not found")
         artifact.status = status
-        
+
         val data = parseYaml(yamlContent)
         @Suppress("UNCHECKED_CAST")
         val topicsList = data["topics"] as? List<Map<String, Any>> ?: emptyList()
-        
-        artifact.nodes.clear()
-        for (it in topicsList) {
-            val node = TopicTreeNode(
+
+        val incomingNodes = topicsList.map {
+            TopicTreeNode(
                 key = it["key"] as String,
                 name = it["name"] as String,
                 parentTopicKey = it["parentTopicKey"] as? String,
@@ -98,9 +97,26 @@ class TopicTreeGenerationStepService(
                 depth = (it["depth"] as Number).toInt(),
                 leaf = it["leaf"] as? Boolean ?: false
             )
-            artifact.nodes.add(node.toTopicTreeNodeEntity(artifact))
         }
-        
+        val incomingKeys = incomingNodes.map { it.key }.toSet()
+
+        // Remove nodes that are no longer present (orphanRemoval will delete them)
+        artifact.nodes.removeIf { it.key !in incomingKeys }
+
+        // Update existing nodes in-place and add new ones to avoid Hibernate flush ordering issues
+        for (incoming in incomingNodes) {
+            val existing = artifact.nodes.find { it.key == incoming.key }
+            if (existing != null) {
+                existing.name = incoming.name
+                existing.parentTopicKey = incoming.parentTopicKey
+                existing.coverageArea = incoming.coverageArea
+                existing.depth = incoming.depth
+                existing.leaf = incoming.leaf
+            } else {
+                artifact.nodes.add(incoming.toTopicTreeNodeEntity(artifact))
+            }
+        }
+
         artifactStorage.saveTopicTreeArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
