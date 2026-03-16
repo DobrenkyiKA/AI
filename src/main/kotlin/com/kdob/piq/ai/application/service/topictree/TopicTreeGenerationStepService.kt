@@ -148,7 +148,7 @@ class TopicTreeGenerationStepService(
         }
     }
 
-    private fun expandNode(pipelineId: Long, stepId: Long, node: TopicTreeNode) {
+    internal fun expandNode(pipelineId: Long, stepId: Long, node: TopicTreeNode) {
         val (systemPrompt, userPrompt, maxDepth) = transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
@@ -232,6 +232,29 @@ class TopicTreeGenerationStepService(
         artifactStorage.saveTopicTreeArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
     }
 
+    private val catalogChainCache = java.util.concurrent.ConcurrentHashMap<String, List<TopicTreeNode>>()
+
+    private fun getCatalogParentChain(rootKey: String): List<TopicTreeNode> {
+        return catalogChainCache.getOrPut(rootKey) {
+            val rootTopic = questionCatalogClient.findTopic(rootKey) ?: return@getOrPut emptyList()
+            val pathParts = rootTopic.path.split("/").filter { it.isNotEmpty() }
+            val rootIndex = pathParts.indexOf(rootKey)
+            if (rootIndex <= 0) return@getOrPut emptyList()
+
+            pathParts.subList(0, rootIndex).mapIndexed { index, key ->
+                val topic = questionCatalogClient.findTopic(key)
+                TopicTreeNode(
+                    key = key,
+                    name = topic?.name ?: key,
+                    coverageArea = topic?.coverageArea ?: "",
+                    depth = index - rootIndex,
+                    leaf = false,
+                    parentTopicKey = if (index > 0) pathParts[index - 1] else null
+                )
+            }
+        }
+    }
+
     private fun buildParentChain(
         current: TopicTreeNode,
         allNodes: List<TopicTreeNode>,
@@ -247,15 +270,19 @@ class TopicTreeGenerationStepService(
             if (curr.key == rootNode.key) break
             val parentKey = curr.parentTopicKey
             curr = if (parentKey != null) {
-                allNodes.find { it.key == parentKey } ?: if (rootNode.key == parentKey) rootNode else null
+                allNodes.find { it.key == parentKey }
             } else null
         }
 
-        if (chain.isEmpty() || chain.first().key != rootNode.key) {
-            chain.add(0, rootNode)
-        }
+        // Remove the current node from the chain as it's displayed separately in "Current Topic to Decompose"
+        chain.removeIf { it.key == current.key }
 
-        return chain.distinctBy { it.key }.joinToString("\n") { "- ${it.name} (depth: ${it.depth}): ${it.coverageArea}" }
+        val catalogParents = getCatalogParentChain(rootNode.key)
+        val fullChain = catalogParents + chain
+
+        return fullChain.joinToString("\n") { 
+            "- ${it.name} (depth: ${it.depth}): ${it.coverageArea}" 
+        }
     }
 
     private fun interpolate(
@@ -269,7 +296,7 @@ class TopicTreeGenerationStepService(
             .replace("{{topicKey}}", topic.key)
             .replace("{{topicName}}", topic.name)
             .replace("{{coverageArea}}", topic.coverageArea)
-            .replace("{{parentChain}}", parentChain)
+            .replace("{{parentChain}}", parentChain.ifBlank { "None" })
             .replace("{{siblingTopics}}", siblingTopics.ifBlank { "None" })
             .replace("{{depth}}", topic.depth.toString())
             .replace("{{maxDepth}}", maxDepth.toString())
