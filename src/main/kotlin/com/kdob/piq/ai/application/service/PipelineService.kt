@@ -107,8 +107,8 @@ class PipelineService(
     @Transactional
     fun updatePipelineMetadata(
         name: String,
-        topicKey: String?,
-        steps: List<UpdatePipelineStepRequest>?
+        topicKey: String? = null,
+        steps: List<UpdatePipelineStepRequest>? = null
     ): PipelineResponse {
         val existing = pipelineRepository.findByName(name)
             ?: throw NoSuchElementException("Pipeline not found: $name")
@@ -118,28 +118,49 @@ class PipelineService(
         }
 
         if (steps != null) {
-            existing.steps.clear()
-            existing.steps.addAll(steps.mapIndexed { index, stepRequest ->
-                PipelineStepEntity(
-                    pipeline = existing,
-                    stepType = stepRequest.type,
-                    stepOrder = index,
-                    systemPrompt = getOrCreatePrompt(
+            val updatedSteps = steps.mapIndexed { index, stepRequest ->
+                val existingStep = existing.steps.getOrNull(index)
+                if (existingStep != null && existingStep.stepType == stepRequest.type) {
+                    existingStep.stepOrder = index
+                    existingStep.systemPrompt = getOrCreatePrompt(
                         name,
                         stepRequest.type,
                         PromptType.SYSTEM,
                         stepRequest.systemPromptName,
                         stepRequest.systemPrompt
-                    ),
-                    userPrompt = getOrCreatePrompt(
+                    )
+                    existingStep.userPrompt = getOrCreatePrompt(
                         name,
                         stepRequest.type,
                         PromptType.USER,
                         stepRequest.userPromptName,
                         stepRequest.userPrompt
                     )
-                )
-            })
+                    existingStep
+                } else {
+                    PipelineStepEntity(
+                        pipeline = existing,
+                        stepType = stepRequest.type,
+                        stepOrder = index,
+                        systemPrompt = getOrCreatePrompt(
+                            name,
+                            stepRequest.type,
+                            PromptType.SYSTEM,
+                            stepRequest.systemPromptName,
+                            stepRequest.systemPrompt
+                        ),
+                        userPrompt = getOrCreatePrompt(
+                            name,
+                            stepRequest.type,
+                            PromptType.USER,
+                            stepRequest.userPromptName,
+                            stepRequest.userPrompt
+                        )
+                    )
+                }
+            }
+            existing.steps.clear()
+            existing.steps.addAll(updatedSteps)
             promptSyncService.exportToNewVersion("Auto-export after updating pipeline metadata: $name")
         }
 

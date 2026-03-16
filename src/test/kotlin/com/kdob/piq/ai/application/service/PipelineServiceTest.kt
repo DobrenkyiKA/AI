@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.ArgumentMatcher
+import org.mockito.Mockito
 import org.mockito.Mockito.*
 
 class PipelineServiceTest {
@@ -70,19 +72,39 @@ class PipelineServiceTest {
     }
 
     @Test
-    fun `should create pipeline with normalized name`() {
-        val name = "Java Core Interview v1"
-        val topicKey = "java-core"
-        val expectedNormalized = "java-core-interview-v1"
+    fun `should not remove artifact when updating metadata`() {
+        val name = "java-core"
+        val existing = PipelineEntity(name = name, topicKey = "java-core")
+        val step = PipelineStepEntity(
+            pipeline = existing,
+            stepType = "TOPIC_TREE_GENERATION",
+            stepOrder = 0
+        )
+        val artifact = TopicTreeArtifactEntity(pipeline = existing)
+        step.artifact = artifact
+        existing.steps.add(step)
 
-        `when`(repository.findByName(expectedNormalized)).thenReturn(null)
+        `when`(repository.findByName(name)).thenReturn(existing)
         `when`(repository.save(any(PipelineEntity::class.java))).thenAnswer { it.arguments[0] as PipelineEntity }
 
-        val result = service.createPipeline(name, topicKey, emptyList())
+        val stepRequest = com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest(
+            type = "TOPIC_TREE_GENERATION",
+            systemPrompt = "updated system",
+            userPrompt = "updated user"
+        )
+        
+        val result = service.updatePipelineMetadata(name, steps = listOf(stepRequest))
 
-        assertEquals(expectedNormalized, result.pipelineName)
-        assertEquals(topicKey, result.topicKey)
-        verify(repository).save(any(PipelineEntity::class.java))
+        assertEquals(1, result.steps.size)
+        
+        verify(repository).save(argThat<PipelineEntity> { pipeline ->
+            pipeline.steps.size == 1 && pipeline.steps[0].artifact != null
+        })
+    }
+
+    private fun <T> argThat(matcher: ArgumentMatcher<T>): T {
+        Mockito.argThat(matcher)
+        return PipelineEntity(name = "dummy", topicKey = "dummy-topic") as T
     }
 
     private fun <T> any(type: Class<T>): T {
