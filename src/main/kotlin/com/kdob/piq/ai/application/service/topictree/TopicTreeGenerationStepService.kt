@@ -142,14 +142,14 @@ class TopicTreeGenerationStepService(
             val parentKeysWithChildren = allNodes.mapNotNull { it.parentTopicKey }.toSet()
             
             val candidate = allNodes.find { 
-                !it.leaf && it.depth < DEFAULT_MAX_DEPTH && it.key !in parentKeysWithChildren 
+                !it.leaf && it.depth < artifact.maxDepth && it.key !in parentKeysWithChildren 
             }
             candidate?.toTopicTreeNode()
         }
     }
 
     private fun expandNode(pipelineId: Long, stepId: Long, node: TopicTreeNode) {
-        val (systemPrompt, userPrompt) = transactionTemplate.execute {
+        val (systemPrompt, userPrompt, maxDepth) = transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as TopicTreeArtifactEntity
@@ -161,9 +161,9 @@ class TopicTreeGenerationStepService(
                 .filter { it.parentTopicKey == node.parentTopicKey && it.key != node.key }
                 .joinToString("\n") { "- ${it.name}: ${it.coverageArea}" }
 
-            val sys = interpolate(step.systemPrompt?.content ?: "", node, parentChain, siblingTopics)
-            val usr = interpolate(step.userPrompt?.content ?: "", node, parentChain, siblingTopics)
-            Pair(sys, usr)
+            val sys = interpolate(step.systemPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
+            val usr = interpolate(step.userPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
+            Triple(sys, usr, artifact.maxDepth)
         }!!
 
         log(pipelineId, "Generating subtopics for: ${node.name} (depth: ${node.depth})")
@@ -176,16 +176,19 @@ class TopicTreeGenerationStepService(
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as TopicTreeArtifactEntity
             
-            if (subtopics.isEmpty()) {
+            val existingKeys = artifact.nodes.map { it.key }.toSet()
+            val validSubtopics = subtopics.filter { it.key !in existingKeys && it.key != node.key }
+
+            if (validSubtopics.isEmpty()) {
                 val nodeInDb = artifact.nodes.find { it.key == node.key }!!
                 nodeInDb.leaf = true
-                log(pipelineId, "No subtopics found for ${node.name}. Marked as leaf.")
+                log(pipelineId, "No NEW subtopics found for ${node.name}. Marked as leaf.")
             } else {
-                for (sub in subtopics) {
-                    val leaf = sub.leaf || sub.depth >= DEFAULT_MAX_DEPTH
+                for (sub in validSubtopics) {
+                    val leaf = sub.leaf || sub.depth >= maxDepth
                     artifact.nodes.add(sub.copy(leaf = leaf).toTopicTreeNodeEntity(artifact))
                 }
-                log(pipelineId, "Generated ${subtopics.size} subtopics for ${node.name}.")
+                log(pipelineId, "Generated ${validSubtopics.size} subtopics for ${node.name}.")
             }
             
             pipelineRepository.saveAndFlush(pipeline)
@@ -213,7 +216,7 @@ class TopicTreeGenerationStepService(
         val yamlData = mapOf(
             "rootTopicKey" to pipeline.topicKey,
             "totalTopics" to nodes.size,
-            "maxDepth" to DEFAULT_MAX_DEPTH,
+            "maxDepth" to artifact.maxDepth,
             "topics" to nodes.map { node ->
                 mapOf(
                     "key" to node.key,
@@ -259,7 +262,8 @@ class TopicTreeGenerationStepService(
         prompt: String,
         topic: TopicTreeNode,
         parentChain: String,
-        siblingTopics: String
+        siblingTopics: String,
+        maxDepth: Int
     ): String {
         return prompt
             .replace("{{topicKey}}", topic.key)
@@ -268,7 +272,7 @@ class TopicTreeGenerationStepService(
             .replace("{{parentChain}}", parentChain)
             .replace("{{siblingTopics}}", siblingTopics.ifBlank { "None" })
             .replace("{{depth}}", topic.depth.toString())
-            .replace("{{maxDepth}}", DEFAULT_MAX_DEPTH.toString())
+            .replace("{{maxDepth}}", maxDepth.toString())
             .replace("{{parentKey}}", topic.key)
     }
 
@@ -281,7 +285,7 @@ class TopicTreeGenerationStepService(
             TopicTreeNode(
                 key = it["key"] as String,
                 name = it["name"] as String,
-                parentTopicKey = it["parentTopicKey"] as? String ?: parentKey,
+                parentTopicKey = parentKey,
                 coverageArea = it["coverageArea"] as String,
                 depth = depth,
                 leaf = it["leaf"] as? Boolean ?: false
