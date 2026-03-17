@@ -6,6 +6,8 @@ import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
+import com.kdob.piq.ai.infrastructure.client.question.dto.TopicClientResponse
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.junit.jupiter.api.Assertions.*
@@ -21,14 +23,25 @@ class QuestionsGenerationPipelineStepServiceTest {
     private val generator = mock(OpenAiChatService::class.java)
     private val repository = mock(PipelineRepository::class.java)
     private val artifactStorage = mock(ArtifactStorage::class.java)
+    private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val generationLogRepository = mock(GenerationLogRepository::class.java)
     private val transactionManager = mock(PlatformTransactionManager::class.java)
-    private val service = QuestionsGenerationPipelineStepService(generator, repository, artifactStorage, generationLogRepository, transactionManager)
+    private val service = QuestionsGenerationPipelineStepService(generator, repository, artifactStorage, questionCatalogClient, generationLogRepository, transactionManager)
 
     @BeforeEach
     fun setup() {
         val transactionStatus = mock(TransactionStatus::class.java)
         `when`(transactionManager.getTransaction(any())).thenReturn(transactionStatus)
+
+        `when`(questionCatalogClient.findTopic("java")).thenReturn(
+            TopicClientResponse(key = "java", name = "Java", path = "/jvm-ecosystem/java-languages/java")
+        )
+        `when`(questionCatalogClient.findTopic("jvm-ecosystem")).thenReturn(
+            TopicClientResponse(key = "jvm-ecosystem", name = "JVM Ecosystem", path = "/jvm-ecosystem")
+        )
+        `when`(questionCatalogClient.findTopic("java-languages")).thenReturn(
+            TopicClientResponse(key = "java-languages", name = "Java Languages", path = "/jvm-ecosystem/java-languages")
+        )
     }
 
     private fun createPipeline(name: String, topicKey: String): PipelineEntity {
@@ -45,8 +58,8 @@ class QuestionsGenerationPipelineStepServiceTest {
             pipeline = pipeline,
             stepType = "QUESTIONS_GENERATION",
             stepOrder = 1,
-            systemPrompt = PromptEntity(PromptType.SYSTEM, "$name-sys", "System {{topicKey}} {{topicName}} {{coverageArea}} {{topicType}} {{childTopicsList}} {{parentChain}}"),
-            userPrompt = PromptEntity(PromptType.USER, "$name-usr", "User {{topicKey}} {{topicName}} {{coverageArea}} {{topicType}} {{childTopicsList}} {{parentChain}}")
+            systemPrompt = PromptEntity(PromptType.SYSTEM, "$name-sys", "System {{topicKey}} {{topicName}} {{coverageArea}} {{topicType}}\nSubtopics (for branch topics, generate cross-cutting questions):\n{{childTopicsList}}\n{{parentChain}}"),
+            userPrompt = PromptEntity(PromptType.USER, "$name-usr", "User {{topicKey}} {{topicName}} {{coverageArea}} {{topicType}}\nSubtopics (for branch topics, generate cross-cutting questions):\n{{childTopicsList}}\n{{parentChain}}")
         )
         pipeline.steps.add(questionsStep)
 
@@ -153,11 +166,42 @@ class QuestionsGenerationPipelineStepServiceTest {
 
         val javaBasics = artifact.topicsWithQA.find { it.key == "java-basics" }
         assertNotNull(javaBasics)
-        assertEquals("Java", javaBasics!!.parentChain)
+        assertEquals("JVM Ecosystem > Java Languages > Java", javaBasics!!.parentChain)
 
         val java = artifact.topicsWithQA.find { it.key == "java" }
         assertNotNull(java)
-        assertEquals("", java!!.parentChain)
+        assertEquals("JVM Ecosystem > Java Languages", java!!.parentChain)
+    }
+
+    @Test
+    fun `should remove subtopics block if no children`() {
+        val pipeline = createPipeline("java-pipeline", "java")
+        pipeline.id = 1L
+        
+        // Root node "java" has one child "java-basics".
+        // "java-basics" has no children.
+        val topicTreeArtifact = createTopicTreeArtifact(pipeline)
+        pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }!!.artifact = topicTreeArtifact
+
+        val step = pipeline.steps.find { it.stepType == "QUESTIONS_GENERATION" }!!
+        step.id = 2L
+
+        `when`(repository.findById(1L)).thenReturn(pipeline)
+        `when`(generator.executePrompt(anyString() ?: "", anyString() ?: "")).thenReturn("questions:\n  - text: \"Q1\"\n    level: \"junior\"")
+
+        service.generate(step)
+
+        // Capture prompts for "java-basics" (leaf node, no children)
+        verify(generator, atLeastOnce()).executePrompt(
+            argThat { it != null && it.contains("System java-basics") && !it.contains("Subtopics (for branch topics") } ?: "",
+            argThat { it != null && it.contains("User java-basics") && !it.contains("Subtopics (for branch topics") } ?: ""
+        )
+        
+        // Capture prompts for "java" (branch node, has child "java-basics")
+        verify(generator, atLeastOnce()).executePrompt(
+            argThat { it != null && it.contains("System java Java") && it.contains("Subtopics (for branch topics") && it.contains("- Java Basics: Fundamentals of Java") } ?: "",
+            argThat { it != null && it.contains("User java Java") && it.contains("Subtopics (for branch topics") && it.contains("- Java Basics: Fundamentals of Java") } ?: ""
+        )
     }
 
     @Test

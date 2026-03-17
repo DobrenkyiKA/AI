@@ -5,6 +5,7 @@ import com.kdob.piq.ai.application.service.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
+import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
@@ -17,9 +18,14 @@ class QuestionsGenerationPipelineStepService(
     private val generator: OpenAiChatService,
     pipelineRepository: PipelineRepository,
     artifactStorage: ArtifactStorage,
+    private val questionCatalogClient: QuestionCatalogClient,
     generationLogRepository: GenerationLogRepository,
     transactionManager: PlatformTransactionManager
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
+
+    private val catalogChainCache = java.util.concurrent.ConcurrentHashMap<String, List<CatalogTopicInfo>>()
+
+    data class CatalogTopicInfo(val key: String, val name: String)
 
     override fun getStepType(): String = QUESTIONS_GENERATION_STEP_TYPE
 
@@ -147,7 +153,7 @@ class QuestionsGenerationPipelineStepService(
             val isLeaf = node.leaf
             val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
             val children = nodesByParent[node.key] ?: emptyList()
-            val parentChain = buildParentChain(node, topicTreeArtifact.nodes)
+            val parentChain = buildParentChain(node, topicTreeArtifact.nodes, pipeline.topicKey)
 
             val sys = interpolateQuestionPrompt(
                 step.systemPrompt?.content ?: "", node, isLeaf, children, parentChain
@@ -215,15 +221,37 @@ class QuestionsGenerationPipelineStepService(
         ).trim()
     }
 
-    private fun buildParentChain(node: TopicTreeNodeEntity, allNodes: Set<TopicTreeNodeEntity>): String {
-        val chain = mutableListOf<TopicTreeNodeEntity>()
+    private fun buildParentChain(
+        node: TopicTreeNodeEntity,
+        allNodes: Set<TopicTreeNodeEntity>,
+        pipelineRootKey: String
+    ): String {
+        val chain = mutableListOf<String>()
         var parentKey = node.parentTopicKey
         while (parentKey != null) {
             val parent = allNodes.find { it.key == parentKey } ?: break
-            chain.add(0, parent)
+            chain.add(0, parent.name)
             parentKey = parent.parentTopicKey
         }
-        return chain.joinToString(" > ") { it.name }
+
+        val catalogParents = getCatalogParentChain(pipelineRootKey)
+        val catalogNames = catalogParents.map { it.name }
+
+        return (catalogNames + chain).joinToString(" > ")
+    }
+
+    private fun getCatalogParentChain(rootKey: String): List<CatalogTopicInfo> {
+        return catalogChainCache.getOrPut(rootKey) {
+            val rootTopic = questionCatalogClient.findTopic(rootKey) ?: return@getOrPut emptyList()
+            val pathParts = rootTopic.path.split("/").filter { it.isNotEmpty() }
+            val rootIndex = pathParts.indexOf(rootKey)
+            if (rootIndex <= 0) return@getOrPut emptyList()
+
+            pathParts.subList(0, rootIndex).map { key ->
+                val topic = questionCatalogClient.findTopic(key)
+                CatalogTopicInfo(key = key, name = topic?.name ?: key)
+            }
+        }
     }
 
     private fun interpolateQuestionPrompt(
@@ -234,19 +262,32 @@ class QuestionsGenerationPipelineStepService(
         parentChain: String
     ): String {
         val topicType = if (isLeaf) "leaf" else "branch"
+        val childTopicsListPlaceholder = "{{childTopicsList}}"
         val childTopicsList = if (children.isNotEmpty()) {
             children.joinToString("\n") { "- ${it.name}: ${it.coverageArea}" }
         } else {
-            "None"
+            "NONE_MARKER"
         }
 
-        return prompt
+        var result = prompt
             .replace("{{topicKey}}", node.key)
             .replace("{{topicName}}", node.name)
             .replace("{{coverageArea}}", node.coverageArea)
             .replace("{{topicType}}", topicType)
-            .replace("{{childTopicsList}}", childTopicsList)
+            .replace(childTopicsListPlaceholder, childTopicsList)
             .replace("{{parentChain}}", parentChain.ifBlank { "Root" })
+
+        if (childTopicsList == "NONE_MARKER") {
+            // Remove the whole Subtopics section if it's empty, including the header
+            val headerAndMarkerRegex = Regex("""Subtopics \(for branch topics, generate cross-cutting questions\):\s*NONE_MARKER\s*""", RegexOption.IGNORE_CASE)
+            result = if (headerAndMarkerRegex.containsMatchIn(result)) {
+                result.replace(headerAndMarkerRegex, "")
+            } else {
+                result.replace("NONE_MARKER", "")
+            }
+        }
+
+        return result.trim()
     }
 
     private fun parseQuestionsWithLevels(rawOutput: String): List<Pair<String, String>> {
