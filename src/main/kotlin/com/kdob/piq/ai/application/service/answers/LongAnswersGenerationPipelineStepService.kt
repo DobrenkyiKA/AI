@@ -34,7 +34,7 @@ class LongAnswersGenerationPipelineStepService(
             val nextTopicQA = findNextTopicToGenerate(pipelineId, step.id!!)
             if (nextTopicQA == null) {
                 log(pipelineId, step.stepOrder, "Long Answers Generation completed successfully.")
-                finalizeArtifact(pipelineId)
+                finalizeArtifact(pipelineId, step.id!!)
                 return
             }
 
@@ -113,7 +113,7 @@ class LongAnswersGenerationPipelineStepService(
             }
 
             val artifact = AnswersArtifactEntity(pipeline = pipeline)
-            artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+            artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
             step.artifact = artifact
 
             pipelineRepository.saveAndFlush(pipeline)

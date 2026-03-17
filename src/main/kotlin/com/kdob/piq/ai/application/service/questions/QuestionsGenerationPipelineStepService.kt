@@ -33,7 +33,7 @@ class QuestionsGenerationPipelineStepService(
             val nextTopic = findNextTopicToGenerate(pipelineId, step.id!!)
             if (nextTopic == null) {
                 log(pipelineId, step.stepOrder, "Questions Generation completed successfully.")
-                finalizeArtifact(pipelineId)
+                finalizeArtifact(pipelineId, step.id!!)
                 return
             }
 
@@ -108,7 +108,7 @@ class QuestionsGenerationPipelineStepService(
             }
 
             val artifact = AnswersArtifactEntity(pipeline = pipeline)
-            artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+            artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
             step.artifact = artifact
 
             pipelineRepository.saveAndFlush(pipeline)

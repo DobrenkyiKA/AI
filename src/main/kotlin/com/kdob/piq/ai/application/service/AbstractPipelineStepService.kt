@@ -35,7 +35,9 @@ abstract class AbstractPipelineStepService(
         val artifact = transactionTemplate.execute {
             val pipelineEntity = pipelineRepository.findById(pipelineId)!!
             val pipelineStepEntity: PipelineStepEntity = pipelineEntity.steps.find { it.id == step.id }!!
-            pipelineStepEntity.artifact
+            val artifact = pipelineStepEntity.artifact
+            artifact?.status = ArtifactStatus.GENERATION_IN_PROGRESS
+            artifact
         }
 
         if (artifact == null) {
@@ -54,9 +56,11 @@ abstract class AbstractPipelineStepService(
         artifact.status = status
     }
 
-    protected fun finalizeArtifact(pipelineId: Long) {
+    protected fun finalizeArtifact(pipelineId: Long, stepId: Long) {
         transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val step = pipeline.steps.find { it.id == stepId }!!
+            step.artifact?.status = ArtifactStatus.PENDING_FOR_APPROVAL
             updatePipeline(pipeline)
         }
     }

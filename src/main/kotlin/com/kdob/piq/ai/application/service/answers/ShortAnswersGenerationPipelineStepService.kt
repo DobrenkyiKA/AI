@@ -34,7 +34,7 @@ class ShortAnswersGenerationPipelineStepService(
             val nextTopicQA = findNextTopicToGenerate(pipelineId, step.id!!)
             if (nextTopicQA == null) {
                 log(pipelineId, step.stepOrder, "Short Answers Generation completed successfully.")
-                finalizeArtifact(pipelineId)
+                finalizeArtifact(pipelineId, step.id!!)
                 return
             }
 
@@ -114,7 +114,7 @@ class ShortAnswersGenerationPipelineStepService(
             }
 
             val artifact = AnswersArtifactEntity(pipeline = pipeline)
-            artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+            artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
             step.artifact = artifact
 
             pipelineRepository.saveAndFlush(pipeline)

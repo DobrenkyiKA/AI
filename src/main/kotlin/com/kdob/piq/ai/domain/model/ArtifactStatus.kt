@@ -4,5 +4,6 @@ enum class ArtifactStatus {
     PENDING_FOR_APPROVAL,
     APPROVED,
     PAUSED,
-    ABORTED
+    ABORTED,
+    GENERATION_IN_PROGRESS
 }

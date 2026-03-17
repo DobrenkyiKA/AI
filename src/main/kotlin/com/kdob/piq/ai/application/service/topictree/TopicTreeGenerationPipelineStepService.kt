@@ -47,7 +47,7 @@ class TopicTreeGenerationPipelineStepService(
             val nodeToExpand = findNodeToExpand(pipelineId, step.id!!)
             if (nodeToExpand == null) {
                 log(pipelineId, step.stepOrder, "Topic Tree Generation completed successfully.")
-                finalizeArtifact(pipelineId)
+                finalizeArtifact(pipelineId, step.id!!)
                 return
             }
 
@@ -111,7 +111,7 @@ class TopicTreeGenerationPipelineStepService(
                 ?: throw IllegalStateException("Root topic not found: ${pipeline.topicKey}")
 
             val artifact = TopicTreeArtifactEntity(pipeline = pipeline, maxDepth = DEFAULT_MAX_DEPTH)
-            artifact.status = ArtifactStatus.PENDING_FOR_APPROVAL
+            artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
 
             val rootNode = TopicTreeNode(
                 key = topicDetail.key,
