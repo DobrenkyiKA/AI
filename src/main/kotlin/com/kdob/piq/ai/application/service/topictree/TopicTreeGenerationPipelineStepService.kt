@@ -3,7 +3,6 @@ package com.kdob.piq.ai.application.service.topictree
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.TopicTreeNode
 import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
@@ -16,7 +15,6 @@ import com.kdob.piq.ai.infrastructure.persistence.mapping.toTopicTreeNodeEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.support.TransactionTemplate
 
 private const val TOPIC_TREE_GENERATION_STEP_TYPE = "TOPIC_TREE_GENERATION"
 
@@ -30,7 +28,6 @@ class TopicTreeGenerationPipelineStepService(
     transactionManager: PlatformTransactionManager
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
 
-    private val transactionTemplate = TransactionTemplate(transactionManager)
     private val catalogChainCache = java.util.concurrent.ConcurrentHashMap<String, List<TopicTreeNode>>()
 
     companion object {
@@ -42,29 +39,10 @@ class TopicTreeGenerationPipelineStepService(
     override fun generate(step: PipelineStepEntity) {
         val pipelineId = step.pipeline.id!!
 
-        val artifact = transactionTemplate.execute {
-            val pipelineEntity = pipelineRepository.findById(pipelineId)!!
-            val pipelineStepEntity: PipelineStepEntity = pipelineEntity.steps.find { it.id == step.id }!!
-            pipelineStepEntity.artifact as? TopicTreeArtifactEntity
-        }
-
-        if (artifact == null) {
-            log(pipelineId, step.stepOrder, "Starting new Topic Tree Generation...")
-            initializeArtifact(pipelineId, step.id!!)
-        } else {
-            log(pipelineId, step.stepOrder, "Resuming Topic Tree Generation...")
-        }
+        initializeArtifact(pipelineId, step)
 
         while (true) {
-            val currentPipeline = pipelineRepository.findById(pipelineId)!!
-            if (currentPipeline.status == PipelineStatus.PAUSED) {
-                log(pipelineId, step.stepOrder, "Generation PAUSED by user.")
-                return
-            }
-            if (currentPipeline.status == PipelineStatus.ABORTED) {
-                log(pipelineId, step.stepOrder, "Generation ABORTED by user.")
-                return
-            }
+            if (isPipelineStopped(pipelineId, step.stepOrder)) return
 
             val nodeToExpand = findNodeToExpand(pipelineId, step.id!!)
             if (nodeToExpand == null) {
@@ -124,8 +102,8 @@ class TopicTreeGenerationPipelineStepService(
         artifactStorage.saveTopicTreeArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
-    private fun initializeArtifact(pipelineId: Long, stepId: Long) {
-        return transactionTemplate.execute {
+    override fun initializeArtifactInternal(pipelineId: Long, stepId: Long) {
+        transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
 
@@ -215,12 +193,6 @@ class TopicTreeGenerationPipelineStepService(
         }
     }
 
-    private fun finalizeArtifact(pipelineId: Long) {
-        transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            updatePipeline(pipeline)
-        }
-    }
 
 
     private fun saveIncrementalYaml(pipeline: PipelineEntity, artifact: TopicTreeArtifactEntity) {

@@ -3,14 +3,12 @@ package com.kdob.piq.ai.application.service.answers
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.support.TransactionTemplate
 
 private const val LONG_ANSWERS_GENERATION_STEP_TYPE = "LONG_ANSWERS_GENERATION"
 
@@ -23,41 +21,20 @@ class LongAnswersGenerationPipelineStepService(
     transactionManager: PlatformTransactionManager
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
 
-    private val transactionTemplate = TransactionTemplate(transactionManager)
-
     override fun getStepType(): String = LONG_ANSWERS_GENERATION_STEP_TYPE
 
     override fun generate(step: PipelineStepEntity) {
         val pipelineId = step.pipeline.id!!
 
-        val artifact = transactionTemplate.execute {
-            val p = pipelineRepository.findById(pipelineId)!!
-            val s: PipelineStepEntity = p.steps.find { it.id == step.id }!!
-            s.artifact as? AnswersArtifactEntity
-        }
-
-        if (artifact == null) {
-            log(pipelineId, step.stepOrder, "Starting new Long Answers Generation...")
-            initializeArtifact(pipelineId, step.id!!, step.stepOrder)
-        } else {
-            log(pipelineId, step.stepOrder, "Resuming Long Answers Generation...")
-        }
+        initializeArtifact(pipelineId, step)
 
         while (true) {
-            val currentPipeline = pipelineRepository.findById(pipelineId)!!
-            if (currentPipeline.status == PipelineStatus.PAUSED) {
-                log(pipelineId, step.stepOrder, "Generation PAUSED by user.")
-                return
-            }
-            if (currentPipeline.status == PipelineStatus.ABORTED) {
-                log(pipelineId, step.stepOrder, "Generation ABORTED by user.")
-                return
-            }
+            if (isPipelineStopped(pipelineId, step.stepOrder)) return
 
             val nextTopicQA = findNextTopicToGenerate(pipelineId, step.id!!)
             if (nextTopicQA == null) {
                 log(pipelineId, step.stepOrder, "Long Answers Generation completed successfully.")
-                finalizeArtifact(pipelineId, step.id!!)
+                finalizeArtifact(pipelineId)
                 return
             }
 
@@ -121,9 +98,8 @@ class LongAnswersGenerationPipelineStepService(
 
         artifactStorage.saveAnswersArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
-
-    private fun initializeArtifact(pipelineId: Long, stepId: Long, stepOrder: Int) {
-        return transactionTemplate.execute {
+    override fun initializeArtifactInternal(pipelineId: Long, stepId: Long) {
+        transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
 
@@ -142,7 +118,7 @@ class LongAnswersGenerationPipelineStepService(
 
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, stepOrder, "Initialized Long Answers Artifact.")
+            log(pipelineId, step.stepOrder, "Initialized Long Answers Artifact.")
         }
     }
 
@@ -168,23 +144,12 @@ class LongAnswersGenerationPipelineStepService(
             "Generating long answers for topic: ${inputTopicQA.name} (${inputTopicQA.entries.size} questions)"
         )
 
+        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineId, stepId)
         val newEntries = mutableListOf<QAEntryEntity>()
 
         for (entry in inputTopicQA.entries) {
-            val systemPrompt = interpolateAnswerPrompt(
-                transactionTemplate.execute {
-                    val p = pipelineRepository.findById(pipelineId)!!
-                    val s: PipelineStepEntity = p.steps.find { it.id == stepId }!!
-                    s.systemPrompt?.content ?: ""
-                }!!, inputTopicQA, entry
-            )
-            val userPrompt = interpolateAnswerPrompt(
-                transactionTemplate.execute {
-                    val p = pipelineRepository.findById(pipelineId)!!
-                    val s: PipelineStepEntity = p.steps.find { it.id == stepId }!!
-                    s.userPrompt?.content ?: ""
-                }!!, inputTopicQA, entry
-            )
+            val systemPrompt = interpolateAnswerPrompt(systemPromptTemplate, inputTopicQA, entry)
+            val userPrompt = interpolateAnswerPrompt(userPromptTemplate, inputTopicQA, entry)
 
             getLogger().info("Generating answer for: {} [{}]", entry.questionText.take(80), entry.level)
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
@@ -225,13 +190,6 @@ class LongAnswersGenerationPipelineStepService(
             pipelineRepository.saveAndFlush(pipeline)
             saveIncrementalYaml(pipeline, artifact)
             log(pipelineId, stepOrder, "Saved ${newEntries.size} answers for topic: ${inputTopicQA.name}")
-        }
-    }
-
-    private fun finalizeArtifact(pipelineId: Long, stepId: Long) {
-        transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            updatePipeline(pipeline)
         }
     }
 

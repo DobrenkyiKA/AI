@@ -11,6 +11,7 @@ import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.GenerationLogEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -24,11 +25,28 @@ abstract class AbstractPipelineStepService(
     private val generationLogRepository: GenerationLogRepository,
     transactionManager: PlatformTransactionManager
 ) : PipelineStepService {
-    private val transactionTemplate = TransactionTemplate(transactionManager)
+    protected val transactionTemplate = TransactionTemplate(transactionManager)
     protected val yamlMapper: ObjectMapper = ObjectMapper(
         YAMLFactory()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     ).registerKotlinModule()
+
+    protected fun initializeArtifact(pipelineId: Long, step: PipelineStepEntity) {
+        val artifact = transactionTemplate.execute {
+            val pipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipelineStepEntity: PipelineStepEntity = pipelineEntity.steps.find { it.id == step.id }!!
+            pipelineStepEntity.artifact as? TopicTreeArtifactEntity
+        }
+
+        if (artifact == null) {
+            log(pipelineId, step.stepOrder, "Starting new Topic Tree Generation...")
+            initializeArtifactInternal(pipelineId, step.id!!)
+        } else {
+            log(pipelineId, step.stepOrder, "Resuming Topic Tree Generation...")
+        }
+    }
+
+    protected abstract fun initializeArtifactInternal(pipelineId: Long, stepId: Long)
 
     override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
         // Default implementation only updates status if specialized logic is not provided
@@ -36,10 +54,40 @@ abstract class AbstractPipelineStepService(
         artifact.status = status
     }
 
-    protected fun updatePipeline(pipeline: PipelineEntity) {
+    protected fun finalizeArtifact(pipelineId: Long) {
+        transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            updatePipeline(pipeline)
+        }
+    }
+
+    private fun updatePipeline(pipeline: PipelineEntity) {
         pipeline.status = PipelineStatus.WAITING_ARTIFACT_APPROVAL
         pipeline.updatedAt = Instant.now()
         pipelineRepository.save(pipeline)
+    }
+
+    protected fun isPipelineStopped(pipelineId: Long, stepOrder: Int): Boolean {
+        val pipeline = pipelineRepository.findById(pipelineId)!!
+        return when (pipeline.status) {
+            PipelineStatus.PAUSED -> {
+                log(pipelineId, stepOrder, "Generation PAUSED by user.")
+                true
+            }
+            PipelineStatus.ABORTED -> {
+                log(pipelineId, stepOrder, "Generation ABORTED by user.")
+                true
+            }
+            else -> false
+        }
+    }
+
+    protected fun getStepPrompts(pipelineId: Long, stepId: Long): Pair<String, String> {
+        return transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
+            Pair(step.systemPrompt?.content ?: "", step.userPrompt?.content ?: "")
+        }!!
     }
 
     protected fun parseYaml(rawOutput: String): Map<*, *> {
