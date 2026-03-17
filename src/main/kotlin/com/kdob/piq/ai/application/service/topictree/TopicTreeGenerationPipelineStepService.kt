@@ -125,7 +125,8 @@ class TopicTreeGenerationPipelineStepService(
             step.artifact = artifact
 
             pipelineRepository.saveAndFlush(pipeline)
-            saveIncrementalYaml(pipeline, artifact)
+            val yamlContent = prepareIncrementalYaml(pipeline, artifact)
+            artifactStorage.saveTopicTreeArtifact(pipeline.topicKey, pipeline.name, yamlContent)
             log(pipelineId, step.stepOrder, "Initialized Topic Tree with root: ${rootNode.name}")
         }
     }
@@ -168,7 +169,7 @@ class TopicTreeGenerationPipelineStepService(
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val subtopics = parseTopicTreeNodes(rawOutput, node.key, node.depth + 1)
 
-        transactionTemplate.execute {
+        val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as TopicTreeArtifactEntity
@@ -189,13 +190,15 @@ class TopicTreeGenerationPipelineStepService(
             }
 
             pipelineRepository.saveAndFlush(pipeline)
-            saveIncrementalYaml(pipeline, artifact)
-        }
+            Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(pipeline, artifact))
+        }!!
+
+        artifactStorage.saveTopicTreeArtifact(topicKey, pipelineName, yamlContent)
     }
 
 
 
-    private fun saveIncrementalYaml(pipeline: PipelineEntity, artifact: TopicTreeArtifactEntity) {
+    private fun prepareIncrementalYaml(pipeline: PipelineEntity, artifact: TopicTreeArtifactEntity): String {
         val nodes = artifact.nodes.map { it.toTopicTreeNode() }.sortedWith(compareBy({ it.depth }, { it.key }))
         val yamlData = mapOf(
             "rootTopicKey" to pipeline.topicKey,
@@ -212,8 +215,7 @@ class TopicTreeGenerationPipelineStepService(
                 )
             }
         )
-        val yamlContent = yamlMapper.writeValueAsString(yamlData)
-        artifactStorage.saveTopicTreeArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
+        return yamlMapper.writeValueAsString(yamlData).trim()
     }
 
     private fun getCatalogParentChain(rootKey: String): List<TopicTreeNode> {

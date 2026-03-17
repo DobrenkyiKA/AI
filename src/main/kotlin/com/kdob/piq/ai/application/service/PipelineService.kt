@@ -12,6 +12,7 @@ import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientRequest
+import com.kdob.piq.ai.infrastructure.persistence.entity.GenerationLogEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
@@ -278,7 +279,10 @@ class PipelineService(
             ?: throw NoSuchElementException("Pipeline not found: $pipelineName")
         pipeline.status = PipelineStatus.PAUSED
         pipeline.steps.find { it.artifact != null && it.artifact?.status == ArtifactStatus.PENDING_FOR_APPROVAL }
-            ?.let { it.artifact?.status = ArtifactStatus.PAUSED }
+            ?.let { step ->
+                step.artifact?.status = ArtifactStatus.PAUSED
+                generationLogRepository.save(GenerationLogEntity(pipeline, "Generation PAUSED by user.", step.stepOrder))
+            }
         pipelineRepository.save(pipeline)
     }
 
@@ -291,6 +295,7 @@ class PipelineService(
             ?.let { step ->
                 step.artifact?.status = ArtifactStatus.ABORTED
                 artifactStorage.deleteArtifact(pipeline.topicKey, pipelineName, step.stepType)
+                generationLogRepository.save(GenerationLogEntity(pipeline, "Generation ABORTED by user.", step.stepOrder))
             }
         pipelineRepository.save(pipeline)
     }

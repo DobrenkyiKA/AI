@@ -35,14 +35,14 @@ abstract class AbstractPipelineStepService(
         val artifact = transactionTemplate.execute {
             val pipelineEntity = pipelineRepository.findById(pipelineId)!!
             val pipelineStepEntity: PipelineStepEntity = pipelineEntity.steps.find { it.id == step.id }!!
-            pipelineStepEntity.artifact as? TopicTreeArtifactEntity
+            pipelineStepEntity.artifact
         }
 
         if (artifact == null) {
-            log(pipelineId, step.stepOrder, "Starting new Topic Tree Generation...")
+            log(pipelineId, step.stepOrder, "Starting new ${step.stepType} Generation...")
             initializeArtifactInternal(pipelineId, step.id!!)
         } else {
-            log(pipelineId, step.stepOrder, "Resuming Topic Tree Generation...")
+            log(pipelineId, step.stepOrder, "Resuming ${step.stepType} Generation...")
         }
     }
 

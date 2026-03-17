@@ -112,7 +112,8 @@ class QuestionsGenerationPipelineStepService(
             step.artifact = artifact
 
             pipelineRepository.saveAndFlush(pipeline)
-            saveIncrementalYaml(pipeline, artifact)
+            val yamlContent = prepareIncrementalYaml(artifact)
+            artifactStorage.saveQuestionsArtifact(pipeline.topicKey, pipeline.name, yamlContent)
             log(pipelineId, step.stepOrder, "Initialized Answers Artifact.")
         }
     }
@@ -157,7 +158,7 @@ class QuestionsGenerationPipelineStepService(
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val questions = parseQuestionsWithLevels(rawOutput)
 
-        transactionTemplate.execute {
+        val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as AnswersArtifactEntity
@@ -179,14 +180,16 @@ class QuestionsGenerationPipelineStepService(
             }
 
             pipelineRepository.saveAndFlush(pipeline)
-            saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, stepOrder, "Saved ${questions.size} questions for topic: ${node.name}")
-        }
+            Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
+        }!!
+
+        artifactStorage.saveQuestionsArtifact(topicKey, pipelineName, yamlContent)
+        log(pipelineId, stepOrder, "Saved ${questions.size} questions for topic: ${node.name}")
     }
 
-    private fun saveIncrementalYaml(pipeline: PipelineEntity, artifact: AnswersArtifactEntity) {
+    private fun prepareIncrementalYaml(artifact: AnswersArtifactEntity): String {
         val totalQuestions = artifact.topicsWithQA.sumOf { it.entries.size }
-        val yamlContent = yamlMapper.writeValueAsString(
+        return yamlMapper.writeValueAsString(
             mapOf(
                 "totalQuestions" to totalQuestions,
                 "topics" to artifact.topicsWithQA.map { topicQA ->
@@ -202,8 +205,7 @@ class QuestionsGenerationPipelineStepService(
                     )
                 }
             )
-        )
-        artifactStorage.saveQuestionsArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
+        ).trim()
     }
 
     private fun buildParentChain(node: TopicTreeNodeEntity, allNodes: Set<TopicTreeNodeEntity>): String {

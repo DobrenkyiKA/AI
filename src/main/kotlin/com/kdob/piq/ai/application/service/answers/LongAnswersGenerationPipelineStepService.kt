@@ -117,7 +117,8 @@ class LongAnswersGenerationPipelineStepService(
             step.artifact = artifact
 
             pipelineRepository.saveAndFlush(pipeline)
-            saveIncrementalYaml(pipeline, artifact)
+            val yamlContent = prepareIncrementalYaml(artifact)
+            artifactStorage.saveAnswersArtifact(pipeline.topicKey, pipeline.name, yamlContent)
             log(pipelineId, step.stepOrder, "Initialized Long Answers Artifact.")
         }
     }
@@ -131,23 +132,37 @@ class LongAnswersGenerationPipelineStepService(
             val questionsStep = pipeline.steps.find { it.stepType == "QUESTIONS_GENERATION" }!!
             val questionsArtifact = questionsStep.artifact as AnswersArtifactEntity
 
-            val generatedTopicKeys = artifact.topicsWithQA.map { it.key }.toSet()
-            questionsArtifact.topicsWithQA.find { it.key !in generatedTopicKeys }
-                ?.also { it.entries.size } // force-initialize lazy collection before session closes
+            val generatedTopicMap = artifact.topicsWithQA.associateBy { it.key }
+            
+            questionsArtifact.topicsWithQA.find { qTopic ->
+                val gTopic = generatedTopicMap[qTopic.key]
+                gTopic == null || gTopic.entries.size < qTopic.entries.size
+            }?.also { it.entries.size } // force-initialize lazy collection before session closes
         }
     }
 
     private fun generateForTopic(pipelineId: Long, stepId: Long, stepOrder: Int, inputTopicQA: TopicQAEntity) {
+        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineId, stepId)
+
+        val missingEntries = transactionTemplate.execute {
+            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
+            val artifact = step.artifact as AnswersArtifactEntity
+            val gTopic = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
+            val existingTexts = gTopic?.entries?.map { it.questionText }?.toSet() ?: emptySet()
+            inputTopicQA.entries.filter { it.questionText !in existingTexts }
+        } ?: emptyList()
+
+        if (missingEntries.isEmpty()) return
+
         log(
             pipelineId,
             stepOrder,
-            "Generating long answers for topic: ${inputTopicQA.name} (${inputTopicQA.entries.size} questions)"
+            "Generating long answers for topic: ${inputTopicQA.name} (${missingEntries.size} questions remaining)"
         )
 
-        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineId, stepId)
-        val newEntries = mutableListOf<QAEntryEntity>()
-
-        for (entry in inputTopicQA.entries) {
+        for (entry in missingEntries) {
+            if (isPipelineStopped(pipelineId, stepOrder)) return
             val systemPrompt = interpolateAnswerPrompt(systemPromptTemplate, inputTopicQA, entry)
             val userPrompt = interpolateAnswerPrompt(userPromptTemplate, inputTopicQA, entry)
 
@@ -155,47 +170,42 @@ class LongAnswersGenerationPipelineStepService(
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
             val answer = parseAnswer(rawOutput)
 
-            newEntries.add(
-                QAEntryEntity(
-                    questionText = entry.questionText,
-                    level = entry.level,
-                    answer = answer,
-                    topicQA = inputTopicQA // temporary, will be replaced when saving
+            val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
+                val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+                val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
+                val artifact = step.artifact as AnswersArtifactEntity
+
+                var topicQA = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
+                if (topicQA == null) {
+                    topicQA = TopicQAEntity(
+                        key = inputTopicQA.key,
+                        name = inputTopicQA.name,
+                        answersArtifact = artifact
+                    )
+                    artifact.topicsWithQA.add(topicQA)
+                }
+
+                topicQA.entries.add(
+                    QAEntryEntity(
+                        questionText = entry.questionText,
+                        level = entry.level,
+                        answer = answer,
+                        topicQA = topicQA
+                    )
                 )
-            )
-        }
 
-        transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-            val artifact = step.artifact as AnswersArtifactEntity
+                pipelineRepository.saveAndFlush(pipeline)
+                Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
+            }!!
 
-            val newTopicQA = TopicQAEntity(
-                key = inputTopicQA.key,
-                name = inputTopicQA.name,
-                answersArtifact = artifact
-            )
-
-            newTopicQA.entries.addAll(newEntries.map { entry ->
-                QAEntryEntity(
-                    questionText = entry.questionText,
-                    level = entry.level,
-                    answer = entry.answer,
-                    topicQA = newTopicQA
-                )
-            })
-
-            artifact.topicsWithQA.add(newTopicQA)
-
-            pipelineRepository.saveAndFlush(pipeline)
-            saveIncrementalYaml(pipeline, artifact)
-            log(pipelineId, stepOrder, "Saved ${newEntries.size} answers for topic: ${inputTopicQA.name}")
+            artifactStorage.saveAnswersArtifact(topicKey, pipelineName, yamlContent)
+            log(pipelineId, stepOrder, "Saved answer for topic: ${inputTopicQA.name}, question: ${entry.questionText.take(50)}...")
         }
     }
 
-    private fun saveIncrementalYaml(pipeline: PipelineEntity, artifact: AnswersArtifactEntity) {
+    private fun prepareIncrementalYaml(artifact: AnswersArtifactEntity): String {
         val totalAnswers = artifact.topicsWithQA.sumOf { it.entries.size }
-        val yamlContent = yamlMapper.writeValueAsString(
+        return yamlMapper.writeValueAsString(
             mapOf(
                 "totalAnswers" to totalAnswers,
                 "topics" to artifact.topicsWithQA.map { topicQA ->
@@ -212,8 +222,7 @@ class LongAnswersGenerationPipelineStepService(
                     )
                 }
             )
-        )
-        artifactStorage.saveAnswersArtifact(pipeline.topicKey, pipeline.name, yamlContent.trim())
+        ).trim()
     }
 
     private fun interpolateAnswerPrompt(prompt: String, topicQA: TopicQAEntity, entry: QAEntryEntity): String {
