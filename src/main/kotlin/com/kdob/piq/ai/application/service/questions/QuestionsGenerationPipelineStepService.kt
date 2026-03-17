@@ -61,11 +61,13 @@ class QuestionsGenerationPipelineStepService(
         for (t in topicsList) {
             val key = t["key"] as String
             val name = t["name"] as String
+            val parentChain = t["parentChain"] as? String
 
             @Suppress("UNCHECKED_CAST")
             val questions = t["questions"] as? List<Map<String, Any>> ?: emptyList()
             val existing = artifact.topicsWithQA.find { it.key == key }
             if (existing != null) {
+                existing.parentChain = parentChain
                 existing.entries.clear()
                 existing.entries.addAll(questions.map { q ->
                     QAEntryEntity(
@@ -79,7 +81,9 @@ class QuestionsGenerationPipelineStepService(
                     key = key,
                     name = name,
                     answersArtifact = artifact
-                )
+                ).apply {
+                    this.parentChain = parentChain
+                }
                 topicQA.entries.addAll(questions.map { q ->
                     QAEntryEntity(
                         questionText = q["text"] as String,
@@ -133,7 +137,7 @@ class QuestionsGenerationPipelineStepService(
     }
 
     private fun generateForTopic(pipelineId: Long, stepId: Long, stepOrder: Int, node: TopicTreeNodeEntity) {
-        val (systemPrompt, userPrompt) = transactionTemplate.execute {
+        val (systemPrompt, userPrompt, parentChain) = transactionTemplate.execute {
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
 
@@ -151,8 +155,8 @@ class QuestionsGenerationPipelineStepService(
             val usr = interpolateQuestionPrompt(
                 step.userPrompt?.content ?: "", node, isLeaf, children, parentChain
             )
-            Pair(sys, usr)
-        }
+            Triple(sys, usr, parentChain)
+        }!!
 
         log(pipelineId, stepOrder, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
@@ -168,7 +172,9 @@ class QuestionsGenerationPipelineStepService(
                     key = node.key,
                     name = node.name,
                     answersArtifact = artifact
-                )
+                ).apply {
+                    this.parentChain = parentChain
+                }
                 topicQA.entries.addAll(questions.map { (text, level) ->
                     QAEntryEntity(
                         questionText = text,
@@ -196,6 +202,7 @@ class QuestionsGenerationPipelineStepService(
                     mapOf(
                         "key" to topicQA.key,
                         "name" to topicQA.name,
+                        "parentChain" to topicQA.parentChain,
                         "questions" to topicQA.entries.map { entry ->
                             mapOf(
                                 "text" to entry.questionText,

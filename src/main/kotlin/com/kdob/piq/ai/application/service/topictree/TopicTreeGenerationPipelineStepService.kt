@@ -31,7 +31,7 @@ class TopicTreeGenerationPipelineStepService(
     private val catalogChainCache = java.util.concurrent.ConcurrentHashMap<String, List<TopicTreeNode>>()
 
     companion object {
-        const val DEFAULT_MAX_DEPTH = 6
+        const val DEFAULT_MAX_DEPTH = 12
     }
 
     override fun getStepType(): String = TOPIC_TREE_GENERATION_STEP_TYPE

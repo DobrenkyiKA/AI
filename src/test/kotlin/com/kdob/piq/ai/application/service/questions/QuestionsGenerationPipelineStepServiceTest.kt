@@ -150,6 +150,14 @@ class QuestionsGenerationPipelineStepServiceTest {
         assertNotNull(artifact)
         assertEquals(2, artifact!!.topicsWithQA.size) // 2 topics: java, java-basics
         assertTrue(artifact.topicsWithQA.all { it.entries.size == 2 })
+
+        val javaBasics = artifact.topicsWithQA.find { it.key == "java-basics" }
+        assertNotNull(javaBasics)
+        assertEquals("Java", javaBasics!!.parentChain)
+
+        val java = artifact.topicsWithQA.find { it.key == "java" }
+        assertNotNull(java)
+        assertEquals("", java!!.parentChain)
     }
 
     @Test

@@ -13,6 +13,10 @@ open class TopicQAEntity(
     @Basic(optional = false)
     open val name: String,
 
+    @Basic(optional = true)
+    @Column(name = "parent_chain", length = 2048)
+    open var parentChain: String? = null,
+
     @Basic(optional = false)
     @OneToMany(mappedBy = "topicQA", cascade = [CascadeType.ALL], orphanRemoval = true)
     open val entries: MutableList<QAEntryEntity> = mutableListOf(),

@@ -47,7 +47,9 @@ class ShortAnswersGenerationPipelineStepServiceTest {
         val answersArtifact = AnswersArtifactEntity(pipeline = pipeline)
         answersArtifact.status = answersStatus
 
-        val topicQA = TopicQAEntity(key = "java-basics", name = "Java Basics", answersArtifact = answersArtifact)
+        val topicQA = TopicQAEntity(key = "java-basics", name = "Java Basics", answersArtifact = answersArtifact).apply {
+            parentChain = "Java"
+        }
         topicQA.entries.add(QAEntryEntity(
             questionText = "What is Java?",
             level = "junior",
@@ -69,8 +71,8 @@ class ShortAnswersGenerationPipelineStepServiceTest {
             pipeline = pipeline,
             stepType = "SHORT_ANSWERS_GENERATION",
             stepOrder = 1,
-            systemPrompt = PromptEntity(PromptType.SYSTEM, "$name-sys", "System {{topicName}} {{level}} {{questionText}} {{answer}}"),
-            userPrompt = PromptEntity(PromptType.USER, "$name-usr", "User {{topicName}} {{level}} {{questionText}} {{answer}}")
+            systemPrompt = PromptEntity(PromptType.SYSTEM, "$name-sys", "System {{topicName}} {{parentChain}} {{level}} {{questionText}} {{answer}}"),
+            userPrompt = PromptEntity(PromptType.USER, "$name-usr", "User {{topicName}} {{parentChain}} {{level}} {{questionText}} {{answer}}")
         )
         pipeline.steps.add(shortAnswersStep)
 
@@ -125,6 +127,11 @@ class ShortAnswersGenerationPipelineStepServiceTest {
         val step = pipeline.steps.find { it.stepType == "SHORT_ANSWERS_GENERATION" }!!
         step.id = 2L
         service.generate(step)
+
+        verify(generator, atLeastOnce()).executePrompt(
+            contains("System Java Basics Java junior What is Java? Java is a statically-typed, class-based language..."),
+            contains("User Java Basics Java junior What is Java? Java is a statically-typed, class-based language...")
+        )
 
         verify(repository, atLeastOnce()).saveAndFlush(pipeline)
         verify(artifactStorage, atLeastOnce()).saveShortAnswersArtifact(eq("java") ?: "", eq("java-pipeline") ?: "", anyString() ?: "")

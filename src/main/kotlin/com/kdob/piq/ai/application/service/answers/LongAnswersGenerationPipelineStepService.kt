@@ -64,11 +64,13 @@ class LongAnswersGenerationPipelineStepService(
         for (t in topicsList) {
             val key = t["key"] as String
             val name = t["name"] as String
+            val parentChain = t["parentChain"] as? String
 
             @Suppress("UNCHECKED_CAST")
             val questions = t["questions"] as? List<Map<String, Any>> ?: emptyList()
             val existing = existingByKey[key]
             if (existing != null) {
+                existing.parentChain = parentChain
                 existing.entries.clear()
                 existing.entries.addAll(questions.map { q ->
                     QAEntryEntity(
@@ -83,7 +85,9 @@ class LongAnswersGenerationPipelineStepService(
                     key = key,
                     name = name,
                     answersArtifact = artifact
-                )
+                ).apply {
+                    this.parentChain = parentChain
+                }
                 topicQA.entries.addAll(questions.map { q ->
                     QAEntryEntity(
                         questionText = q["text"] as String,
@@ -181,7 +185,9 @@ class LongAnswersGenerationPipelineStepService(
                         key = inputTopicQA.key,
                         name = inputTopicQA.name,
                         answersArtifact = artifact
-                    )
+                    ).apply {
+                        this.parentChain = inputTopicQA.parentChain
+                    }
                     artifact.topicsWithQA.add(topicQA)
                 }
 
@@ -212,6 +218,7 @@ class LongAnswersGenerationPipelineStepService(
                     mapOf(
                         "key" to topicQA.key,
                         "name" to topicQA.name,
+                        "parentChain" to topicQA.parentChain,
                         "questions" to topicQA.entries.map { entry ->
                             mapOf(
                                 "text" to entry.questionText,
@@ -228,6 +235,7 @@ class LongAnswersGenerationPipelineStepService(
     private fun interpolateAnswerPrompt(prompt: String, topicQA: TopicQAEntity, entry: QAEntryEntity): String {
         return prompt
             .replace("{{topicName}}", topicQA.name)
+            .replace("{{parentChain}}", topicQA.parentChain ?: "")
             .replace("{{coverageArea}}", "")
             .replace("{{level}}", entry.level)
             .replace("{{questionText}}", entry.questionText)

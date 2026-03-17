@@ -47,7 +47,9 @@ class LongAnswersGenerationPipelineStepServiceTest {
         val questionsArtifact = AnswersArtifactEntity(pipeline = pipeline)
         questionsArtifact.status = questionsStatus
 
-        val topicQA = TopicQAEntity(key = "java-basics", name = "Java Basics", answersArtifact = questionsArtifact)
+        val topicQA = TopicQAEntity(key = "java-basics", name = "Java Basics", answersArtifact = questionsArtifact).apply {
+            parentChain = "Java"
+        }
         topicQA.entries.add(QAEntryEntity(questionText = "What is Java?", level = "junior", topicQA = topicQA))
         topicQA.entries.add(QAEntryEntity(questionText = "Explain GC", level = "senior", topicQA = topicQA))
         questionsArtifact.topicsWithQA.add(topicQA)
@@ -59,8 +61,8 @@ class LongAnswersGenerationPipelineStepServiceTest {
             pipeline = pipeline,
             stepType = "LONG_ANSWERS_GENERATION",
             stepOrder = 1,
-            systemPrompt = PromptEntity(PromptType.SYSTEM, "$name-sys", "System {{topicName}} {{level}} {{questionText}}"),
-            userPrompt = PromptEntity(PromptType.USER, "$name-usr", "User {{topicName}} {{level}} {{questionText}}")
+            systemPrompt = PromptEntity(PromptType.SYSTEM, "$name-sys", "System {{topicName}} {{parentChain}} {{level}} {{questionText}}"),
+            userPrompt = PromptEntity(PromptType.USER, "$name-usr", "User {{topicName}} {{parentChain}} {{level}} {{questionText}}")
         )
         pipeline.steps.add(answersStep)
 
@@ -115,6 +117,11 @@ class LongAnswersGenerationPipelineStepServiceTest {
         val step = pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }!!
         step.id = 2L
         service.generate(step)
+
+        verify(generator, atLeastOnce()).executePrompt(
+            contains("System Java Basics Java junior What is Java?"),
+            contains("User Java Basics Java junior What is Java?")
+        )
 
         verify(repository, atLeastOnce()).saveAndFlush(pipeline)
         verify(artifactStorage, atLeastOnce()).saveAnswersArtifact(eq("java") ?: "", eq("java-pipeline") ?: "", anyString() ?: "")
