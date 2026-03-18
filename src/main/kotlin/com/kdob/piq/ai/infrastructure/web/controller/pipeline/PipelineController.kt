@@ -60,13 +60,11 @@ class PipelineController(
 
     @PostMapping("/{pipelineName}/pause")
     fun pausePipeline(@PathVariable pipelineName: String): PipelineResponse {
-        pipelineFacade.pause(pipelineName)
-        return getPipeline(pipelineName)
+        return pipelineFacade.pause(pipelineName)
     }
 
     @PostMapping("/{pipelineName}/abort")
     fun abortPipeline(@PathVariable pipelineName: String): PipelineResponse {
-        pipelineFacade.abort(pipelineName)
-        return getPipeline(pipelineName)
+        return pipelineFacade.abort(pipelineName)
     }
 }

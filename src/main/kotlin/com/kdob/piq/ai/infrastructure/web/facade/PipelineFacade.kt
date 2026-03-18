@@ -23,13 +23,11 @@ class PipelineFacade(
     fun create(name: String, topicKey: String, steps: List<CreatePipelineStepRequest>) =
         pipelineService.create(name, topicKey, steps).toResponse()
 
-    fun abort(pipelineName: String) {
-        pipelineService.abort(pipelineName)
-    }
+    fun abort(pipelineName: String): PipelineResponse =
+        pipelineService.abort(pipelineName).toResponse()
 
-    fun pause(pipelineName: String) {
-        pipelineService.pause(pipelineName)
-    }
+    fun pause(pipelineName: String): PipelineResponse =
+        pipelineService.pause(pipelineName).toResponse()
 
     fun runFrom(pipelineName: String, startStep: Int): PipelineResponse =
         pipelineService.runFrom(pipelineName, startStep).toResponse()

@@ -218,7 +218,7 @@ class PipelineService(
     }
 
     @Transactional
-        fun pause(pipelineName: String) {
+    fun pause(pipelineName: String): PipelineEntity {
         val pipeline = getPipelineEntity(pipelineName)
         pipeline.status = PipelineStatus.PAUSED
         pipeline.steps.find { it.artifact != null && it.artifact?.status == ArtifactStatus.PENDING_FOR_APPROVAL }
@@ -226,11 +226,11 @@ class PipelineService(
                 step.artifact?.status = ArtifactStatus.PAUSED
                 generationLogRepository.save(GenerationLogEntity(pipeline, "Generation PAUSED by user.", step.stepOrder))
             }
-        pipelineRepository.save(pipeline)
+        return pipelineRepository.save(pipeline)
     }
 
     @Transactional
-    fun abort(pipelineName: String) {
+    fun abort(pipelineName: String): PipelineEntity {
         val pipeline = getPipelineEntity(pipelineName)
         pipeline.status = PipelineStatus.ABORTED
         pipeline.steps.find { it.artifact != null && (it.artifact?.status == ArtifactStatus.PENDING_FOR_APPROVAL || it.artifact?.status == ArtifactStatus.PAUSED) }
@@ -239,7 +239,7 @@ class PipelineService(
                 artifactStorage.deleteArtifact(pipeline.topicKey, pipelineName, step.stepType)
                 generationLogRepository.save(GenerationLogEntity(pipeline, "Generation ABORTED by user.", step.stepOrder))
             }
-        pipelineRepository.save(pipeline)
+        return pipelineRepository.save(pipeline)
     }
 
 
