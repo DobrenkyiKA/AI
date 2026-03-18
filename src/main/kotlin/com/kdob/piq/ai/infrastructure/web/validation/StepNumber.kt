@@ -23,7 +23,7 @@ class StepNumberValidator : ConstraintValidator<StepNumber, Int> {
         // 2. Is greater than 0
         // 3. Is less than 100
 
-        return value in 1..<100
+        return value in 0..<100
     }
 
 }

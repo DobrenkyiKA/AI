@@ -5,6 +5,7 @@ import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import com.kdob.piq.ai.infrastructure.web.mapper.PipelineMapper.toResponse
 import com.kdob.piq.ai.infrastructure.web.validation.PipelineName
+import com.kdob.piq.ai.infrastructure.web.validation.StepNumber
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 
@@ -23,7 +24,7 @@ class StepController(
     @PostMapping("/{pipelineName}/run/{step}")
     fun runStep(
         @PathVariable @PipelineName pipelineName: String,
-        @PathVariable step: Int
+        @PathVariable @StepNumber step: Int
     ): PipelineResponse {
         pipelineService.runStep(pipelineName, step)
         return pipelineService.get(pipelineName).toResponse()
