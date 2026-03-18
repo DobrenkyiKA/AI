@@ -4,24 +4,28 @@ import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineRequest
 import com.kdob.piq.ai.infrastructure.web.facade.PipelineFacade
+import com.kdob.piq.ai.infrastructure.web.validation.PipelineName
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 
 @RestController
 @RequestMapping("/pipelines")
+@Validated
 class PipelineController(
     private val pipelineFacade: PipelineFacade
 ) {
     @DeleteMapping("/{pipelineName}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun deletePipeline(@PathVariable pipelineName: String) {
+    fun deletePipeline(@PathVariable @PipelineName pipelineName: String) {
         pipelineFacade.delete(pipelineName)
     }
 
     @PostMapping
-    fun createPipeline(@RequestBody request: CreatePipelineRequest): ResponseEntity<PipelineResponse> {
+    fun createPipeline(@RequestBody @Valid request: CreatePipelineRequest): ResponseEntity<PipelineResponse> {
         val created = pipelineFacade.create(request.name, request.topicKey, request.steps)
         val location = ServletUriComponentsBuilder
             .fromCurrentRequest()
@@ -33,18 +37,18 @@ class PipelineController(
     }
 
     @GetMapping("/{pipelineName}")
-    fun getPipeline(@PathVariable pipelineName: String): PipelineResponse {
+    fun getPipeline(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
         return pipelineFacade.get(pipelineName)
     }
 
     @GetMapping
     fun getAllPipelines(): List<PipelineResponse> {
-        return pipelineFacade.findAll()
+        return pipelineFacade.getAll()
     }
 
     @PatchMapping("/{pipelineName}")
     fun updatePipelineMetadata(
-        @PathVariable pipelineName: String,
+        @PathVariable @PipelineName pipelineName: String,
         @RequestBody request: UpdatePipelineRequest
     ): PipelineResponse {
         return pipelineFacade.updateMetadata(pipelineName, request.topicKey, request.steps)
@@ -52,19 +56,19 @@ class PipelineController(
 
     @PostMapping("/{pipelineName}/run-from/{step}")
     fun runPipelineFrom(
-        @PathVariable pipelineName: String,
+        @PathVariable @PipelineName pipelineName: String,
         @PathVariable step: Int
     ): PipelineResponse {
         return pipelineFacade.runFrom(pipelineName, step)
     }
 
     @PostMapping("/{pipelineName}/pause")
-    fun pausePipeline(@PathVariable pipelineName: String): PipelineResponse {
+    fun pausePipeline(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
         return pipelineFacade.pause(pipelineName)
     }
 
     @PostMapping("/{pipelineName}/abort")
-    fun abortPipeline(@PathVariable pipelineName: String): PipelineResponse {
+    fun abortPipeline(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
         return pipelineFacade.abort(pipelineName)
     }
 }

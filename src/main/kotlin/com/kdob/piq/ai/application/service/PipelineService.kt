@@ -1,8 +1,5 @@
 package com.kdob.piq.ai.application.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.kdob.piq.ai.application.service.prompt.PromptSyncService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
@@ -15,11 +12,11 @@ import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
-import com.kdob.piq.ai.infrastructure.web.dto.*
+import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
+import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest
 import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
@@ -37,8 +34,10 @@ class PipelineService(
     private fun getPipelineEntity(name: String): PipelineEntity =
         pipelineRepository.findByName(name) ?: throw NoSuchElementException("Pipeline not found: $name")
 
+    @Transactional(readOnly = true)
     fun get(name: String): PipelineEntity = getPipelineEntity(name)
 
+    @Transactional(readOnly = true)
     fun getAll(): List<PipelineEntity> = pipelineRepository.findAll()
 
     fun getAvailableStepTypes(): List<PipelineStepTypeResponse> =
@@ -53,7 +52,6 @@ class PipelineService(
         artifactStorage.deleteArtifacts(existing.topicKey, name)
     }
 
-    @Async
     fun runStep(pipelineName: String, stepIndex: Int) {
         updateStatus(pipelineName, PipelineStatus.GENERATION_IN_PROGRESS)
 
@@ -73,14 +71,16 @@ class PipelineService(
             throw e
         }
     }
+
     private fun updateStatus(pipelineName: String, status: PipelineStatus) {
-        val pipeline = get(pipelineName)
+        val pipeline = getPipelineEntity(pipelineName)
         pipeline.status = status
         pipeline.updatedAt = Instant.now()
         pipelineRepository.save(pipeline)
     }
+
     private fun getPipelineWithSteps(pipelineName: String): PipelineEntity {
-        val pipeline = get(pipelineName)
+        val pipeline = getPipelineEntity(pipelineName)
         pipeline.steps.size // Force load
         pipeline.steps.forEach { it.artifact?.status } // Force load artifacts and their status
         return pipeline
@@ -224,7 +224,13 @@ class PipelineService(
         pipeline.steps.find { it.artifact != null && it.artifact?.status == ArtifactStatus.PENDING_FOR_APPROVAL }
             ?.let { step ->
                 step.artifact?.status = ArtifactStatus.PAUSED
-                generationLogRepository.save(GenerationLogEntity(pipeline, "Generation PAUSED by user.", step.stepOrder))
+                generationLogRepository.save(
+                    GenerationLogEntity(
+                        pipeline,
+                        "Generation PAUSED by user.",
+                        step.stepOrder
+                    )
+                )
             }
         return pipelineRepository.save(pipeline)
     }
@@ -237,13 +243,16 @@ class PipelineService(
             ?.let { step ->
                 step.artifact?.status = ArtifactStatus.ABORTED
                 artifactStorage.deleteArtifact(pipeline.topicKey, pipelineName, step.stepType)
-                generationLogRepository.save(GenerationLogEntity(pipeline, "Generation ABORTED by user.", step.stepOrder))
+                generationLogRepository.save(
+                    GenerationLogEntity(
+                        pipeline,
+                        "Generation ABORTED by user.",
+                        step.stepOrder
+                    )
+                )
             }
         return pipelineRepository.save(pipeline)
     }
-
-
-
 
     private fun getOrCreatePrompt(
         pipelineName: String,
@@ -278,9 +287,4 @@ class PipelineService(
         return promptRepository.findByName(defaultPromptName)
             ?: throw IllegalStateException("Default prompt not found: $defaultPromptName. Make sure default prompts are loaded on startup.")
     }
-
-
-
-    private val yamlMapper = ObjectMapper(YAMLFactory())
-        .registerKotlinModule()
 }

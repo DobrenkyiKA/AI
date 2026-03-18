@@ -1,6 +1,9 @@
 package com.kdob.piq.ai.infrastructure.web.dto
 
+import com.kdob.piq.ai.infrastructure.web.validation.PipelineName
+
 data class CreatePipelineRequest(
+    @field:PipelineName
     val name: String,
     val topicKey: String,
     val steps: List<CreatePipelineStepRequest> = emptyList()
