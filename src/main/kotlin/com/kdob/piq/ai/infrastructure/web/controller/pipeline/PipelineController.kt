@@ -20,12 +20,12 @@ class PipelineController(
 ) {
     @DeleteMapping("/{pipelineName}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun deletePipeline(@PathVariable @PipelineName pipelineName: String) {
+    fun delete(@PathVariable @PipelineName pipelineName: String) {
         pipelineFacade.delete(pipelineName)
     }
 
     @PostMapping
-    fun createPipeline(@RequestBody @Valid request: CreatePipelineRequest): ResponseEntity<PipelineResponse> {
+    fun create(@RequestBody @Valid request: CreatePipelineRequest): ResponseEntity<PipelineResponse> {
         val created = pipelineFacade.create(request.name, request.topicKey, request.steps)
         val location = ServletUriComponentsBuilder
             .fromCurrentRequest()
@@ -37,17 +37,17 @@ class PipelineController(
     }
 
     @GetMapping("/{pipelineName}")
-    fun getPipeline(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
+    fun get(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
         return pipelineFacade.get(pipelineName)
     }
 
     @GetMapping
-    fun getAllPipelines(): List<PipelineResponse> {
+    fun getAll(): List<PipelineResponse> {
         return pipelineFacade.getAll()
     }
 
     @PatchMapping("/{pipelineName}")
-    fun updatePipelineMetadata(
+    fun updateMetadata(
         @PathVariable @PipelineName pipelineName: String,
         @RequestBody request: UpdatePipelineRequest
     ): PipelineResponse {
@@ -55,7 +55,7 @@ class PipelineController(
     }
 
     @PostMapping("/{pipelineName}/run-from/{step}")
-    fun runPipelineFrom(
+    fun runFrom(
         @PathVariable @PipelineName pipelineName: String,
         @PathVariable step: Int
     ): PipelineResponse {
