@@ -31,9 +31,8 @@ class PipelineFacade(
         pipelineService.pause(pipelineName)
     }
 
-    fun runFrom(pipelineName: String, startStep: Int) {
-        pipelineService.runFrom(pipelineName, startStep)
-    }
+    fun runFrom(pipelineName: String, startStep: Int): PipelineResponse =
+        pipelineService.runFrom(pipelineName, startStep).toResponse()
     fun updateMetadata(
         name: String,
         topicKey: String? = null,

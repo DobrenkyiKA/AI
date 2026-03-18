@@ -55,8 +55,7 @@ class PipelineController(
         @PathVariable pipelineName: String,
         @PathVariable step: Int
     ): PipelineResponse {
-        pipelineFacade.runFrom(pipelineName, step)
-        return getPipeline(pipelineName)
+        return pipelineFacade.runFrom(pipelineName, step)
     }
 
     @PostMapping("/{pipelineName}/pause")

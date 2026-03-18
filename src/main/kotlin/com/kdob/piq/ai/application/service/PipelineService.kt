@@ -149,8 +149,7 @@ class PipelineService(
         return pipelineRepository.save(existing)
     }
 
-    @Async
-    fun runFrom(pipelineName: String, startStep: Int) {
+    fun runFrom(pipelineName: String, startStep: Int): PipelineEntity {
         val pipeline = getPipelineWithSteps(pipelineName)
         val maxStep = pipeline.steps.size - 1
         for (stepIndex in startStep..maxStep) {
@@ -164,11 +163,12 @@ class PipelineService(
                         pipelineName, stepIndex, previousArtifact?.status
                     )
                     updateStatus(pipelineName, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
-                    return
+                    return getPipelineWithSteps(pipelineName)
                 }
             }
             runStep(pipelineName, stepIndex)
         }
+        return getPipelineWithSteps(pipelineName)
     }
 
     @Transactional
