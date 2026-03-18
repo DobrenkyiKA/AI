@@ -1,6 +1,5 @@
 package com.kdob.piq.ai.infrastructure.web.controller.pipeline
 
-import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineRequest
@@ -8,11 +7,10 @@ import com.kdob.piq.ai.infrastructure.web.facade.PipelineFacade
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 
 @RestController
-@RequestMapping("/pipeline")
+@RequestMapping("/pipelines")
 class PipelineController(
     private val pipelineFacade: PipelineFacade
 ) {
@@ -36,7 +34,7 @@ class PipelineController(
 
     @GetMapping("/{pipelineName}")
     fun getPipeline(@PathVariable pipelineName: String): PipelineResponse {
-        return pipelineFacade.findByName(pipelineName)
+        return pipelineFacade.get(pipelineName)
     }
 
     @GetMapping

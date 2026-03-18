@@ -13,12 +13,10 @@ class PipelineFacade(
     private val pipelineService: PipelineService
 ) {
     @Transactional(readOnly = true)
-    fun findByName(name: String): PipelineResponse = pipelineService.get(name).toResponse()
+    fun get(name: String): PipelineResponse = pipelineService.get(name).toResponse()
 
     @Transactional(readOnly = true)
     fun findAll(): List<PipelineResponse> = pipelineService.getAll().map { it.toResponse() }
-
-    fun get(name: String): PipelineResponse = pipelineService.get(name).toResponse()
 
     fun delete(name: String) = pipelineService.deletePipeline(name)
 
