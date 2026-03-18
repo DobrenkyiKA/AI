@@ -17,7 +17,6 @@ class ArtifactFacade(
     }
 
     fun get(name: String, stepIndex: Int) = artifactService.get(name, stepIndex)
-    fun publish(pipelineName: String) = artifactService.publish(pipelineName)
 
     fun update(name: String, stepIndex: Int, yamlContent: String, status: ArtifactStatus): PipelineResponse =
         artifactService.update(name, stepIndex, yamlContent, status).toResponse()

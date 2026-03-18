@@ -7,9 +7,15 @@ import com.kdob.piq.ai.infrastructure.client.question.dto.CreateTopicClientReque
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
+import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
+import com.kdob.piq.ai.infrastructure.web.mapper.PipelineMapper.toResponse
+import com.kdob.piq.ai.infrastructure.web.validation.PipelineName
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import java.time.Instant
+import kotlin.text.get
 
 @Service
 class ArtifactService(
@@ -55,38 +61,44 @@ class ArtifactService(
         return pipeline
     }
 
-    @Transactional
-    fun publish(pipelineName: String) {
-        val existing = pipelineService.get(pipelineName)
-
-        val topicTreeStep = existing.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
-            ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: $pipelineName")
-        val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
-            ?: throw IllegalStateException("Topic tree artifact not found for pipeline: $pipelineName")
-
-        if (topicTreeArtifact.status != ArtifactStatus.APPROVED) {
-            throw IllegalStateException("Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}")
-        }
-
-        val rootTopic = questionCatalogClient.findTopic(existing.topicKey)
-            ?: throw IllegalStateException("Root topic not found in catalog: ${existing.topicKey}")
-
-        val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
-
-        fun publishRecursive(parentKey: String, parentPath: String) {
-            val children = nodesByParent[parentKey] ?: return
-            for (child in children) {
-                val request = CreateTopicClientRequest(
-                    key = child.key,
-                    name = child.name,
-                    parentPath = parentPath,
-                    coverageArea = child.coverageArea
-                )
-                val response = questionCatalogClient.createTopic(request)
-                publishRecursive(child.key, response.path)
-            }
-        }
-
-        publishRecursive(existing.topicKey, rootTopic.path)
-    }
+//    @PostMapping("/{pipelineName}/publish")
+//    fun publishArtifact(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
+//        artifactFacade.publish(pipelineName)
+//        return pipelineService.get(pipelineName).toResponse()
+//    }
+//    fun publish(pipelineName: String) = artifactService.publish(pipelineName)
+//    @Transactional
+//    fun publish(pipelineName: String) {
+//        val existing = pipelineService.get(pipelineName)
+//
+//        val topicTreeStep = existing.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
+//            ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: $pipelineName")
+//        val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
+//            ?: throw IllegalStateException("Topic tree artifact not found for pipeline: $pipelineName")
+//
+//        if (topicTreeArtifact.status != ArtifactStatus.APPROVED) {
+//            throw IllegalStateException("Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}")
+//        }
+//
+//        val rootTopic = questionCatalogClient.findTopic(existing.topicKey)
+//            ?: throw IllegalStateException("Root topic not found in catalog: ${existing.topicKey}")
+//
+//        val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
+//
+//        fun publishRecursive(parentKey: String, parentPath: String) {
+//            val children = nodesByParent[parentKey] ?: return
+//            for (child in children) {
+//                val request = CreateTopicClientRequest(
+//                    key = child.key,
+//                    name = child.name,
+//                    parentPath = parentPath,
+//                    coverageArea = child.coverageArea
+//                )
+//                val response = questionCatalogClient.createTopic(request)
+//                publishRecursive(child.key, response.path)
+//            }
+//        }
+//
+//        publishRecursive(existing.topicKey, rootTopic.path)
+//    }
 }
