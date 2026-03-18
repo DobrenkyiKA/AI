@@ -25,7 +25,7 @@ class PipelineController(
         val created = pipelineFacade.create(request.name, request.topicKey, request.steps)
         val location = ServletUriComponentsBuilder
             .fromCurrentRequest()
-            .path("/{name}")
+            .path("/{pipelineName}")
             .buildAndExpand(created.pipelineName)
             .toUri()
 
