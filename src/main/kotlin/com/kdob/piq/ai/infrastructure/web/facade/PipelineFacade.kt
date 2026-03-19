@@ -26,10 +26,10 @@ class PipelineFacade(
     fun pause(pipelineName: String): PipelineResponse =
         pipelineService.pause(pipelineName).toResponse()
 
-    fun updateMetadata(
+    fun update(
         name: String,
         steps: List<UpdatePipelineStepRequest>? = null
     ): PipelineResponse {
-        return pipelineService.updateMetadata(name, steps).toResponse()
+        return pipelineService.update(name, steps).toResponse()
     }
 }

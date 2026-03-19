@@ -54,21 +54,20 @@ class PipelineController(
         return pipelineFacade.getAll()
     }
 
-    @PatchMapping("/{pipelineName}")
-    fun updateMetadata(
-        @PathVariable @PipelineName pipelineName: String,
-        @RequestBody request: UpdatePipelineRequest
+    @PatchMapping
+    fun update(
+        @RequestBody @Valid request: UpdatePipelineRequest
     ): PipelineResponse {
-        return pipelineFacade.updateMetadata(pipelineName, request.steps)
+        return pipelineFacade.update(request.name, request.steps)
     }
 
     @PostMapping("/{pipelineName}/pause")
-    fun pausePipeline(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
+    fun pause(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
         return pipelineFacade.pause(pipelineName)
     }
 
     @PostMapping("/{pipelineName}/abort")
-    fun abortPipeline(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
+    fun abort(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
         return pipelineFacade.abort(pipelineName)
     }
 }

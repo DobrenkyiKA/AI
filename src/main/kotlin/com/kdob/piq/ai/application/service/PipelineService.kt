@@ -46,7 +46,7 @@ class PipelineService(
     }
 
     @Transactional
-    fun updateMetadata(
+    fun update(
         name: String,
         steps: List<UpdatePipelineStepRequest>? = null
     ): PipelineEntity {
@@ -96,7 +96,7 @@ class PipelineService(
             }
             existing.steps.clear()
             existing.steps.addAll(updatedSteps)
-            promptSyncService.exportToNewVersion("Auto-export after updating pipeline metadata: $name")
+            promptSyncService.exportToNewVersion("Auto-export after updating pipeline: $name")
         }
 
         existing.updatedAt = Instant.now()

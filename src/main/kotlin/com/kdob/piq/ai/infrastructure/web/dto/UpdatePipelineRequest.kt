@@ -1,6 +1,10 @@
 package com.kdob.piq.ai.infrastructure.web.dto
 
+import com.kdob.piq.ai.infrastructure.web.validation.PipelineName
+
 data class UpdatePipelineRequest(
+    @field:PipelineName
+    val name: String,
     val steps: List<UpdatePipelineStepRequest>? = null
 )
 
