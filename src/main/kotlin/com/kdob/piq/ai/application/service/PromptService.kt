@@ -59,4 +59,37 @@ class PromptService(
         promptRepository.deleteByName(name)
         promptSyncService.exportToNewVersion("Auto-export after deleting prompt: $name")
     }
+
+    fun getOrCreatePrompt(
+        pipelineName: String,
+        stepType: String,
+        type: PromptType,
+        providedName: String?,
+        providedContent: String?
+    ): PromptEntity {
+        if (!providedName.isNullOrBlank()) {
+            val existing = promptRepository.findByName(providedName)
+            if (existing != null) {
+                if (!providedContent.isNullOrBlank() && providedContent != existing.content) {
+                    existing.content = providedContent
+                    return promptRepository.save(existing)
+                }
+                return existing
+            }
+        }
+
+        if (!providedContent.isNullOrBlank()) {
+            val promptName = providedName ?: "$pipelineName-$stepType-${type.name.lowercase()}"
+            val existing = promptRepository.findByName(promptName)
+            return if (existing != null) {
+                existing.content = providedContent
+                promptRepository.save(existing)
+            } else {
+                promptRepository.save(PromptEntity(type = type, name = promptName, content = providedContent))
+            }
+        }
+
+        val defaultPromptName = "DEFAULT_${stepType}_${type.name}"
+        return promptRepository.findByName(defaultPromptName)!!
+    }
 }

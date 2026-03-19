@@ -62,14 +62,6 @@ class PipelineController(
         return pipelineFacade.updateMetadata(pipelineName, request.topicKey, request.steps)
     }
 
-    @PostMapping("/{pipelineName}/run-from/{step}")
-    fun runFrom(
-        @PathVariable @PipelineName pipelineName: String,
-        @PathVariable step: Int
-    ): PipelineResponse {
-        return pipelineFacade.runFrom(pipelineName, step)
-    }
-
     @PostMapping("/{pipelineName}/pause")
     fun pausePipeline(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
         return pipelineFacade.pause(pipelineName)

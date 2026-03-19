@@ -15,7 +15,7 @@ class PipelineFacade(
 
     fun getAll(): List<PipelineResponse> = pipelineService.getAll().map { it.toResponse() }
 
-    fun delete(name: String) = pipelineService.deletePipeline(name)
+    fun delete(name: String) = pipelineService.delete(name)
 
     fun create(name: String, topicKey: String, steps: List<CreatePipelineStepRequest>) =
         pipelineService.create(name, topicKey, steps).toResponse()
@@ -25,9 +25,6 @@ class PipelineFacade(
 
     fun pause(pipelineName: String): PipelineResponse =
         pipelineService.pause(pipelineName).toResponse()
-
-    fun runFrom(pipelineName: String, startStep: Int): PipelineResponse =
-        pipelineService.runFrom(pipelineName, startStep).toResponse()
 
     fun updateMetadata(
         name: String,

@@ -36,4 +36,11 @@ class StepController(
         return pipelineFacade.get(pipelineName)
     }
 
+    @PostMapping("/{pipelineName}/run-from/{step}")
+    fun runFrom(
+        @PathVariable @PipelineName pipelineName: String,
+        @PathVariable step: Int
+    ): PipelineResponse {
+        return stepFacade.runFrom(pipelineName, step)
+    }
 }
