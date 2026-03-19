@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.application.service.answers
 
-import com.kdob.piq.ai.application.service.OpenAiChatService
+import com.kdob.piq.ai.application.service.ai.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType

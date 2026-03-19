@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service
+package com.kdob.piq.ai.application.service.ai
 
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.stereotype.Component
@@ -13,7 +13,4 @@ class GoogleAiChatService(chatClientBuilder: ChatClient.Builder) {
             .user(user)
             .call()
             .content() ?: "No response from AI"
-
-    fun executePrompt(prompt: String): String =
-        chatClient.prompt().user(prompt).call().content() ?: "No response from AI"
 }
