@@ -59,7 +59,7 @@ class PipelineController(
         @PathVariable @PipelineName pipelineName: String,
         @RequestBody request: UpdatePipelineRequest
     ): PipelineResponse {
-        return pipelineFacade.updateMetadata(pipelineName, request.topicKey, request.steps)
+        return pipelineFacade.updateMetadata(pipelineName, request.steps)
     }
 
     @PostMapping("/{pipelineName}/pause")

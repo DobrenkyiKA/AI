@@ -48,14 +48,9 @@ class PipelineService(
     @Transactional
     fun updateMetadata(
         name: String,
-        topicKey: String? = null,
         steps: List<UpdatePipelineStepRequest>? = null
     ): PipelineEntity {
         val existing = getPipelineEntity(name)
-
-        if (topicKey != null) {
-            existing.topicKey = topicKey
-        }
 
         if (steps != null) {
             val updatedSteps = steps.mapIndexed { index, stepRequest ->

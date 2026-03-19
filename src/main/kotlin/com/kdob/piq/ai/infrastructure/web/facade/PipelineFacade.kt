@@ -28,9 +28,8 @@ class PipelineFacade(
 
     fun updateMetadata(
         name: String,
-        topicKey: String? = null,
         steps: List<UpdatePipelineStepRequest>? = null
     ): PipelineResponse {
-        return pipelineService.updateMetadata(name, topicKey, steps).toResponse()
+        return pipelineService.updateMetadata(name, steps).toResponse()
     }
 }
