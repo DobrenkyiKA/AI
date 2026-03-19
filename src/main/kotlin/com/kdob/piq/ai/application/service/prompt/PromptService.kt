@@ -13,7 +13,6 @@ class PromptService(
     private val promptRepository: PromptRepository,
     private val promptSyncService: PromptSyncService
 ) {
-
     @Transactional(readOnly = true)
     fun findAll(): List<PromptEntity> {
         return promptRepository.findAll()
@@ -25,8 +24,10 @@ class PromptService(
     }
 
     @Transactional(readOnly = true)
-    fun get(name: String): PromptEntity = promptRepository.findByName(name)
+    fun get(name: String): PromptEntity = getPromptEntity(name)
 
+    private fun getPromptEntity(name: String): PromptEntity =
+        promptRepository.findByName(name) ?: throw IllegalArgumentException("Prompt not found: $name")
 
     @Transactional
     fun create(request: CreatePromptRequest): PromptEntity {
@@ -46,15 +47,8 @@ class PromptService(
 
     @Transactional
     fun update(name: String, request: UpdatePromptRequest): PromptEntity {
-        val prompt = promptRepository.findByName(name)
-            ?: throw IllegalArgumentException("Prompt with name '$name' not found")
+        val prompt = getPromptEntity(name)
 
-        request.name?.let {
-            if (it != prompt.name && promptRepository.findByName(it) != null) {
-                throw IllegalArgumentException("Prompt with name '$it' already exists")
-            }
-            prompt.name = it
-        }
         request.content?.let { prompt.content = it }
 
         val saved = promptRepository.save(prompt)
@@ -67,6 +61,4 @@ class PromptService(
         promptRepository.deleteByName(name)
         promptSyncService.exportToNewVersion("Auto-export after deleting prompt: $name")
     }
-
-
 }
