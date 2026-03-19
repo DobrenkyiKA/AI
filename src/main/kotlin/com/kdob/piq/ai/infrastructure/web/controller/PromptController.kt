@@ -12,12 +12,11 @@ import org.springframework.web.bind.annotation.*
 class PromptController(
     private val promptFacade: PromptFacade
 ) {
-    @GetMapping
+    @GetMapping(params = ["type"])
     fun getOfType(@RequestParam type: PromptType): List<PromptResponse> = promptFacade.getByType(type)
 
-    @GetMapping
+    @GetMapping(params = ["!type"])
     fun getAll(): List<PromptResponse> = promptFacade.getAll()
-
 
     @GetMapping("/{name}")
     fun getPromptByName(@PathVariable name: String): PromptResponse? {
