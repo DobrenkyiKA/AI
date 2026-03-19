@@ -4,8 +4,6 @@ import com.kdob.piq.ai.domain.exception.ResourceNotFoundException
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
-import com.kdob.piq.ai.infrastructure.web.dto.CreatePromptRequest
-import com.kdob.piq.ai.infrastructure.web.dto.UpdatePromptRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -31,18 +29,18 @@ class PromptService(
         promptRepository.findByName(name) ?: throw ResourceNotFoundException("Prompt not found: $name")
 
     @Transactional
-    fun create(request: CreatePromptRequest): PromptEntity {
-        val existing = promptRepository.findByName(request.name)
+    fun create(name: String, content: String, type: PromptType): PromptEntity {
+        val existing = promptRepository.findByName(name)
         if (existing != null) {
-            throw IllegalArgumentException("Prompt with name '${request.name}' already exists")
+            throw IllegalArgumentException("Prompt with name '${name}' already exists")
         }
         val prompt = PromptEntity(
-            type = request.type,
-            name = request.name,
-            content = request.content
+            type = type,
+            name = name,
+            content = content
         )
         val saved = promptRepository.save(prompt)
-        promptSyncService.exportToNewVersion("Auto-export after creating prompt: ${request.name}")
+        promptSyncService.exportToNewVersion("Auto-export after creating prompt: ${name}")
         return saved
     }
 
