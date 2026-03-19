@@ -110,6 +110,7 @@ class PromptSyncServiceTest {
     private fun <T> any(type: Class<T>): T {
         org.mockito.ArgumentMatchers.any(type)
         return if (type == PromptEntity::class.java) {
+            @Suppress("UNCHECKED_CAST")
             PromptEntity(type = PromptType.SYSTEM, name = "dummy", content = "dummy") as T
         } else {
             @Suppress("UNCHECKED_CAST")

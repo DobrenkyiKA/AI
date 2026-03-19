@@ -8,7 +8,7 @@ import org.springframework.web.client.RestClient
 
 @Component
 class StorageServiceClient(
-    @Qualifier("storageRestClient") private val storageRestClient: RestClient
+    @param:Qualifier("storageRestClient") private val storageRestClient: RestClient
 ) {
 
     fun getVersions(): List<String> {

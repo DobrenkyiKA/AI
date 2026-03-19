@@ -155,7 +155,7 @@ class LongAnswersGenerationPipelineStepService(
             val gTopic = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
             val existingTexts = gTopic?.entries?.map { it.questionText }?.toSet() ?: emptySet()
             inputTopicQA.entries.filter { it.questionText !in existingTexts }
-        } ?: emptyList()
+        }
 
         if (missingEntries.isEmpty()) return
 
@@ -202,7 +202,7 @@ class LongAnswersGenerationPipelineStepService(
 
                 pipelineRepository.saveAndFlush(pipeline)
                 Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
-            }!!
+            }
 
             artifactStorage.saveAnswersArtifact(topicKey, pipelineName, yamlContent)
             log(pipelineId, stepOrder, "Saved answer for topic: ${inputTopicQA.name}, question: ${entry.questionText.take(50)}...")

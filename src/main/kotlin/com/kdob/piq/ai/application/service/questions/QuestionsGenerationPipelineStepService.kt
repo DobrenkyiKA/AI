@@ -162,7 +162,7 @@ class QuestionsGenerationPipelineStepService(
                 step.userPrompt?.content ?: "", node, isLeaf, children, parentChain
             )
             Triple(sys, usr, parentChain)
-        }!!
+        }
 
         log(pipelineId, stepOrder, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
@@ -193,7 +193,7 @@ class QuestionsGenerationPipelineStepService(
 
             pipelineRepository.saveAndFlush(pipeline)
             Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
-        }!!
+        }
 
         artifactStorage.saveQuestionsArtifact(topicKey, pipelineName, yamlContent)
         log(pipelineId, stepOrder, "Saved ${questions.size} questions for topic: ${node.name}")

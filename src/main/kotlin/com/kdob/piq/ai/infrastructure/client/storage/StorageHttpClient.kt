@@ -7,7 +7,7 @@ import org.springframework.web.client.RestClient
 
 @Component
 class StorageHttpClient(
-    @Qualifier("storageRestClient") private val restClient: RestClient
+    @param:Qualifier("storageRestClient") private val restClient: RestClient
 ) : StorageClient {
 
     override fun saveTopicTreeArtifact(topicKey: String, pipelineName: String, fileName: String, content: String) {

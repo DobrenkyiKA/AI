@@ -156,7 +156,7 @@ class ShortAnswersGenerationPipelineStepService(
             val gTopic = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
             val existingTexts = gTopic?.entries?.map { it.questionText }?.toSet() ?: emptySet()
             inputTopicQA.entries.filter { it.questionText !in existingTexts }
-        } ?: emptyList()
+        }
 
         if (missingEntries.isEmpty()) return
 
@@ -204,7 +204,7 @@ class ShortAnswersGenerationPipelineStepService(
 
                 pipelineRepository.saveAndFlush(pipeline)
                 Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
-            }!!
+            }
 
             artifactStorage.saveShortAnswersArtifact(topicKey, pipelineName, yamlContent)
             log(pipelineId, stepOrder, "Saved short answer for topic: ${inputTopicQA.name}, question: ${entry.questionText.take(50)}...")

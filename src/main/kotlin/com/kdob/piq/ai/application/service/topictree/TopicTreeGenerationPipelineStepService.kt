@@ -191,7 +191,7 @@ class TopicTreeGenerationPipelineStepService(
 
             pipelineRepository.saveAndFlush(pipeline)
             Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(pipeline, artifact))
-        }!!
+        }
 
         artifactStorage.saveTopicTreeArtifact(topicKey, pipelineName, yamlContent)
     }

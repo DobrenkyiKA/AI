@@ -9,8 +9,8 @@ import org.springframework.web.client.RestClient
 
 @Configuration
 class RestClientConfig(
-    @Value("\${question.service.url:http://localhost:8082}") private val questionServiceUrl: String,
-    @Value("\${storage.url:http://localhost:8084}") private val storageUrl: String
+    @param:Value("\${question.service.url:http://localhost:8082}") private val questionServiceUrl: String,
+    @param:Value("\${storage.url:http://localhost:8084}") private val storageUrl: String
 ) {
 
     @Bean

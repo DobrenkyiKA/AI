@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class OpenAiChatService(
-    @Qualifier("openAiChatClient") private val chatClient: ChatClient
+    @param:Qualifier("openAiChatClient") private val chatClient: ChatClient
 ) {
 
     fun ask(userMessage: String): String = chatClient.prompt().user(userMessage).call().content() ?: ""

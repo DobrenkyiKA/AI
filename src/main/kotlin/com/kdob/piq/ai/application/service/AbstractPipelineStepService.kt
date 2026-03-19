@@ -91,7 +91,7 @@ abstract class AbstractPipelineStepService(
             val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             Pair(step.systemPrompt?.content ?: "", step.userPrompt?.content ?: "")
-        }!!
+        }
     }
 
     protected fun parseYaml(rawOutput: String): Map<*, *> {

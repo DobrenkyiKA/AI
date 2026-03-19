@@ -49,7 +49,7 @@ class PromptService(
     fun update(name: String, request: UpdatePromptRequest): PromptEntity {
         val prompt = getPromptEntity(name)
 
-        request.content?.let { prompt.content = it }
+        request.content.let { prompt.content = it }
 
         val saved = promptRepository.save(prompt)
         promptSyncService.exportToNewVersion("Auto-export after updating prompt: $name")

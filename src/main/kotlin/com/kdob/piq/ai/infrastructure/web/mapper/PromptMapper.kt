@@ -5,7 +5,6 @@ import com.kdob.piq.ai.infrastructure.web.dto.PromptResponse
 
 object PromptMapper {
     fun PromptEntity.toResponse() = PromptResponse(
-        id = this.id,
         type = this.type,
         name = this.name,
         content = this.content

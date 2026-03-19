@@ -1,11 +1,10 @@
 //package com.kdob.piq.ai.infrastructure.web.controller
 //
-//import com.kdob.piq.ai.application.service.prompt.PromptService
 //import com.kdob.piq.ai.domain.model.PromptType
-//import com.kdob.piq.ai.infrastructure.web.controller.PromptController
 //import com.kdob.piq.ai.infrastructure.web.dto.CreatePromptRequest
 //import com.kdob.piq.ai.infrastructure.web.dto.PromptResponse
 //import com.kdob.piq.ai.infrastructure.web.dto.UpdatePromptRequest
+//import com.kdob.piq.ai.infrastructure.web.facade.PromptFacade
 //import org.junit.jupiter.api.BeforeEach
 //import org.junit.jupiter.api.Test
 //import org.mockito.Mockito.*
@@ -18,8 +17,8 @@
 //class PromptControllerTest {
 //
 //    private lateinit var mockMvc: MockMvc
-//    private val promptService: PromptService = mock(PromptService::class.java)
-//    private val controller = PromptController(promptService)
+//    private val promptFacade: PromptFacade = mock(PromptFacade::class.java)
+//    private val controller = PromptController(promptFacade)
 //
 //    @BeforeEach
 //    fun setup() {
@@ -28,29 +27,29 @@
 //
 //    @Test
 //    fun `should return all prompts`() {
-//        val response = PromptResponse(1L, PromptType.SYSTEM, "test", "content")
-//        `when`(promptService.findAll()).thenReturn(listOf(response))
+//        val response = PromptResponse(PromptType.SYSTEM, "TEST_PROMPT", "content")
+//        `when`(promptFacade.getAll()).thenReturn(listOf(response))
 //
 //        mockMvc.perform(get("/prompts"))
 //            .andExpect(status().isOk)
-//            .andExpect(jsonPath("$[0].name").value("test"))
+//            .andExpect(jsonPath("$[0].name").value("TEST_PROMPT"))
 //    }
 //
 //    @Test
 //    fun `should return prompts by type`() {
-//        val response = PromptResponse(1L, PromptType.SYSTEM, "test", "content")
-//        `when`(promptService.findAllByType(PromptType.SYSTEM)).thenReturn(listOf(response))
+//        val response = PromptResponse(PromptType.SYSTEM, "TEST_PROMPT", "content")
+//        `when`(promptFacade.getByType(PromptType.SYSTEM)).thenReturn(listOf(response))
 //
 //        mockMvc.perform(get("/prompts").param("type", "SYSTEM"))
 //            .andExpect(status().isOk)
-//            .andExpect(jsonPath("$[0].name").value("test"))
+//            .andExpect(jsonPath("$[0].name").value("TEST_PROMPT"))
 //    }
 //
 //    @Test
 //    fun `should return prompt by name`() {
-//        val name = "test"
-//        val response = PromptResponse(1L, PromptType.SYSTEM, name, "content")
-//        `when`(promptService.get(name)).thenReturn(response)
+//        val name = "TEST_PROMPT"
+//        val response = PromptResponse(PromptType.SYSTEM, name, "content")
+//        `when`(promptFacade.get(name)).thenReturn(response)
 //
 //        mockMvc.perform(get("/prompts/$name"))
 //            .andExpect(status().isOk)
@@ -59,39 +58,61 @@
 //
 //    @Test
 //    fun `should create prompt`() {
-//        val request = CreatePromptRequest("test", PromptType.SYSTEM, "content")
-//        val response = PromptResponse(1L, PromptType.SYSTEM, "test", "content")
-//        `when`(promptService.create(any(CreatePromptRequest::class.java))).thenReturn(response)
+//        val response = PromptResponse(PromptType.SYSTEM, "TEST_PROMPT", "content")
+//        `when`(promptFacade.create(any(CreatePromptRequest::class.java))).thenReturn(response)
 //
 //        mockMvc.perform(post("/prompts")
 //            .contentType(MediaType.APPLICATION_JSON)
-//            .content("{\"name\": \"test\", \"type\": \"SYSTEM\", \"content\": \"content\"}"))
+//            .content("{\"name\": \"TEST_PROMPT\", \"type\": \"SYSTEM\", \"content\": \"content\"}"))
 //            .andExpect(status().isOk)
-//            .andExpect(jsonPath("$.name").value("test"))
+//            .andExpect(jsonPath("$.name").value("TEST_PROMPT"))
+//    }
+//
+//    @Test
+//    fun `should fail to create prompt with invalid name`() {
+//        mockMvc.perform(post("/prompts")
+//            .contentType(MediaType.APPLICATION_JSON)
+//            .content("{\"name\": \"test\", \"type\": \"SYSTEM\", \"content\": \"content\"}"))
+//            .andExpect(status().isBadRequest)
 //    }
 //
 //    @Test
 //    fun `should update prompt`() {
-//        val name = "test"
-//        val request = UpdatePromptRequest("new-name", "new-content")
-//        val response = PromptResponse(1L, PromptType.SYSTEM, "new-name", "new-content")
-//        `when`(promptService.update(eq(name) ?: name, any(UpdatePromptRequest::class.java))).thenReturn(response)
+//        val name = "TEST_PROMPT"
+//        val response = PromptResponse(PromptType.SYSTEM, "NEW_NAME", "new-content")
+//        `when`(promptFacade.update(eq(name) ?: name, any(UpdatePromptRequest::class.java))).thenReturn(response)
 //
 //        mockMvc.perform(put("/prompts/$name")
 //            .contentType(MediaType.APPLICATION_JSON)
-//            .content("{\"name\": \"new-name\", \"content\": \"new-content\"}"))
+//            .content("{\"name\": \"NEW_NAME\", \"content\": \"new-content\"}"))
 //            .andExpect(status().isOk)
-//            .andExpect(jsonPath("$.name").value("new-name"))
+//            .andExpect(jsonPath("$.name").value("NEW_NAME"))
+//    }
+//
+//    @Test
+//    fun `should fail to update prompt with invalid name`() {
+//        mockMvc.perform(put("/prompts/TEST_PROMPT")
+//            .contentType(MediaType.APPLICATION_JSON)
+//            .content("{\"name\": \"new_name\", \"content\": \"new-content\"}"))
+//            .andExpect(status().isBadRequest)
+//    }
+//
+//    @Test
+//    fun `should fail to update prompt with null name`() {
+//        mockMvc.perform(put("/prompts/TEST_PROMPT")
+//            .contentType(MediaType.APPLICATION_JSON)
+//            .content("{\"content\": \"new-content\"}"))
+//            .andExpect(status().isBadRequest)
 //    }
 //
 //    @Test
 //    fun `should delete prompt`() {
-//        val name = "test"
+//        val name = "TEST_PROMPT"
 //
 //        mockMvc.perform(delete("/prompts/$name"))
 //            .andExpect(status().isOk)
 //
-//        verify(promptService).delete(name)
+//        verify(promptFacade).delete(name)
 //    }
 //
 //    private fun <T> any(type: Class<T>): T = org.mockito.ArgumentMatchers.any(type)

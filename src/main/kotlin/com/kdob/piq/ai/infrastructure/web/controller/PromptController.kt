@@ -5,6 +5,7 @@ import com.kdob.piq.ai.infrastructure.web.dto.CreatePromptRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PromptResponse
 import com.kdob.piq.ai.infrastructure.web.dto.UpdatePromptRequest
 import com.kdob.piq.ai.infrastructure.web.facade.PromptFacade
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -18,23 +19,17 @@ class PromptController(
     @GetMapping(params = ["!type"])
     fun getAll(): List<PromptResponse> = promptFacade.getAll()
 
-    @GetMapping("/{name}")
-    fun getPromptByName(@PathVariable name: String): PromptResponse? {
-        return promptFacade.get(name)
-    }
-
     @PostMapping
-    fun createPrompt(@RequestBody request: CreatePromptRequest): PromptResponse {
-        return promptFacade.create(request)
-    }
+    fun createPrompt(@Valid @RequestBody request: CreatePromptRequest): PromptResponse = promptFacade.create(request)
+
+    @GetMapping("/{name}")
+    fun getPromptByName(@PathVariable name: String): PromptResponse? = promptFacade.get(name)
 
     @PutMapping("/{name}")
-    fun updatePrompt(@PathVariable name: String, @RequestBody request: UpdatePromptRequest): PromptResponse {
+    fun updatePrompt(@PathVariable name: String, @Valid @RequestBody request: UpdatePromptRequest): PromptResponse {
         return promptFacade.update(name, request)
     }
 
     @DeleteMapping("/{name}")
-    fun deletePrompt(@PathVariable name: String) {
-        promptFacade.delete(name)
-    }
+    fun deletePrompt(@PathVariable name: String) = promptFacade.delete(name)
 }

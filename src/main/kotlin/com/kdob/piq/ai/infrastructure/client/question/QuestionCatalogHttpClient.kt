@@ -11,7 +11,7 @@ import org.springframework.web.client.body
 
 @Component
 class QuestionCatalogHttpClient(
-    @Qualifier("questionServiceRestClient") private val restClient: RestClient
+    @param:Qualifier("questionServiceRestClient") private val restClient: RestClient
 ) : QuestionCatalogClient {
 
     override fun findQuestionPrompts(topicKeys: Set<String>): List<QuestionPromptResponse> {
