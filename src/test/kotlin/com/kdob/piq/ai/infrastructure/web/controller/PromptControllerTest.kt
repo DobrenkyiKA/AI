@@ -2,6 +2,7 @@ package com.kdob.piq.ai.infrastructure.web.controller
 
 import com.kdob.piq.ai.application.service.prompt.PromptService
 import com.kdob.piq.ai.domain.model.PromptType
+import com.kdob.piq.ai.infrastructure.web.controller.PromptController
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePromptRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PromptResponse
 import com.kdob.piq.ai.infrastructure.web.dto.UpdatePromptRequest
@@ -49,7 +50,7 @@ class PromptControllerTest {
     fun `should return prompt by name`() {
         val name = "test"
         val response = PromptResponse(1L, PromptType.SYSTEM, name, "content")
-        `when`(promptService.findByName(name)).thenReturn(response)
+        `when`(promptService.get(name)).thenReturn(response)
 
         mockMvc.perform(get("/prompts/$name"))
             .andExpect(status().isOk)
@@ -60,7 +61,7 @@ class PromptControllerTest {
     fun `should create prompt`() {
         val request = CreatePromptRequest("test", PromptType.SYSTEM, "content")
         val response = PromptResponse(1L, PromptType.SYSTEM, "test", "content")
-        `when`(promptService.createPrompt(any(CreatePromptRequest::class.java))).thenReturn(response)
+        `when`(promptService.create(any(CreatePromptRequest::class.java))).thenReturn(response)
 
         mockMvc.perform(post("/prompts")
             .contentType(MediaType.APPLICATION_JSON)
@@ -74,7 +75,7 @@ class PromptControllerTest {
         val name = "test"
         val request = UpdatePromptRequest("new-name", "new-content")
         val response = PromptResponse(1L, PromptType.SYSTEM, "new-name", "new-content")
-        `when`(promptService.updatePrompt(eq(name) ?: name, any(UpdatePromptRequest::class.java))).thenReturn(response)
+        `when`(promptService.update(eq(name) ?: name, any(UpdatePromptRequest::class.java))).thenReturn(response)
 
         mockMvc.perform(put("/prompts/$name")
             .contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +91,7 @@ class PromptControllerTest {
         mockMvc.perform(delete("/prompts/$name"))
             .andExpect(status().isOk)
 
-        verify(promptService).deletePrompt(name)
+        verify(promptService).delete(name)
     }
 
     private fun <T> any(type: Class<T>): T = org.mockito.ArgumentMatchers.any(type)

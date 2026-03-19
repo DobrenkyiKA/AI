@@ -26,12 +26,12 @@ class PromptService(
     }
 
     @Transactional(readOnly = true)
-    fun findByName(name: String): PromptResponse? {
+    fun get(name: String): PromptResponse? {
         return promptRepository.findByName(name)?.toResponse()
     }
 
     @Transactional
-    fun createPrompt(request: CreatePromptRequest): PromptResponse {
+    fun create(request: CreatePromptRequest): PromptResponse {
         val existing = promptRepository.findByName(request.name)
         if (existing != null) {
             throw IllegalArgumentException("Prompt with name '${request.name}' already exists")
@@ -47,7 +47,7 @@ class PromptService(
     }
 
     @Transactional
-    fun updatePrompt(name: String, request: UpdatePromptRequest): PromptResponse {
+    fun update(name: String, request: UpdatePromptRequest): PromptResponse {
         val prompt = promptRepository.findByName(name)
             ?: throw IllegalArgumentException("Prompt with name '$name' not found")
         
@@ -65,7 +65,7 @@ class PromptService(
     }
 
     @Transactional
-    fun deletePrompt(name: String) {
+    fun delete(name: String) {
         promptRepository.deleteByName(name)
         promptSyncService.exportToNewVersion("Auto-export after deleting prompt: $name")
     }

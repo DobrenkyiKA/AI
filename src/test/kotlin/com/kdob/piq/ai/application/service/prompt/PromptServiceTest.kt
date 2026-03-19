@@ -8,7 +8,6 @@ import com.kdob.piq.ai.infrastructure.web.dto.UpdatePromptRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.*
 
 class PromptServiceTest {
@@ -30,7 +29,7 @@ class PromptServiceTest {
         `when`(promptRepository.findByName("test-prompt")).thenReturn(null)
         `when`(promptRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-        val response = promptService.createPrompt(request)
+        val response = promptService.create(request)
 
         assertEquals("test-prompt", response.name)
         assertEquals(PromptType.SYSTEM, response.type)
@@ -45,7 +44,7 @@ class PromptServiceTest {
         `when`(promptRepository.findByName("test-prompt")).thenReturn(PromptEntity(PromptType.SYSTEM, "test-prompt", "existing"))
 
         assertThrows(IllegalArgumentException::class.java) {
-            promptService.createPrompt(request)
+            promptService.create(request)
         }
     }
 
@@ -55,7 +54,7 @@ class PromptServiceTest {
         `when`(promptRepository.findByName("test-prompt")).thenReturn(existing)
         `when`(promptRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-        val response = promptService.updatePrompt("test-prompt", UpdatePromptRequest(null, "new-content"))
+        val response = promptService.update("test-prompt", UpdatePromptRequest(null, "new-content"))
 
         assertEquals("new-content", response.content)
         assertEquals("test-prompt", response.name)
@@ -69,7 +68,7 @@ class PromptServiceTest {
         `when`(promptRepository.findByName("new-name")).thenReturn(null)
         `when`(promptRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-        val response = promptService.updatePrompt("old-name", UpdatePromptRequest("new-name", null))
+        val response = promptService.update("old-name", UpdatePromptRequest("new-name", null))
 
         assertEquals("new-name", response.name)
         verify(promptRepository).findByName("new-name")
@@ -78,7 +77,7 @@ class PromptServiceTest {
 
     @Test
     fun `should delete prompt`() {
-        promptService.deletePrompt("test-prompt")
+        promptService.delete("test-prompt")
         verify(promptRepository).deleteByName("test-prompt")
         verify(promptSyncService).exportToNewVersion(anyString())
     }
