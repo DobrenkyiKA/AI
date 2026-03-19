@@ -60,45 +60,4 @@ class ArtifactService(
         }
         return pipeline
     }
-
-//    @PostMapping("/{pipelineName}/publish")
-//    fun publishArtifact(@PathVariable @PipelineName pipelineName: String): PipelineResponse {
-//        artifactFacade.publish(pipelineName)
-//        return pipelineService.get(pipelineName).toResponse()
-//    }
-//    fun publish(pipelineName: String) = artifactService.publish(pipelineName)
-//    @Transactional
-//    fun publish(pipelineName: String) {
-//        val existing = pipelineService.get(pipelineName)
-//
-//        val topicTreeStep = existing.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
-//            ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: $pipelineName")
-//        val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
-//            ?: throw IllegalStateException("Topic tree artifact not found for pipeline: $pipelineName")
-//
-//        if (topicTreeArtifact.status != ArtifactStatus.APPROVED) {
-//            throw IllegalStateException("Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}")
-//        }
-//
-//        val rootTopic = questionCatalogClient.findTopic(existing.topicKey)
-//            ?: throw IllegalStateException("Root topic not found in catalog: ${existing.topicKey}")
-//
-//        val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
-//
-//        fun publishRecursive(parentKey: String, parentPath: String) {
-//            val children = nodesByParent[parentKey] ?: return
-//            for (child in children) {
-//                val request = CreateTopicClientRequest(
-//                    key = child.key,
-//                    name = child.name,
-//                    parentPath = parentPath,
-//                    coverageArea = child.coverageArea
-//                )
-//                val response = questionCatalogClient.createTopic(request)
-//                publishRecursive(child.key, response.path)
-//            }
-//        }
-//
-//        publishRecursive(existing.topicKey, rootTopic.path)
-//    }
 }
