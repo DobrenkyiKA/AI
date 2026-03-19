@@ -1,50 +1,41 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
-import com.kdob.piq.ai.application.service.prompt.PromptService
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePromptRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PromptResponse
 import com.kdob.piq.ai.infrastructure.web.dto.UpdatePromptRequest
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import com.kdob.piq.ai.infrastructure.web.facade.PromptFacade
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/prompts")
 class PromptController(
-    private val promptService: PromptService
+    private val promptFacade: PromptFacade
 ) {
+    @GetMapping
+    fun getOfType(@RequestParam type: PromptType): List<PromptResponse> = promptFacade.getByType(type)
 
     @GetMapping
-    fun getOfType(@RequestParam type: PromptType): List<PromptResponse> = promptService.findAllByType(type)
-
-    @GetMapping
-    fun getAll(): List<PromptResponse> = promptService.findAll()
+    fun getAll(): List<PromptResponse> = promptFacade.getAll()
 
 
     @GetMapping("/{name}")
     fun getPromptByName(@PathVariable name: String): PromptResponse? {
-        return promptService.get(name)
+        return promptFacade.get(name)
     }
 
     @PostMapping
     fun createPrompt(@RequestBody request: CreatePromptRequest): PromptResponse {
-        return promptService.create(request)
+        return promptFacade.create(request)
     }
 
     @PutMapping("/{name}")
     fun updatePrompt(@PathVariable name: String, @RequestBody request: UpdatePromptRequest): PromptResponse {
-        return promptService.update(name, request)
+        return promptFacade.update(name, request)
     }
 
     @DeleteMapping("/{name}")
     fun deletePrompt(@PathVariable name: String) {
-        promptService.delete(name)
+        promptFacade.delete(name)
     }
 }
