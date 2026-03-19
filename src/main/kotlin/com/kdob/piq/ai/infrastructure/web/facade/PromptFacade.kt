@@ -14,9 +14,9 @@ class PromptFacade(
 ) {
     fun getAll() = promptService.findAll().map { it.toResponse() }
     fun getByType(type: PromptType): List<PromptResponse> = promptService.findAllByType(type).map { it.toResponse() }
-    fun get(name: String): PromptResponse? = promptService.get(name).toResponse()
+    fun get(name: String): PromptResponse = promptService.get(name).toResponse()
     fun create(request: CreatePromptRequest): PromptResponse = promptService.create(request).toResponse()
-    fun update(name: String, request: UpdatePromptRequest): PromptResponse =
-        promptService.update(name, request).toResponse()
+    fun update(request: UpdatePromptRequest): PromptResponse =
+        promptService.update(request.name, request.content).toResponse()
     fun delete(name: String) = promptService.delete(name)
 }

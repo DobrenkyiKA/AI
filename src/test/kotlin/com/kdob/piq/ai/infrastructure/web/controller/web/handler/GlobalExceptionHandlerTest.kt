@@ -1,5 +1,6 @@
 package com.kdob.piq.ai.infrastructure.web.controller.web.handler
 
+import com.kdob.piq.ai.domain.exception.ResourceNotFoundException
 import com.kdob.piq.ai.infrastructure.web.handler.GlobalExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -15,6 +16,16 @@ private class ExceptionTestController {
     fun throwException() {
         throw RuntimeException("Test exception message")
     }
+
+    @GetMapping("/test-not-found")
+    fun throwNotFound() {
+        throw ResourceNotFoundException("Not found")
+    }
+
+    @GetMapping("/test-illegal-argument")
+    fun throwIllegalArgument() {
+        throw IllegalArgumentException("Invalid argument")
+    }
 }
 
 class GlobalExceptionHandlerTest {
@@ -23,6 +34,20 @@ class GlobalExceptionHandlerTest {
         .standaloneSetup(ExceptionTestController())
         .setControllerAdvice(GlobalExceptionHandler())
         .build()
+
+    @Test
+    fun `should handle ResourceNotFoundException and return 404`() {
+        mockMvc.perform(get("/test-not-found"))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.error").value("Not found"))
+    }
+
+    @Test
+    fun `should handle IllegalArgumentException and return 400`() {
+        mockMvc.perform(get("/test-illegal-argument"))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error").value("Invalid argument"))
+    }
 
     @Test
     fun `should handle all exceptions and return 500`() {

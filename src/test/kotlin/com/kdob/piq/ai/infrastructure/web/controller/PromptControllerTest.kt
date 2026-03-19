@@ -5,6 +5,7 @@
 //import com.kdob.piq.ai.infrastructure.web.dto.PromptResponse
 //import com.kdob.piq.ai.infrastructure.web.dto.UpdatePromptRequest
 //import com.kdob.piq.ai.infrastructure.web.facade.PromptFacade
+//import org.hamcrest.Matchers.endsWith
 //import org.junit.jupiter.api.BeforeEach
 //import org.junit.jupiter.api.Test
 //import org.mockito.Mockito.*
@@ -64,23 +65,16 @@
 //        mockMvc.perform(post("/prompts")
 //            .contentType(MediaType.APPLICATION_JSON)
 //            .content("{\"name\": \"TEST_PROMPT\", \"type\": \"SYSTEM\", \"content\": \"content\"}"))
-//            .andExpect(status().isOk)
+//            .andExpect(status().isCreated)
+//            .andExpect(header().string("Location", endsWith("/prompts/TEST_PROMPT")))
 //            .andExpect(jsonPath("$.name").value("TEST_PROMPT"))
-//    }
-//
-//    @Test
-//    fun `should fail to create prompt with invalid name`() {
-//        mockMvc.perform(post("/prompts")
-//            .contentType(MediaType.APPLICATION_JSON)
-//            .content("{\"name\": \"test\", \"type\": \"SYSTEM\", \"content\": \"content\"}"))
-//            .andExpect(status().isBadRequest)
 //    }
 //
 //    @Test
 //    fun `should update prompt`() {
 //        val name = "TEST_PROMPT"
 //        val response = PromptResponse(PromptType.SYSTEM, "NEW_NAME", "new-content")
-//        `when`(promptFacade.update(eq(name) ?: name, any(UpdatePromptRequest::class.java))).thenReturn(response)
+//        `when`(promptFacade.update(eq(name), any(UpdatePromptRequest::class.java))).thenReturn(response)
 //
 //        mockMvc.perform(put("/prompts/$name")
 //            .contentType(MediaType.APPLICATION_JSON)
@@ -90,30 +84,29 @@
 //    }
 //
 //    @Test
-//    fun `should fail to update prompt with invalid name`() {
-//        mockMvc.perform(put("/prompts/TEST_PROMPT")
-//            .contentType(MediaType.APPLICATION_JSON)
-//            .content("{\"name\": \"new_name\", \"content\": \"new-content\"}"))
-//            .andExpect(status().isBadRequest)
-//    }
-//
-//    @Test
-//    fun `should fail to update prompt with null name`() {
-//        mockMvc.perform(put("/prompts/TEST_PROMPT")
-//            .contentType(MediaType.APPLICATION_JSON)
-//            .content("{\"content\": \"new-content\"}"))
-//            .andExpect(status().isBadRequest)
-//    }
-//
-//    @Test
 //    fun `should delete prompt`() {
 //        val name = "TEST_PROMPT"
 //
 //        mockMvc.perform(delete("/prompts/$name"))
-//            .andExpect(status().isOk)
+//            .andExpect(status().isNoContent)
 //
 //        verify(promptFacade).delete(name)
 //    }
 //
-//    private fun <T> any(type: Class<T>): T = org.mockito.ArgumentMatchers.any(type)
+//    @Suppress("UNCHECKED_CAST")
+//    private fun <T> any(type: Class<T>): T {
+//        org.mockito.ArgumentMatchers.any(type)
+//        return if (type == CreatePromptRequest::class.java) {
+//            CreatePromptRequest("dummy", PromptType.SYSTEM, "dummy") as T
+//        } else if (type == UpdatePromptRequest::class.java) {
+//            UpdatePromptRequest("dummy", "dummy") as T
+//        } else {
+//            null as T
+//        }
+//    }
+//
+//    private fun <T> eq(value: T): T {
+//        org.mockito.ArgumentMatchers.eq(value)
+//        return value
+//    }
 //}

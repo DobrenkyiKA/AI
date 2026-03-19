@@ -1,5 +1,6 @@
 package com.kdob.piq.ai.application.service.prompt
 
+import com.kdob.piq.ai.domain.exception.ResourceNotFoundException
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
@@ -27,7 +28,7 @@ class PromptService(
     fun get(name: String): PromptEntity = getPromptEntity(name)
 
     private fun getPromptEntity(name: String): PromptEntity =
-        promptRepository.findByName(name) ?: throw IllegalArgumentException("Prompt not found: $name")
+        promptRepository.findByName(name) ?: throw ResourceNotFoundException("Prompt not found: $name")
 
     @Transactional
     fun create(request: CreatePromptRequest): PromptEntity {
@@ -46,10 +47,9 @@ class PromptService(
     }
 
     @Transactional
-    fun update(name: String, request: UpdatePromptRequest): PromptEntity {
+    fun update(name: String, content: String): PromptEntity {
         val prompt = getPromptEntity(name)
-
-        request.content.let { prompt.content = it }
+        prompt.content = content
 
         val saved = promptRepository.save(prompt)
         promptSyncService.exportToNewVersion("Auto-export after updating prompt: $name")
