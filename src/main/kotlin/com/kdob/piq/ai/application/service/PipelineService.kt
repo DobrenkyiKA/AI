@@ -12,7 +12,6 @@ import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PromptEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePipelineStepRequest
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import com.kdob.piq.ai.infrastructure.web.dto.UpdatePipelineStepRequest
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -24,7 +23,6 @@ class PipelineService(
     private val pipelineRepository: PipelineRepository,
     private val promptRepository: PromptRepository,
     private val artifactStorage: ArtifactStorage,
-    private val generationSteps: List<PipelineStepService>,
     private val generationLogRepository: GenerationLogRepository,
     private val promptSyncService: PromptSyncService
 ) {
@@ -39,8 +37,6 @@ class PipelineService(
     @Transactional(readOnly = true)
     fun getAll(): List<PipelineEntity> = pipelineRepository.findAll()
 
-    fun getAvailableStepTypes(): List<PipelineStepTypeResponse> =
-        generationSteps.map { PipelineStepTypeResponse(it.getStepType(), it.getLabel()) }
 
     fun save(pipeline: PipelineEntity): PipelineEntity = pipelineRepository.save(pipeline)
 
@@ -49,40 +45,6 @@ class PipelineService(
         val existing = getPipelineEntity(name)
         pipelineRepository.deleteByName(name)
         artifactStorage.deleteArtifacts(existing.topicKey, name)
-    }
-
-    fun runStep(pipelineName: String, stepIndex: Int) {
-        updateStatus(pipelineName, PipelineStatus.GENERATION_IN_PROGRESS)
-
-        val pipeline = getPipelineWithSteps(pipelineName)
-
-        val step = pipeline.steps.getOrNull(stepIndex)
-            ?: throw IllegalArgumentException("Step at index $stepIndex not found")
-
-        val generationStep = generationSteps.find { it.getStepType() == step.stepType }
-            ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
-
-        try {
-            generationStep.generate(step)
-        } catch (e: Exception) {
-            logger.error("Step '{}' failed for pipeline '{}': {}", step.stepType, pipelineName, e.message, e)
-            updateStatus(pipelineName, PipelineStatus.FAILED)
-            throw e
-        }
-    }
-
-    private fun updateStatus(pipelineName: String, status: PipelineStatus) {
-        val pipeline = getPipelineEntity(pipelineName)
-        pipeline.status = status
-        pipeline.updatedAt = Instant.now()
-        pipelineRepository.save(pipeline)
-    }
-
-    private fun getPipelineWithSteps(pipelineName: String): PipelineEntity {
-        val pipeline = getPipelineEntity(pipelineName)
-        pipeline.steps.size // Force load
-        pipeline.steps.forEach { it.artifact?.status } // Force load artifacts and their status
-        return pipeline
     }
 
     @Transactional
@@ -146,28 +108,6 @@ class PipelineService(
 
         existing.updatedAt = Instant.now()
         return pipelineRepository.save(existing)
-    }
-
-    fun runFrom(pipelineName: String, startStep: Int): PipelineEntity {
-        val pipeline = getPipelineWithSteps(pipelineName)
-        val maxStep = pipeline.steps.size - 1
-        for (stepIndex in startStep..maxStep) {
-            if (stepIndex > startStep) {
-                val currentPipeline = getPipelineWithSteps(pipelineName)
-                val previousStep = currentPipeline.steps[stepIndex - 1]
-                val previousArtifact = previousStep.artifact
-                if (previousArtifact == null || previousArtifact.status != ArtifactStatus.APPROVED) {
-                    logger.info(
-                        "Pipeline [{}] paused at step [{}]: previous artifact not approved (status: [{}])",
-                        pipelineName, stepIndex, previousArtifact?.status
-                    )
-                    updateStatus(pipelineName, PipelineStatus.WAITING_ARTIFACT_APPROVAL)
-                    return getPipelineWithSteps(pipelineName)
-                }
-            }
-            runStep(pipelineName, stepIndex)
-        }
-        return getPipelineWithSteps(pipelineName)
     }
 
     @Transactional

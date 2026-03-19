@@ -23,9 +23,9 @@ private const val TOPIC_TREE_GENERATION_STEP_TYPE = "TOPIC_TREE_GENERATION"
 @Service
 class TopicTreeGenerationPipelineStepService(
     private val generator: OpenAiChatService,
+    private val questionCatalogClient: QuestionCatalogClient,
     pipelineRepository: PipelineRepository,
     artifactStorage: ArtifactStorage,
-    private val questionCatalogClient: QuestionCatalogClient,
     generationLogRepository: GenerationLogRepository,
     transactionManager: PlatformTransactionManager
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {

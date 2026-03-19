@@ -3,6 +3,8 @@ package com.kdob.piq.ai.infrastructure.web.controller
 import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
+import com.kdob.piq.ai.infrastructure.web.facade.PipelineFacade
+import com.kdob.piq.ai.infrastructure.web.facade.StepFacade
 import com.kdob.piq.ai.infrastructure.web.mapper.PipelineMapper.toResponse
 import com.kdob.piq.ai.infrastructure.web.validation.PipelineName
 import com.kdob.piq.ai.infrastructure.web.validation.StepNumber
@@ -17,12 +19,12 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/pipelines")
 @Validated
 class StepController(
-    private val pipelineService: PipelineService
+    private val pipelineFacade: PipelineFacade,
+    private val stepFacade: StepFacade
 ) {
-
     @GetMapping("/step-types")
     fun getAvailableStepTypes(): List<PipelineStepTypeResponse> {
-        return pipelineService.getAvailableStepTypes()
+        return stepFacade.getAvailableStepTypes()
     }
 
     @PostMapping("/{pipelineName}/run/{step}")
@@ -30,8 +32,8 @@ class StepController(
         @PathVariable @PipelineName pipelineName: String,
         @PathVariable @StepNumber step: Int
     ): PipelineResponse {
-        pipelineService.runStep(pipelineName, step)
-        return pipelineService.get(pipelineName).toResponse()
+        stepFacade.runStep(pipelineName, step)
+        return pipelineFacade.get(pipelineName)
     }
 
 }
