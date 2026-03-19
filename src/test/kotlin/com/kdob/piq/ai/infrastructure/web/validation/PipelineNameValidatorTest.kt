@@ -10,7 +10,7 @@ class PipelineNameValidatorTest {
     private val validator = PipelineNameValidator()
 
     @ParameterizedTest
-    @ValueSource(strings = ["abcde", "a-b-c-d", "1-b-c-9", "pipeline-name", "very-long-pipeline-name-with-many-dashes-but-none-are-consecutive-and-it-is-not-too-long-yet-so-it-should-be-fine-if-it-is-below-two-five-five-characters-length-and-it-is-so-it-should-pass-the-validation-test-case-without-any-problems-at-all"])
+    @ValueSource(strings = ["abc", "a-b-c-d", "1-b-c-9", "pipeline-name", "very-long-pipeline-name-with-many-dashes-but-none-are-consecutive-and-it-is-not-too-long-yet-so-it-should-be-fine-if-it-is-below-two-five-five-characters-length-and-it-is-so-it-should-pass-the-validation-test-case-without-any-problems-at-all"])
     fun `should accept valid pipeline names`(name: String) {
         assertTrue(validator.isValid(name, null))
     }
@@ -23,7 +23,7 @@ class PipelineNameValidatorTest {
         "-abcd",                // 5. Does not start with "-"
         "abcd-",                // 6. Does not end with "-"
         "abc--d",               // 7. several "-" in a row
-        "abcd",                 // 8. Not less than 5 characters
+        "ab",                 // 8. Not less than 3 characters
     ])
     fun `should reject invalid pipeline names`(name: String) {
         assertFalse(validator.isValid(name, null))
