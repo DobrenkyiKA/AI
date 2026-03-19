@@ -13,20 +13,23 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException::class)
     fun handleResourceNotFoundException(e: ResourceNotFoundException): ResponseEntity<Map<String, String>> {
+        val message = e.message ?: "Resource not found"
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(mapOf("error" to (e.message ?: "Resource not found")))
+            .body(mapOf("error" to message, "message" to message))
     }
 
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgumentException(e: IllegalArgumentException): ResponseEntity<Map<String, String>> {
+        val message = e.message ?: "Invalid request"
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(mapOf("error" to (e.message ?: "Invalid request")))
+            .body(mapOf("error" to message, "message" to message))
     }
 
     @ExceptionHandler(Exception::class)
     fun handleException(e: Exception): ResponseEntity<Map<String, String>> {
         logger.error("Unhandled exception: ", e)
+        val message = e.message ?: "Internal Server Error"
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(mapOf("error" to (e.message ?: "Internal Server Error")))
+            .body(mapOf("error" to message, "message" to message))
     }
 }

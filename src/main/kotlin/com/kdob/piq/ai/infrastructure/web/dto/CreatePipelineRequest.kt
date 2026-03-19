@@ -14,7 +14,5 @@ data class CreatePipelineRequest(
 data class CreatePipelineStepRequest(
     val type: String,
     val systemPromptName: String,
-    val systemPrompt: String? = null,
-    val userPromptName: String,
-    val userPrompt: String? = null
+    val userPromptName: String
 )

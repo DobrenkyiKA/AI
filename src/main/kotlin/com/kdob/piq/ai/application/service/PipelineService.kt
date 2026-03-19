@@ -62,14 +62,14 @@ class PipelineService(
                         stepRequest.type,
                         PromptType.SYSTEM,
                         stepRequest.systemPromptName,
-                        stepRequest.systemPrompt
+                        null
                     )
                     existingStep.userPrompt = promptService.getOrCreatePrompt(
                         name,
                         stepRequest.type,
                         PromptType.USER,
                         stepRequest.userPromptName,
-                        stepRequest.userPrompt
+                        null
                     )
                     existingStep
                 } else {
@@ -82,14 +82,14 @@ class PipelineService(
                             stepRequest.type,
                             PromptType.SYSTEM,
                             stepRequest.systemPromptName,
-                            stepRequest.systemPrompt
+                            null
                         ),
                         userPrompt = promptService.getOrCreatePrompt(
                             name,
                             stepRequest.type,
                             PromptType.USER,
                             stepRequest.userPromptName,
-                            stepRequest.userPrompt
+                            null
                         )
                     )
                 }
@@ -120,14 +120,14 @@ class PipelineService(
                     stepRequest.type,
                     PromptType.SYSTEM,
                     stepRequest.systemPromptName,
-                    stepRequest.systemPrompt
+                    null
                 ),
                 userPrompt = promptService.getOrCreatePrompt(
                     name,
                     stepRequest.type,
                     PromptType.USER,
                     stepRequest.userPromptName,
-                    stepRequest.userPrompt
+                    null
                 )
             )
         })

@@ -39,20 +39,20 @@ class GlobalExceptionHandlerTest {
     fun `should handle ResourceNotFoundException and return 404`() {
         mockMvc.perform(get("/test-not-found"))
             .andExpect(status().isNotFound)
-            .andExpect(jsonPath("$.error").value("Not found"))
+            .andExpect(jsonPath("$.message").value("Not found"))
     }
 
     @Test
     fun `should handle IllegalArgumentException and return 400`() {
         mockMvc.perform(get("/test-illegal-argument"))
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.error").value("Invalid argument"))
+            .andExpect(jsonPath("$.message").value("Invalid argument"))
     }
 
     @Test
     fun `should handle all exceptions and return 500`() {
         mockMvc.perform(get("/test-exception"))
             .andExpect(status().isInternalServerError)
-            .andExpect(jsonPath("$.error").value("Test exception message"))
+            .andExpect(jsonPath("$.message").value("Test exception message"))
     }
 }

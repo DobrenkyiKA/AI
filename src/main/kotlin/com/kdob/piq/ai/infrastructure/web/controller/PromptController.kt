@@ -40,7 +40,9 @@ class PromptController(
     fun getPromptByName(@PathVariable @PromptName name: String): PromptResponse = promptFacade.get(name)
 
     @PutMapping
-    fun updatePrompt(@Valid @RequestBody request: UpdatePromptRequest): PromptResponse = promptFacade.update(request)
+    fun updatePrompt(
+        @Valid @RequestBody request: UpdatePromptRequest
+    ): PromptResponse = promptFacade.update(request)
 
     @DeleteMapping("/{name}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

@@ -56,6 +56,9 @@ class PromptService(
 
     @Transactional
     fun delete(name: String) {
+        if (name.startsWith("DEFAULT_")) {
+            throw IllegalArgumentException("Default prompt cannot be deleted: $name")
+        }
         promptRepository.deleteByName(name)
         promptSyncService.exportToNewVersion("Auto-export after deleting prompt: $name")
     }
