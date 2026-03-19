@@ -1,6 +1,5 @@
 package com.kdob.piq.ai.application.service
 
-import com.kdob.piq.ai.application.service.prompt.PromptSyncService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType

@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service.topictree
+package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.ai.OpenAiChatService
@@ -15,6 +15,8 @@ import com.kdob.piq.ai.infrastructure.persistence.mapping.toTopicTreeNodeEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.get
 
 private const val TOPIC_TREE_GENERATION_STEP_TYPE = "TOPIC_TREE_GENERATION"
 
@@ -28,7 +30,7 @@ class TopicTreeGenerationPipelineStepService(
     transactionManager: PlatformTransactionManager
 ) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
 
-    private val catalogChainCache = java.util.concurrent.ConcurrentHashMap<String, List<TopicTreeNode>>()
+    private val catalogChainCache = ConcurrentHashMap<String, List<TopicTreeNode>>()
 
     companion object {
         const val DEFAULT_MAX_DEPTH = 12

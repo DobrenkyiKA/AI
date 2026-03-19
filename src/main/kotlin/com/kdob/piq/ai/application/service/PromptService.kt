@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service.prompt
+package com.kdob.piq.ai.application.service
 
 import com.kdob.piq.ai.domain.exception.ResourceNotFoundException
 import com.kdob.piq.ai.domain.model.PromptType

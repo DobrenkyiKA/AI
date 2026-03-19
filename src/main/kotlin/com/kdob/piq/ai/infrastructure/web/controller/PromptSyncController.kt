@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
-import com.kdob.piq.ai.application.service.prompt.PromptSyncService
+import com.kdob.piq.ai.application.service.PromptSyncService
 import com.kdob.piq.ai.infrastructure.client.storage.StorageServiceClient
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping

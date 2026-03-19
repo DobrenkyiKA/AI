@@ -1,6 +1,6 @@
 package com.kdob.piq.ai.infrastructure.web.facade
 
-import com.kdob.piq.ai.application.service.prompt.PromptService
+import com.kdob.piq.ai.application.service.PromptService
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.infrastructure.web.dto.CreatePromptRequest
 import com.kdob.piq.ai.infrastructure.web.dto.PromptResponse

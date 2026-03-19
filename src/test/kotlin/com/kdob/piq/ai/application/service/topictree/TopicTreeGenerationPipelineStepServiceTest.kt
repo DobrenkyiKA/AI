@@ -1,6 +1,7 @@
 package com.kdob.piq.ai.application.service.topictree
 
 import com.kdob.piq.ai.application.service.ai.OpenAiChatService
+import com.kdob.piq.ai.application.service.step.TopicTreeGenerationPipelineStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
@@ -31,9 +32,9 @@ class TopicTreeGenerationPipelineStepServiceTest {
     private val transactionManager = mock(PlatformTransactionManager::class.java)
     
     private val service = TopicTreeGenerationPipelineStepService(
-        generator, 
-        repository, 
-        artifactStorage, 
+        generator,
+        repository,
+        artifactStorage,
         questionCatalogClient,
         generationLogRepository,
         transactionManager

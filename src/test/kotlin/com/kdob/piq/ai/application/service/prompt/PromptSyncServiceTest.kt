@@ -1,5 +1,6 @@
 package com.kdob.piq.ai.application.service.prompt
 
+import com.kdob.piq.ai.application.service.PromptSyncService
 import com.kdob.piq.ai.domain.model.PromptType
 import com.kdob.piq.ai.domain.repository.PromptRepository
 import com.kdob.piq.ai.infrastructure.client.storage.StorageServiceClient

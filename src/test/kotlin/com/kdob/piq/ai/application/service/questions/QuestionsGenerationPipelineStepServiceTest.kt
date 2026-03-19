@@ -1,6 +1,7 @@
 package com.kdob.piq.ai.application.service.questions
 
 import com.kdob.piq.ai.application.service.ai.OpenAiChatService
+import com.kdob.piq.ai.application.service.step.QuestionsGenerationPipelineStepService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
@@ -26,7 +27,14 @@ class QuestionsGenerationPipelineStepServiceTest {
     private val questionCatalogClient = mock(QuestionCatalogClient::class.java)
     private val generationLogRepository = mock(GenerationLogRepository::class.java)
     private val transactionManager = mock(PlatformTransactionManager::class.java)
-    private val service = QuestionsGenerationPipelineStepService(generator, repository, artifactStorage, questionCatalogClient, generationLogRepository, transactionManager)
+    private val service = QuestionsGenerationPipelineStepService(
+        generator,
+        repository,
+        artifactStorage,
+        questionCatalogClient,
+        generationLogRepository,
+        transactionManager
+    )
 
     @BeforeEach
     fun setup() {
