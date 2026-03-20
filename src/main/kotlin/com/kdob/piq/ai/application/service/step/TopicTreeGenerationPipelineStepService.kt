@@ -42,7 +42,7 @@ class TopicTreeGenerationPipelineStepService(
     override fun generate(step: PipelineStepEntity) {
         val pipelineName = step.pipeline.name
 
-        initializeArtifact(pipelineName, step)
+        initializeArtifact(step)
 
         while (true) {
             if (isPipelineStopped(pipelineName, step.stepOrder)) return

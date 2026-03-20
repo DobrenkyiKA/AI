@@ -5,5 +5,6 @@ enum class ArtifactStatus {
     APPROVED,
     PAUSED,
     ABORTED,
-    GENERATION_IN_PROGRESS
+    GENERATION_IN_PROGRESS,
+    NEW
 }

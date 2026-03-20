@@ -29,9 +29,9 @@ abstract class AbstractPipelineStepService(
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     ).registerKotlinModule()
 
-    protected fun initializeArtifact(pipelineName: String, step: PipelineStepEntity) {
+    protected fun initializeArtifact(step: PipelineStepEntity) {
         val artifact = transactionTemplate.execute {
-            val pipelineEntity = pipelineService.get(pipelineName)
+            val pipelineEntity = pipelineService.get(step.pipeline.name)
             val pipelineStepEntity: PipelineStepEntity = pipelineEntity.steps.find { it.id == step.id }!!
             val artifact = pipelineStepEntity.artifact
             artifact?.status = ArtifactStatus.GENERATION_IN_PROGRESS

@@ -34,6 +34,7 @@ class QuestionsGenerationPipelineStepService(
         val pipelineName = step.pipeline.name
 
         initializeArtifact(pipelineName, step)
+
         while (true) {
             if (isPipelineStopped(pipelineName, step.stepOrder)) return
 

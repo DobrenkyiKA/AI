@@ -21,7 +21,7 @@ abstract class PipelineArtifactEntity(
     @Basic(optional = false)
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    open var status: ArtifactStatus = ArtifactStatus.PENDING_FOR_APPROVAL
+    open var status: ArtifactStatus = ArtifactStatus.NEW
 
     override fun getIdValue(): Long? {
         return id
