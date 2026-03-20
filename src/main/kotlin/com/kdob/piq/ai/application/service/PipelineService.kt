@@ -173,4 +173,6 @@ class PipelineService(
             }
         return pipelineRepository.save(pipeline)
     }
+
+    fun saveAndFlush(pipeline: PipelineEntity): PipelineEntity = pipelineRepository.saveAndFlush(pipeline)
 }

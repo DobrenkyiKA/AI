@@ -1,29 +1,28 @@
 package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
+import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.application.service.ai.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.repository.GenerationLogRepository
-import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.get
 
 private const val QUESTIONS_GENERATION_STEP_TYPE = "QUESTIONS_GENERATION"
 
 @Service
 class QuestionsGenerationPipelineStepService(
     private val generator: OpenAiChatService,
-    pipelineRepository: PipelineRepository,
+    pipelineService: PipelineService,
     artifactStorage: ArtifactStorage,
     private val questionCatalogClient: QuestionCatalogClient,
     generationLogRepository: GenerationLogRepository,
     transactionManager: PlatformTransactionManager
-) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
+) : AbstractPipelineStepService(pipelineService, artifactStorage, generationLogRepository, transactionManager) {
 
     private val catalogChainCache = ConcurrentHashMap<String, List<CatalogTopicInfo>>()
 
@@ -32,31 +31,30 @@ class QuestionsGenerationPipelineStepService(
     override fun getStepType(): String = QUESTIONS_GENERATION_STEP_TYPE
 
     override fun generate(step: PipelineStepEntity) {
-        val pipelineId = step.pipeline.id!!
+        val pipelineName = step.pipeline.name
 
-        initializeArtifact(pipelineId, step)
+        initializeArtifact(pipelineName, step)
         while (true) {
-            if (isPipelineStopped(pipelineId, step.stepOrder)) return
+            if (isPipelineStopped(pipelineName, step.stepOrder)) return
 
-            val nextTopic = findNextTopicToGenerate(pipelineId, step.id!!)
+            val nextTopic = findNextTopicToGenerate(pipelineName, step.id!!)
             if (nextTopic == null) {
-                log(pipelineId, step.stepOrder, "Questions Generation completed successfully.")
-                finalizeArtifact(pipelineId, step.id!!)
+                log(pipelineName, step.stepOrder, "Questions Generation completed successfully.")
+                finalizeArtifact(pipelineName, step.id!!)
                 return
             }
 
             try {
-                generateForTopic(pipelineId, step.id!!, step.stepOrder, nextTopic)
+                generateForTopic(pipelineName, step.id!!, step.stepOrder, nextTopic)
             } catch (e: Exception) {
-                log(pipelineId, step.stepOrder, "Error during generation for ${nextTopic.name}: ${e.message}")
+                log(pipelineName, step.stepOrder, "Error during generation for ${nextTopic.name}: ${e.message}")
                 throw e
             }
         }
     }
 
     override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
-        val artifact = step.artifact as? AnswersArtifactEntity
-            ?: throw IllegalStateException("Answers artifact not found")
+        val artifact = step.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
         artifact.status = status
 
         val data = parseYaml(yamlContent)
@@ -105,9 +103,10 @@ class QuestionsGenerationPipelineStepService(
 
         artifactStorage.saveQuestionsArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
-    override fun initializeArtifactInternal(pipelineId: Long, stepId: Long) {
+
+    override fun initializeArtifactInternal(pipelineName: String, stepId: Long) {
         transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
 
             val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
@@ -123,16 +122,16 @@ class QuestionsGenerationPipelineStepService(
             artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
             step.artifact = artifact
 
-            pipelineRepository.saveAndFlush(pipeline)
+            pipelineService.saveAndFlush(pipeline)
             val yamlContent = prepareIncrementalYaml(artifact)
             artifactStorage.saveQuestionsArtifact(pipeline.topicKey, pipeline.name, yamlContent)
-            log(pipelineId, step.stepOrder, "Initialized Answers Artifact.")
+            log(pipelineName, step.stepOrder, "Initialized Answers Artifact.")
         }
     }
 
-    private fun findNextTopicToGenerate(pipelineId: Long, stepId: Long): TopicTreeNodeEntity? {
+    private fun findNextTopicToGenerate(pipelineName: String, stepId: Long): TopicTreeNodeEntity? {
         return transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as AnswersArtifactEntity
 
@@ -144,9 +143,9 @@ class QuestionsGenerationPipelineStepService(
         }
     }
 
-    private fun generateForTopic(pipelineId: Long, stepId: Long, stepOrder: Int, node: TopicTreeNodeEntity) {
+    private fun generateForTopic(pipelineName: String, stepId: Long, stepOrder: Int, node: TopicTreeNodeEntity) {
         val (systemPrompt, userPrompt, parentChain) = transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
 
             val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }!!
@@ -166,12 +165,12 @@ class QuestionsGenerationPipelineStepService(
             Triple(sys, usr, parentChain)
         }
 
-        log(pipelineId, stepOrder, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
+        log(pipelineName, stepOrder, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val questions = parseQuestionsWithLevels(rawOutput)
 
         val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as AnswersArtifactEntity
 
@@ -193,12 +192,12 @@ class QuestionsGenerationPipelineStepService(
                 artifact.topicsWithQA.add(topicQA)
             }
 
-            pipelineRepository.saveAndFlush(pipeline)
+            pipelineService.saveAndFlush(pipeline)
             Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
         }
 
         artifactStorage.saveQuestionsArtifact(topicKey, pipelineName, yamlContent)
-        log(pipelineId, stepOrder, "Saved ${questions.size} questions for topic: ${node.name}")
+        log(pipelineName, stepOrder, "Saved ${questions.size} questions for topic: ${node.name}")
     }
 
     private fun prepareIncrementalYaml(artifact: AnswersArtifactEntity): String {
@@ -281,7 +280,10 @@ class QuestionsGenerationPipelineStepService(
 
         if (childTopicsList == "NONE_MARKER") {
             // Remove the whole Subtopics section if it's empty, including the header
-            val headerAndMarkerRegex = Regex("""Subtopics \(for branch topics, generate cross-cutting questions\):\s*NONE_MARKER\s*""", RegexOption.IGNORE_CASE)
+            val headerAndMarkerRegex = Regex(
+                """Subtopics \(for branch topics, generate cross-cutting questions\):\s*NONE_MARKER\s*""",
+                RegexOption.IGNORE_CASE
+            )
             result = if (headerAndMarkerRegex.containsMatchIn(result)) {
                 result.replace(headerAndMarkerRegex, "")
             } else {

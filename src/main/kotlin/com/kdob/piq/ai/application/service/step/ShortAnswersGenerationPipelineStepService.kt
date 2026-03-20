@@ -1,48 +1,47 @@
 package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
+import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.application.service.ai.OpenAiChatService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.repository.GenerationLogRepository
-import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
-import kotlin.collections.get
 
 private const val SHORT_ANSWERS_GENERATION_STEP_TYPE = "SHORT_ANSWERS_GENERATION"
 
 @Service
 class ShortAnswersGenerationPipelineStepService(
     private val generator: OpenAiChatService,
-    pipelineRepository: PipelineRepository,
+    pipelineService: PipelineService,
     artifactStorage: ArtifactStorage,
     generationLogRepository: GenerationLogRepository,
     transactionManager: PlatformTransactionManager
-) : AbstractPipelineStepService(pipelineRepository, artifactStorage, generationLogRepository, transactionManager) {
+) : AbstractPipelineStepService(pipelineService, artifactStorage, generationLogRepository, transactionManager) {
 
     override fun getStepType(): String = SHORT_ANSWERS_GENERATION_STEP_TYPE
 
     override fun generate(step: PipelineStepEntity) {
-        val pipelineId = step.pipeline.id!!
+        val pipelineName = step.pipeline.name
 
-        initializeArtifact(pipelineId, step)
+        initializeArtifact(pipelineName, step)
 
         while (true) {
-            if (isPipelineStopped(pipelineId, step.stepOrder)) return
+            if (isPipelineStopped(pipelineName, step.stepOrder)) return
 
-            val nextTopicQA = findNextTopicToGenerate(pipelineId, step.id!!)
+            val nextTopicQA = findNextTopicToGenerate(pipelineName, step.id!!)
             if (nextTopicQA == null) {
-                log(pipelineId, step.stepOrder, "Short Answers Generation completed successfully.")
-                finalizeArtifact(pipelineId, step.id!!)
+                log(pipelineName, step.stepOrder, "Short Answers Generation completed successfully.")
+                finalizeArtifact(pipelineName, step.id!!)
                 return
             }
 
             try {
-                generateForTopic(pipelineId, step.id!!, step.stepOrder, nextTopicQA)
+                generateForTopic(pipelineName, step.id!!, step.stepOrder, nextTopicQA)
             } catch (e: Exception) {
-                log(pipelineId, step.stepOrder, "Error during generation for ${nextTopicQA.name}: ${e.message}")
+                log(pipelineName, step.stepOrder, "Error during generation for ${nextTopicQA.name}: ${e.message}")
                 throw e
             }
         }
@@ -104,9 +103,9 @@ class ShortAnswersGenerationPipelineStepService(
         artifactStorage.saveShortAnswersArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
-    override fun initializeArtifactInternal(pipelineId: Long, stepId: Long) {
+    override fun initializeArtifactInternal(pipelineName: String, stepId: Long) {
         transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
 
             val answersStep = pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }
@@ -122,16 +121,16 @@ class ShortAnswersGenerationPipelineStepService(
             artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
             step.artifact = artifact
 
-            pipelineRepository.saveAndFlush(pipeline)
+            pipelineService.saveAndFlush(pipeline)
             val yamlContent = prepareIncrementalYaml(artifact)
             artifactStorage.saveShortAnswersArtifact(pipeline.topicKey, pipeline.name, yamlContent)
-            log(pipelineId, step.stepOrder, "Initialized Short Answers Artifact.")
+            log(pipelineName, step.stepOrder, "Initialized Short Answers Artifact.")
         }
     }
 
-    private fun findNextTopicToGenerate(pipelineId: Long, stepId: Long): TopicQAEntity? {
+    private fun findNextTopicToGenerate(pipelineName: String, stepId: Long): TopicQAEntity? {
         return transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as AnswersArtifactEntity
 
@@ -139,7 +138,7 @@ class ShortAnswersGenerationPipelineStepService(
             val longAnswersArtifact = longAnswersStep.artifact as AnswersArtifactEntity
 
             val generatedTopicMap = artifact.topicsWithQA.associateBy { it.key }
-            
+
             longAnswersArtifact.topicsWithQA.find { qTopic ->
                 val gTopic = generatedTopicMap[qTopic.key]
                 gTopic == null || gTopic.entries.size < qTopic.entries.size
@@ -147,11 +146,11 @@ class ShortAnswersGenerationPipelineStepService(
         }
     }
 
-    private fun generateForTopic(pipelineId: Long, stepId: Long, stepOrder: Int, inputTopicQA: TopicQAEntity) {
-        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineId, stepId)
+    private fun generateForTopic(pipelineName: String, stepId: Long, stepOrder: Int, inputTopicQA: TopicQAEntity) {
+        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineName, stepId)
 
         val missingEntries = transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
             val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
             val artifact = step.artifact as AnswersArtifactEntity
             val gTopic = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
@@ -162,13 +161,13 @@ class ShortAnswersGenerationPipelineStepService(
         if (missingEntries.isEmpty()) return
 
         log(
-            pipelineId,
+            pipelineName,
             stepOrder,
             "Generating short answers for topic: ${inputTopicQA.name} (${missingEntries.size} questions remaining)"
         )
 
         for (entry in missingEntries) {
-            if (isPipelineStopped(pipelineId, stepOrder)) return
+            if (isPipelineStopped(pipelineName, stepOrder)) return
             val systemPrompt = interpolateShortAnswerPrompt(systemPromptTemplate, inputTopicQA, entry)
             val userPrompt = interpolateShortAnswerPrompt(userPromptTemplate, inputTopicQA, entry)
 
@@ -177,7 +176,7 @@ class ShortAnswersGenerationPipelineStepService(
             val shortAnswer = parseShortAnswer(rawOutput)
 
             val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
-                val pipeline: PipelineEntity = pipelineRepository.findById(pipelineId)!!
+                val pipeline: PipelineEntity = pipelineService.get(pipelineName)
                 val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
                 val artifact = step.artifact as AnswersArtifactEntity
 
@@ -203,12 +202,16 @@ class ShortAnswersGenerationPipelineStepService(
                     )
                 )
 
-                pipelineRepository.saveAndFlush(pipeline)
+                pipelineService.saveAndFlush(pipeline)
                 Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
             }
 
             artifactStorage.saveShortAnswersArtifact(topicKey, pipelineName, yamlContent)
-            log(pipelineId, stepOrder, "Saved short answer for topic: ${inputTopicQA.name}, question: ${entry.questionText.take(50)}...")
+            log(
+                pipelineName,
+                stepOrder,
+                "Saved short answer for topic: ${inputTopicQA.name}, question: ${entry.questionText.take(50)}..."
+            )
         }
     }
 
