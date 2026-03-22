@@ -154,8 +154,6 @@ class ShortAnswersGenerationPipelineStepService(
     }
 
     private fun generateForTopic(pipelineStep: PipelineStepEntity, inputTopicQA: TopicQAEntity) {
-        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineStep)
-
         val missingEntries = transactionTemplate.execute {
             val artifact = pipelineStep.artifact as AnswersArtifactEntity
             val gTopic = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
@@ -172,8 +170,8 @@ class ShortAnswersGenerationPipelineStepService(
 
         for (entry in missingEntries) {
             if (pipelineStatusService.isStopped(pipelineStep)) return
-            val systemPrompt = interpolateShortAnswerPrompt(systemPromptTemplate, inputTopicQA, entry)
-            val userPrompt = interpolateShortAnswerPrompt(userPromptTemplate, inputTopicQA, entry)
+            val systemPrompt = interpolateShortAnswerPrompt(pipelineStep.systemPrompt?.content ?: "", inputTopicQA, entry)
+            val userPrompt = interpolateShortAnswerPrompt(pipelineStep.userPrompt?.content ?: "", inputTopicQA, entry)
 
             loggerService.log(
                 pipelineStep,

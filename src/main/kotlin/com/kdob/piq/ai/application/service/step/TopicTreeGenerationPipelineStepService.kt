@@ -18,8 +18,11 @@ import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.comparisons.compareBy
 
 private const val TOPIC_TREE_GENERATION_STEP_TYPE = "TOPIC_TREE_GENERATION"
+private const val DEFAULT_MAX_DEPTH = 12
+
 
 @Service
 class TopicTreeGenerationPipelineStepService(
@@ -40,15 +43,13 @@ class TopicTreeGenerationPipelineStepService(
     generator,
     pipelineArtifactStatusService
 ) {
-
     private val catalogChainCache = ConcurrentHashMap<String, List<TopicTreeNode>>()
 
     override fun getStepType(): String = TOPIC_TREE_GENERATION_STEP_TYPE
 
     override fun generate(pipelineStep: PipelineStepEntity) {
         initializeArtifact(pipelineStep)
-        while (true) {
-            if (pipelineStatusService.isStopped(pipelineStep)) return
+        while (pipelineStatusService.isNotStopped(pipelineStep)) {
             val nodeToExpand = findNodeToExpand(pipelineStep)
             if (nodeToExpand == null) {
                 loggerService.log(pipelineStep, "$TOPIC_TREE_GENERATION_STEP_TYPE completed successfully.")
@@ -113,7 +114,7 @@ class TopicTreeGenerationPipelineStepService(
                 ?: throw IllegalStateException("Root topic not found: ${pipelineStep.pipeline.topicKey}")
 
             val artifact = TopicTreeArtifactEntity(pipeline = pipelineStep.pipeline, maxDepth = DEFAULT_MAX_DEPTH)
-            artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
+            pipelineArtifactStatusService.toInProgress(pipelineStep)
 
             val rootNode = TopicTreeNode(
                 key = topicDetail.key,
@@ -127,7 +128,7 @@ class TopicTreeGenerationPipelineStepService(
             pipelineStep.artifact = artifact
 
             pipelineService.saveAndFlush(pipelineStep.pipeline)
-            val yamlContent = prepareIncrementalYaml(pipelineStep.pipeline, artifact)
+            val yamlContent = prepareIncrementalYaml(pipelineStep)
             artifactStorage.saveTopicTreeArtifact(
                 pipelineStep.pipeline.topicKey,
                 pipelineStep.pipeline.name,
@@ -149,6 +150,7 @@ class TopicTreeGenerationPipelineStepService(
             candidate?.toTopicTreeNode()
         }
     }
+
 
     internal fun expandNode(pipelineStep: PipelineStepEntity, node: TopicTreeNode) {
         val (systemPrompt, userPrompt, maxDepth) = transactionTemplate.execute {
@@ -178,7 +180,7 @@ class TopicTreeGenerationPipelineStepService(
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val subtopics = parseTopicTreeNodes(rawOutput, node.key, node.depth + 1)
 
-        val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
+        val yamlContent = transactionTemplate.execute {
             val artifact = pipelineStep.artifact as TopicTreeArtifactEntity
 
             val existingKeys = artifact.nodes.map { it.key }.toSet()
@@ -197,21 +199,17 @@ class TopicTreeGenerationPipelineStepService(
             }
 
             pipelineService.saveAndFlush(pipelineStep.pipeline)
-            Triple(
-                pipelineStep.pipeline.topicKey,
-                pipelineStep.pipeline.name,
-                prepareIncrementalYaml(pipelineStep.pipeline, artifact)
-            )
+            prepareIncrementalYaml(pipelineStep)
         }
 
-        artifactStorage.saveTopicTreeArtifact(topicKey, pipelineName, yamlContent)
+        artifactStorage.saveTopicTreeArtifact(pipelineStep.pipeline.topicKey, pipelineStep.pipeline.name, yamlContent)
     }
 
-
-    private fun prepareIncrementalYaml(pipeline: PipelineEntity, artifact: TopicTreeArtifactEntity): String {
+    private fun prepareIncrementalYaml(pipelineStep: PipelineStepEntity): String {
+        val artifact = pipelineStep.artifact as TopicTreeArtifactEntity
         val nodes = artifact.nodes.map { it.toTopicTreeNode() }.sortedWith(compareBy({ it.depth }, { it.key }))
         val yamlData = mapOf(
-            "rootTopicKey" to pipeline.topicKey,
+            "rootTopicKey" to pipelineStep.pipeline.topicKey,
             "totalTopics" to nodes.size,
             "maxDepth" to artifact.maxDepth,
             "topics" to nodes.map { node ->
@@ -296,7 +294,6 @@ class TopicTreeGenerationPipelineStepService(
             .replace("{{maxDepth}}", maxDepth.toString())
             .replace("{{parentKey}}", topic.key)
     }
-
     private fun parseTopicTreeNodes(rawOutput: String, parentKey: String, depth: Int): List<TopicTreeNode> {
         val data = parseYaml(rawOutput)
 
@@ -315,5 +312,3 @@ class TopicTreeGenerationPipelineStepService(
         }
     }
 }
-
-private val DEFAULT_MAX_DEPTH = 12

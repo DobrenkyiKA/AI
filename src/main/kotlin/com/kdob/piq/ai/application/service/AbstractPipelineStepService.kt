@@ -48,16 +48,8 @@ abstract class AbstractPipelineStepService(
     }
 
     protected fun finalizeArtifact(pipelineStep: PipelineStepEntity) {
-        transactionTemplate.execute {
-            pipelineStep.artifact?.status = ArtifactStatus.PENDING_FOR_APPROVAL
-            pipelineStatusService.toWaitingApproval(pipelineStep.pipeline)
-        }
-    }
-
-    protected fun getStepPrompts(pipelineStep: PipelineStepEntity): Pair<String, String> {
-        return transactionTemplate.execute {
-            Pair(pipelineStep.systemPrompt?.content ?: "", pipelineStep.userPrompt?.content ?: "")
-        }
+        pipelineArtifactStatusService.toPendingApproval(pipelineStep)
+        pipelineStatusService.toWaitingApproval(pipelineStep.pipeline)
     }
 
     protected fun parseYaml(rawOutput: String): Map<*, *> {

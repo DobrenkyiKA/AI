@@ -18,6 +18,8 @@ class PipelineStatusService(
         return  pipelineStep.pipeline.status == PipelineStatus.PAUSED || pipelineStep.pipeline.status == PipelineStatus.ABORTED
     }
 
+    fun isNotStopped(pipelineStep: PipelineStepEntity): Boolean = !isStopped(pipelineStep)
+
     @Transactional
     fun toInProgress(pipelineEntity: PipelineEntity): PipelineEntity =
         updatePipelineStatus(pipelineEntity, PipelineStatus.GENERATION_IN_PROGRESS)

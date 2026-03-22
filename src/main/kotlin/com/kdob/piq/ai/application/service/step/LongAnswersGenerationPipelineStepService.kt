@@ -167,9 +167,8 @@ class LongAnswersGenerationPipelineStepService(
 
         for (entry in missingEntries) {
             if (pipelineStatusService.isStopped(pipelineStep)) return
-            val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineStep)
-            val systemPrompt = interpolateAnswerPrompt(systemPromptTemplate, inputTopicQA, entry)
-            val userPrompt = interpolateAnswerPrompt(userPromptTemplate, inputTopicQA, entry)
+            val systemPrompt = interpolateAnswerPrompt(pipelineStep.systemPrompt?.content ?: "", inputTopicQA, entry)
+            val userPrompt = interpolateAnswerPrompt(pipelineStep.userPrompt?.content ?: "", inputTopicQA, entry)
 
             loggerService.log(pipelineStep, "Generating answer for: [${entry.questionText.take(80)}] [${entry.level}]")
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
