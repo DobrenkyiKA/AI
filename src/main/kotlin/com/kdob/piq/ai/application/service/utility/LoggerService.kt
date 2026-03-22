@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.application.service.logging
+package com.kdob.piq.ai.application.service.utility
 
 import com.kdob.piq.ai.infrastructure.persistence.GenerationLogRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.GenerationLogEntity

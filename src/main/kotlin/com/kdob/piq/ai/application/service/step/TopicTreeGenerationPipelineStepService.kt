@@ -2,9 +2,10 @@ package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.PipelineService
-import com.kdob.piq.ai.application.service.PipelineStatusService
 import com.kdob.piq.ai.application.service.ai.GoogleAiChatService
-import com.kdob.piq.ai.application.service.logging.LoggerService
+import com.kdob.piq.ai.application.service.utility.LoggerService
+import com.kdob.piq.ai.application.service.utility.PipelineArtifactStatusService
+import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.TopicTreeNode
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
@@ -28,6 +29,7 @@ class TopicTreeGenerationPipelineStepService(
     transactionManager: PlatformTransactionManager,
     loggerService: LoggerService,
     generator: GoogleAiChatService,
+    pipelineArtifactStatusService: PipelineArtifactStatusService,
     private val questionCatalogClient: QuestionCatalogClient
 ) : AbstractPipelineStepService(
     pipelineService,
@@ -35,14 +37,11 @@ class TopicTreeGenerationPipelineStepService(
     pipelineStatusService,
     transactionManager,
     loggerService,
-    generator
+    generator,
+    pipelineArtifactStatusService
 ) {
 
     private val catalogChainCache = ConcurrentHashMap<String, List<TopicTreeNode>>()
-
-    companion object {
-        const val DEFAULT_MAX_DEPTH = 12
-    }
 
     override fun getStepType(): String = TOPIC_TREE_GENERATION_STEP_TYPE
 
@@ -50,9 +49,9 @@ class TopicTreeGenerationPipelineStepService(
         initializeArtifact(pipelineStep)
         while (true) {
             if (pipelineStatusService.isStopped(pipelineStep)) return
-            val nodeToExpand = findNodeToExpand(pipelineStep.pipeline.name, pipelineStep.id!!)
+            val nodeToExpand = findNodeToExpand(pipelineStep)
             if (nodeToExpand == null) {
-                loggerService.log(pipelineStep, "Topic Tree Generation completed successfully.")
+                loggerService.log(pipelineStep, "$TOPIC_TREE_GENERATION_STEP_TYPE completed successfully.")
                 finalizeArtifact(pipelineStep)
                 return
             }
@@ -60,7 +59,7 @@ class TopicTreeGenerationPipelineStepService(
             try {
                 expandNode(pipelineStep, nodeToExpand)
             } catch (e: Exception) {
-                loggerService.log(pipelineStep, "Error during expansion of ${nodeToExpand.name}: ${e.message}")
+                loggerService.log(pipelineStep, "Error during expansion of [${nodeToExpand.name}]: [${e.message}]")
                 throw e
             }
         }
@@ -138,11 +137,9 @@ class TopicTreeGenerationPipelineStepService(
         }
     }
 
-    private fun findNodeToExpand(pipelineName: String, stepId: Long): TopicTreeNode? {
+    private fun findNodeToExpand(pipelineStep: PipelineStepEntity): TopicTreeNode? {
         return transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-            val artifact = step.artifact as TopicTreeArtifactEntity
+            val artifact = pipelineStep.artifact as TopicTreeArtifactEntity
             val allNodes = artifact.nodes.toList()
             val parentKeysWithChildren = allNodes.mapNotNull { it.parentTopicKey }.toSet()
 
@@ -318,3 +315,5 @@ class TopicTreeGenerationPipelineStepService(
         }
     }
 }
+
+private val DEFAULT_MAX_DEPTH = 12

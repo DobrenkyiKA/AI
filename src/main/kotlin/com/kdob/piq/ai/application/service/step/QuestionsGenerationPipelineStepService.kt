@@ -2,9 +2,10 @@ package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.PipelineService
-import com.kdob.piq.ai.application.service.PipelineStatusService
+import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.application.service.ai.GoogleAiChatService
-import com.kdob.piq.ai.application.service.logging.LoggerService
+import com.kdob.piq.ai.application.service.utility.LoggerService
+import com.kdob.piq.ai.application.service.utility.PipelineArtifactStatusService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
@@ -23,16 +24,17 @@ class QuestionsGenerationPipelineStepService(
     transactionManager: PlatformTransactionManager,
     loggerService: LoggerService,
     generator: GoogleAiChatService,
-    private val questionCatalogClient: QuestionCatalogClient,
+    pipelineArtifactStatusService: PipelineArtifactStatusService,
+    private val questionCatalogClient: QuestionCatalogClient
 ) : AbstractPipelineStepService(
     pipelineService,
     artifactStorage,
     pipelineStatusService,
     transactionManager,
     loggerService,
-    generator
+    generator,
+    pipelineArtifactStatusService
 ) {
-
     private val catalogChainCache = ConcurrentHashMap<String, List<CatalogTopicInfo>>()
 
     data class CatalogTopicInfo(val key: String, val name: String)
@@ -62,8 +64,7 @@ class QuestionsGenerationPipelineStepService(
     }
 
     override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
-        val artifact =
-            step.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
+        val artifact = step.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
         artifact.status = status
 
         val data = parseYaml(yamlContent)

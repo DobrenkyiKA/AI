@@ -2,11 +2,15 @@ package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.PipelineService
-import com.kdob.piq.ai.application.service.PipelineStatusService
 import com.kdob.piq.ai.application.service.ai.GoogleAiChatService
-import com.kdob.piq.ai.application.service.logging.LoggerService
+import com.kdob.piq.ai.application.service.utility.LoggerService
+import com.kdob.piq.ai.application.service.utility.PipelineArtifactStatusService
+import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.infrastructure.persistence.entity.*
+import com.kdob.piq.ai.infrastructure.persistence.entity.AnswersArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.QAEntryEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.TopicQAEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
@@ -20,8 +24,12 @@ class ShortAnswersGenerationPipelineStepService(
     pipelineStatusService: PipelineStatusService,
     transactionManager: PlatformTransactionManager,
     loggerService: LoggerService,
-    generator: GoogleAiChatService
-) : AbstractPipelineStepService(pipelineService, artifactStorage, pipelineStatusService, transactionManager, loggerService, generator) {
+    generator: GoogleAiChatService,
+    pipelineArtifactStatusService: PipelineArtifactStatusService
+) : AbstractPipelineStepService(
+    pipelineService, artifactStorage, pipelineStatusService, transactionManager, loggerService, generator,
+    pipelineArtifactStatusService
+) {
 
     override fun getStepType(): String = SHORT_ANSWERS_GENERATION_STEP_TYPE
 
@@ -120,7 +128,11 @@ class ShortAnswersGenerationPipelineStepService(
 
             pipelineService.saveAndFlush(pipelineStep.pipeline)
             val yamlContent = prepareIncrementalYaml(artifact)
-            artifactStorage.saveShortAnswersArtifact(pipelineStep.pipeline.topicKey, pipelineStep.pipeline.name, yamlContent)
+            artifactStorage.saveShortAnswersArtifact(
+                pipelineStep.pipeline.topicKey,
+                pipelineStep.pipeline.name,
+                yamlContent
+            )
             loggerService.log(pipelineStep, "Initialized Short Answers Artifact.")
         }
     }
@@ -153,7 +165,8 @@ class ShortAnswersGenerationPipelineStepService(
 
         if (missingEntries.isEmpty()) return
 
-        loggerService.log(pipelineStep,
+        loggerService.log(
+            pipelineStep,
             "Generating short answers for topic: ${inputTopicQA.name} (${missingEntries.size} questions remaining)"
         )
 
@@ -162,7 +175,10 @@ class ShortAnswersGenerationPipelineStepService(
             val systemPrompt = interpolateShortAnswerPrompt(systemPromptTemplate, inputTopicQA, entry)
             val userPrompt = interpolateShortAnswerPrompt(userPromptTemplate, inputTopicQA, entry)
 
-            loggerService.log(pipelineStep, "Generating short answer for: [${entry.questionText.take(80)} [${entry.level}]")
+            loggerService.log(
+                pipelineStep,
+                "Generating short answer for: [${entry.questionText.take(80)} [${entry.level}]"
+            )
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
             val shortAnswer = parseShortAnswer(rawOutput)
 
@@ -196,7 +212,8 @@ class ShortAnswersGenerationPipelineStepService(
             }
 
             artifactStorage.saveShortAnswersArtifact(topicKey, pipelineName, yamlContent)
-            loggerService.log(pipelineStep,
+            loggerService.log(
+                pipelineStep,
                 "Saved short answer for topic: ${inputTopicQA.name}, question: ${entry.questionText.take(50)}..."
             )
         }
