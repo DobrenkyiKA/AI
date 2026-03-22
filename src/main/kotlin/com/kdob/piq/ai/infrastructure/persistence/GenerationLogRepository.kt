@@ -1,4 +1,4 @@
-package com.kdob.piq.ai.domain.repository
+package com.kdob.piq.ai.infrastructure.persistence
 
 import com.kdob.piq.ai.infrastructure.persistence.entity.GenerationLogEntity
 import org.springframework.data.jpa.repository.JpaRepository

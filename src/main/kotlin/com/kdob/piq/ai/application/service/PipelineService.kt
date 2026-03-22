@@ -3,7 +3,7 @@ package com.kdob.piq.ai.application.service
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
-import com.kdob.piq.ai.domain.repository.GenerationLogRepository
+import com.kdob.piq.ai.infrastructure.persistence.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.GenerationLogEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
@@ -30,7 +30,7 @@ class PipelineService(
     fun get(name: String): PipelineEntity = getPipelineEntity(name)
 
     private fun getPipelineEntity(name: String): PipelineEntity =
-        pipelineRepository.findByName(name) ?: throw NoSuchElementException("Pipeline not found: $name")
+        pipelineRepository.findByName(name) ?: throw NoSuchElementException("Pipeline not found: [$name]")
 
     @Transactional(readOnly = true)
     fun getAll(): List<PipelineEntity> = pipelineRepository.findAll()

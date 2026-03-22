@@ -6,7 +6,7 @@ import jakarta.persistence.*
 @Table(name = "pipeline_steps")
 @Access(AccessType.FIELD)
 open class PipelineStepEntity(
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "pipeline_id", nullable = false)
     open val pipeline: PipelineEntity,
 
@@ -16,11 +16,11 @@ open class PipelineStepEntity(
     @Column(name = "step_order", nullable = false)
     open var stepOrder: Int,
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "system_prompt_id")
     open var systemPrompt: PromptEntity? = null,
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_prompt_id")
     open var userPrompt: PromptEntity? = null,
 

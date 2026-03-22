@@ -4,7 +4,7 @@ import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 
 interface PipelineStepService {
-    fun generate(step: PipelineStepEntity)
+    fun generate(pipelineStep: PipelineStepEntity)
     fun getStepType(): String
     fun getLabel(): String =
         getStepType().split("_").joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }

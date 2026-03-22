@@ -2,9 +2,10 @@ package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.PipelineService
-import com.kdob.piq.ai.application.service.ai.OpenAiChatService
+import com.kdob.piq.ai.application.service.PipelineStatusService
+import com.kdob.piq.ai.application.service.ai.GoogleAiChatService
+import com.kdob.piq.ai.application.service.logging.LoggerService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
@@ -16,13 +17,21 @@ private const val QUESTIONS_GENERATION_STEP_TYPE = "QUESTIONS_GENERATION"
 
 @Service
 class QuestionsGenerationPipelineStepService(
-    private val generator: OpenAiChatService,
     pipelineService: PipelineService,
     artifactStorage: ArtifactStorage,
+    pipelineStatusService: PipelineStatusService,
+    transactionManager: PlatformTransactionManager,
+    loggerService: LoggerService,
+    generator: GoogleAiChatService,
     private val questionCatalogClient: QuestionCatalogClient,
-    generationLogRepository: GenerationLogRepository,
-    transactionManager: PlatformTransactionManager
-) : AbstractPipelineStepService(pipelineService, artifactStorage, generationLogRepository, transactionManager) {
+) : AbstractPipelineStepService(
+    pipelineService,
+    artifactStorage,
+    pipelineStatusService,
+    transactionManager,
+    loggerService,
+    generator
+) {
 
     private val catalogChainCache = ConcurrentHashMap<String, List<CatalogTopicInfo>>()
 
@@ -30,32 +39,31 @@ class QuestionsGenerationPipelineStepService(
 
     override fun getStepType(): String = QUESTIONS_GENERATION_STEP_TYPE
 
-    override fun generate(step: PipelineStepEntity) {
-        val pipelineName = step.pipeline.name
-
-        initializeArtifact(pipelineName, step)
+    override fun generate(pipelineStep: PipelineStepEntity) {
+        initializeArtifact(pipelineStep)
 
         while (true) {
-            if (isPipelineStopped(pipelineName, step.stepOrder)) return
+            if (pipelineStatusService.isStopped(pipelineStep)) return
 
-            val nextTopic = findNextTopicToGenerate(pipelineName, step.id!!)
+            val nextTopic = findNextTopicToGenerate(pipelineStep.pipeline.name, pipelineStep.id!!)
             if (nextTopic == null) {
-                log(pipelineName, step.stepOrder, "Questions Generation completed successfully.")
-                finalizeArtifact(pipelineName, step.id!!)
+                loggerService.log(pipelineStep, "Questions Generation completed successfully.")
+                finalizeArtifact(pipelineStep)
                 return
             }
 
             try {
-                generateForTopic(pipelineName, step.id!!, step.stepOrder, nextTopic)
+                generateForTopic(pipelineStep, nextTopic)
             } catch (e: Exception) {
-                log(pipelineName, step.stepOrder, "Error during generation for ${nextTopic.name}: ${e.message}")
+                loggerService.log(pipelineStep, "Error during generation for ${nextTopic.name}: ${e.message}")
                 throw e
             }
         }
     }
 
     override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
-        val artifact = step.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
+        val artifact =
+            step.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
         artifact.status = status
 
         val data = parseYaml(yamlContent)
@@ -105,28 +113,29 @@ class QuestionsGenerationPipelineStepService(
         artifactStorage.saveQuestionsArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
-    override fun initializeArtifactInternal(pipelineName: String, stepId: Long) {
+    override fun initializeArtifactInternal(pipelineStep: PipelineStepEntity) {
         transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-
-            val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
-                ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: ${pipeline.name}")
+            val topicTreeStep = pipelineStep.pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }
+                ?: throw IllegalStateException("TOPIC_TREE_GENERATION step not found for pipeline: ${pipelineStep.pipeline.name}")
             val topicTreeArtifact = topicTreeStep.artifact as? TopicTreeArtifactEntity
-                ?: throw IllegalStateException("Topic tree artifact not found for pipeline: ${pipeline.name}")
+                ?: throw IllegalStateException("Topic tree artifact not found for pipeline: ${pipelineStep.pipeline.name}")
 
             check(topicTreeArtifact.status == ArtifactStatus.APPROVED) {
                 "Topic tree artifact is not APPROVED. Current status: ${topicTreeArtifact.status}"
             }
 
-            val artifact = AnswersArtifactEntity(pipeline = pipeline)
+            val artifact = AnswersArtifactEntity(pipeline = pipelineStep.pipeline)
             artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
-            step.artifact = artifact
+            pipelineStep.artifact = artifact
 
-            pipelineService.saveAndFlush(pipeline)
+            pipelineService.saveAndFlush(pipelineStep.pipeline)
             val yamlContent = prepareIncrementalYaml(artifact)
-            artifactStorage.saveQuestionsArtifact(pipeline.topicKey, pipeline.name, yamlContent)
-            log(pipelineName, step.stepOrder, "Initialized Answers Artifact.")
+            artifactStorage.saveQuestionsArtifact(
+                pipelineStep.pipeline.topicKey,
+                pipelineStep.pipeline.name,
+                yamlContent
+            )
+            loggerService.log(pipelineStep, "Initialized Answers Artifact.")
         }
     }
 
@@ -144,36 +153,31 @@ class QuestionsGenerationPipelineStepService(
         }
     }
 
-    private fun generateForTopic(pipelineName: String, stepId: Long, stepOrder: Int, node: TopicTreeNodeEntity) {
+    private fun generateForTopic(pipelineStep: PipelineStepEntity, node: TopicTreeNodeEntity) {
         val (systemPrompt, userPrompt, parentChain) = transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-
-            val topicTreeStep = pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }!!
+            val topicTreeStep = pipelineStep.pipeline.steps.find { it.stepType == "TOPIC_TREE_GENERATION" }!!
             val topicTreeArtifact = topicTreeStep.artifact as TopicTreeArtifactEntity
 
             val isLeaf = node.leaf
             val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
             val children = nodesByParent[node.key] ?: emptyList()
-            val parentChain = buildParentChain(node, topicTreeArtifact.nodes, pipeline.topicKey)
+            val parentChain = buildParentChain(node, topicTreeArtifact.nodes, pipelineStep.pipeline.topicKey)
 
             val sys = interpolateQuestionPrompt(
-                step.systemPrompt?.content ?: "", node, isLeaf, children, parentChain
+                pipelineStep.systemPrompt?.content ?: "", node, isLeaf, children, parentChain
             )
             val usr = interpolateQuestionPrompt(
-                step.userPrompt?.content ?: "", node, isLeaf, children, parentChain
+                pipelineStep.userPrompt?.content ?: "", node, isLeaf, children, parentChain
             )
             Triple(sys, usr, parentChain)
         }
 
-        log(pipelineName, stepOrder, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
+        loggerService.log(pipelineStep, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
         val questions = parseQuestionsWithLevels(rawOutput)
 
         val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-            val artifact = step.artifact as AnswersArtifactEntity
+            val artifact = pipelineStep.artifact as AnswersArtifactEntity
 
             if (questions.isNotEmpty()) {
                 val topicQA = TopicQAEntity(
@@ -193,12 +197,12 @@ class QuestionsGenerationPipelineStepService(
                 artifact.topicsWithQA.add(topicQA)
             }
 
-            pipelineService.saveAndFlush(pipeline)
-            Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
+            pipelineService.saveAndFlush(pipelineStep.pipeline)
+            Triple(pipelineStep.pipeline.topicKey, pipelineStep.pipeline.name, prepareIncrementalYaml(artifact))
         }
 
         artifactStorage.saveQuestionsArtifact(topicKey, pipelineName, yamlContent)
-        log(pipelineName, stepOrder, "Saved ${questions.size} questions for topic: ${node.name}")
+        loggerService.log(pipelineStep, "Saved ${questions.size} questions for topic: ${node.name}")
     }
 
     private fun prepareIncrementalYaml(artifact: AnswersArtifactEntity): String {
@@ -313,5 +317,9 @@ class QuestionsGenerationPipelineStepService(
                 else -> null
             }
         }
+    }
+
+    fun getArtifact(pipelineEntity: PipelineEntity): AnswersArtifactEntity {
+        return (pipelineEntity.steps.find { it.stepType == QUESTIONS_GENERATION_STEP_TYPE }?.artifact as? AnswersArtifactEntity)!!
     }
 }

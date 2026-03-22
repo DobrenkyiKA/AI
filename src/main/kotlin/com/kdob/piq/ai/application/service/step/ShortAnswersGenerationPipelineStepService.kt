@@ -2,9 +2,10 @@ package com.kdob.piq.ai.application.service.step
 
 import com.kdob.piq.ai.application.service.AbstractPipelineStepService
 import com.kdob.piq.ai.application.service.PipelineService
-import com.kdob.piq.ai.application.service.ai.OpenAiChatService
+import com.kdob.piq.ai.application.service.PipelineStatusService
+import com.kdob.piq.ai.application.service.ai.GoogleAiChatService
+import com.kdob.piq.ai.application.service.logging.LoggerService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
-import com.kdob.piq.ai.domain.repository.GenerationLogRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.stereotype.Service
@@ -14,34 +15,33 @@ private const val SHORT_ANSWERS_GENERATION_STEP_TYPE = "SHORT_ANSWERS_GENERATION
 
 @Service
 class ShortAnswersGenerationPipelineStepService(
-    private val generator: OpenAiChatService,
     pipelineService: PipelineService,
     artifactStorage: ArtifactStorage,
-    generationLogRepository: GenerationLogRepository,
-    transactionManager: PlatformTransactionManager
-) : AbstractPipelineStepService(pipelineService, artifactStorage, generationLogRepository, transactionManager) {
+    pipelineStatusService: PipelineStatusService,
+    transactionManager: PlatformTransactionManager,
+    loggerService: LoggerService,
+    generator: GoogleAiChatService
+) : AbstractPipelineStepService(pipelineService, artifactStorage, pipelineStatusService, transactionManager, loggerService, generator) {
 
     override fun getStepType(): String = SHORT_ANSWERS_GENERATION_STEP_TYPE
 
-    override fun generate(step: PipelineStepEntity) {
-        val pipelineName = step.pipeline.name
-
-        initializeArtifact(pipelineName, step)
+    override fun generate(pipelineStep: PipelineStepEntity) {
+        initializeArtifact(pipelineStep)
 
         while (true) {
-            if (isPipelineStopped(pipelineName, step.stepOrder)) return
+            if (pipelineStatusService.isStopped(pipelineStep)) return
 
-            val nextTopicQA = findNextTopicToGenerate(pipelineName, step.id!!)
+            val nextTopicQA = findNextTopicToGenerate(pipelineStep)
             if (nextTopicQA == null) {
-                log(pipelineName, step.stepOrder, "Short Answers Generation completed successfully.")
-                finalizeArtifact(pipelineName, step.id!!)
+                loggerService.log(pipelineStep, "Short Answers Generation completed successfully.")
+                finalizeArtifact(pipelineStep)
                 return
             }
 
             try {
-                generateForTopic(pipelineName, step.id!!, step.stepOrder, nextTopicQA)
+                generateForTopic(pipelineStep, nextTopicQA)
             } catch (e: Exception) {
-                log(pipelineName, step.stepOrder, "Error during generation for ${nextTopicQA.name}: ${e.message}")
+                loggerService.log(pipelineStep, "Error during generation for ${nextTopicQA.name}: ${e.message}")
                 throw e
             }
         }
@@ -103,38 +103,33 @@ class ShortAnswersGenerationPipelineStepService(
         artifactStorage.saveShortAnswersArtifact(step.pipeline.topicKey, step.pipeline.name, yamlContent.trim())
     }
 
-    override fun initializeArtifactInternal(pipelineName: String, stepId: Long) {
+    override fun initializeArtifactInternal(pipelineStep: PipelineStepEntity) {
         transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-
-            val answersStep = pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }
-                ?: throw IllegalStateException("LONG_ANSWERS_GENERATION step not found for pipeline: ${pipeline.name}")
+            val answersStep = pipelineStep.pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }
+                ?: throw IllegalStateException("LONG_ANSWERS_GENERATION step not found for pipeline: ${pipelineStep.pipeline.name}")
             val answersArtifact = answersStep.artifact as? AnswersArtifactEntity
-                ?: throw IllegalStateException("Answers artifact not found for pipeline: ${pipeline.name}")
+                ?: throw IllegalStateException("Answers artifact not found for pipeline: ${pipelineStep.pipeline.name}")
 
             check(answersArtifact.status == ArtifactStatus.APPROVED) {
                 "Answers artifact is not APPROVED. Current status: ${answersArtifact.status}"
             }
 
-            val artifact = AnswersArtifactEntity(pipeline = pipeline)
+            val artifact = AnswersArtifactEntity(pipeline = pipelineStep.pipeline)
             artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
-            step.artifact = artifact
+            pipelineStep.artifact = artifact
 
-            pipelineService.saveAndFlush(pipeline)
+            pipelineService.saveAndFlush(pipelineStep.pipeline)
             val yamlContent = prepareIncrementalYaml(artifact)
-            artifactStorage.saveShortAnswersArtifact(pipeline.topicKey, pipeline.name, yamlContent)
-            log(pipelineName, step.stepOrder, "Initialized Short Answers Artifact.")
+            artifactStorage.saveShortAnswersArtifact(pipelineStep.pipeline.topicKey, pipelineStep.pipeline.name, yamlContent)
+            loggerService.log(pipelineStep, "Initialized Short Answers Artifact.")
         }
     }
 
-    private fun findNextTopicToGenerate(pipelineName: String, stepId: Long): TopicQAEntity? {
+    private fun findNextTopicToGenerate(pipelineStep: PipelineStepEntity): TopicQAEntity? {
         return transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-            val artifact = step.artifact as AnswersArtifactEntity
+            val artifact = pipelineStep.artifact as AnswersArtifactEntity
 
-            val longAnswersStep = pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }!!
+            val longAnswersStep = pipelineStep.pipeline.steps.find { it.stepType == "LONG_ANSWERS_GENERATION" }!!
             val longAnswersArtifact = longAnswersStep.artifact as AnswersArtifactEntity
 
             val generatedTopicMap = artifact.topicsWithQA.associateBy { it.key }
@@ -146,13 +141,11 @@ class ShortAnswersGenerationPipelineStepService(
         }
     }
 
-    private fun generateForTopic(pipelineName: String, stepId: Long, stepOrder: Int, inputTopicQA: TopicQAEntity) {
-        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineName, stepId)
+    private fun generateForTopic(pipelineStep: PipelineStepEntity, inputTopicQA: TopicQAEntity) {
+        val (systemPromptTemplate, userPromptTemplate) = getStepPrompts(pipelineStep)
 
         val missingEntries = transactionTemplate.execute {
-            val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-            val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-            val artifact = step.artifact as AnswersArtifactEntity
+            val artifact = pipelineStep.artifact as AnswersArtifactEntity
             val gTopic = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
             val existingTexts = gTopic?.entries?.map { it.questionText }?.toSet() ?: emptySet()
             inputTopicQA.entries.filter { it.questionText !in existingTexts }
@@ -160,25 +153,21 @@ class ShortAnswersGenerationPipelineStepService(
 
         if (missingEntries.isEmpty()) return
 
-        log(
-            pipelineName,
-            stepOrder,
+        loggerService.log(pipelineStep,
             "Generating short answers for topic: ${inputTopicQA.name} (${missingEntries.size} questions remaining)"
         )
 
         for (entry in missingEntries) {
-            if (isPipelineStopped(pipelineName, stepOrder)) return
+            if (pipelineStatusService.isStopped(pipelineStep)) return
             val systemPrompt = interpolateShortAnswerPrompt(systemPromptTemplate, inputTopicQA, entry)
             val userPrompt = interpolateShortAnswerPrompt(userPromptTemplate, inputTopicQA, entry)
 
-            getLogger().info("Generating short answer for: {} [{}]", entry.questionText.take(80), entry.level)
+            loggerService.log(pipelineStep, "Generating short answer for: [${entry.questionText.take(80)} [${entry.level}]")
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
             val shortAnswer = parseShortAnswer(rawOutput)
 
             val (topicKey, pipelineName, yamlContent) = transactionTemplate.execute {
-                val pipeline: PipelineEntity = pipelineService.get(pipelineName)
-                val step: PipelineStepEntity = pipeline.steps.find { it.id == stepId }!!
-                val artifact = step.artifact as AnswersArtifactEntity
+                val artifact = pipelineStep.artifact as AnswersArtifactEntity
 
                 var topicQA = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
                 if (topicQA == null) {
@@ -202,14 +191,12 @@ class ShortAnswersGenerationPipelineStepService(
                     )
                 )
 
-                pipelineService.saveAndFlush(pipeline)
-                Triple(pipeline.topicKey, pipeline.name, prepareIncrementalYaml(artifact))
+                pipelineService.saveAndFlush(pipelineStep.pipeline)
+                Triple(pipelineStep.pipeline.topicKey, pipelineStep.pipeline.name, prepareIncrementalYaml(artifact))
             }
 
             artifactStorage.saveShortAnswersArtifact(topicKey, pipelineName, yamlContent)
-            log(
-                pipelineName,
-                stepOrder,
+            loggerService.log(pipelineStep,
                 "Saved short answer for topic: ${inputTopicQA.name}, question: ${entry.questionText.take(50)}..."
             )
         }
