@@ -5,8 +5,6 @@ import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
-import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
@@ -20,18 +18,14 @@ class StepService(
 
     fun runStep(pipelineName: String, stepIndex: Int) {
         val pipeline = pipelineStatusService.toInProgress(pipelineName)
-        val (pipelineStep, pipelineStepService) = pair(pipeline, stepIndex)
+        val pipelineStep = pipeline.steps[stepIndex]
+        val pipelineStepService = getPipelineStepService(pipelineStep)
         runGenerationStep(pipelineStepService, pipelineStep)
     }
 
-    private fun pair(
-        pipeline: PipelineEntity,
-        stepIndex: Int
-    ): Pair<PipelineStepEntity, PipelineStepService> {
-        val pipelineStep = pipeline.steps.getOrNull(stepIndex) ?: throw IllegalArgumentException("Step at index [$stepIndex] not found")
-        val pipelineStepService = generationSteps.find { it.getStepType() == pipelineStep.stepType } ?: throw IllegalStateException("PipelineStepService for type [${pipelineStep.stepType}] not found")
-        return Pair(pipelineStep, pipelineStepService)
-    }
+    private fun getPipelineStepService(pipelineStep: PipelineStepEntity): PipelineStepService =
+        generationSteps.find { it.getStepType() == pipelineStep.stepType }
+            ?: throw IllegalStateException("PipelineStepService for type [${pipelineStep.stepType}] not found")
 
     private fun runGenerationStep(
         pipelineStepService: PipelineStepService,
@@ -40,7 +34,10 @@ class StepService(
         try {
             pipelineStepService.generate(pipelineStep)
         } catch (e: Exception) {
-            loggerService.log(pipelineStep, "Step [${pipelineStep.stepType}] failed for pipeline [${pipelineStep.pipeline.name}]. [${e.message}]")
+            loggerService.log(
+                pipelineStep,
+                "Step [${pipelineStep.stepType}] failed for pipeline [${pipelineStep.pipeline.name}]. [${e.message}]"
+            )
             pipelineStatusService.toFailed(pipelineStep.pipeline)
             throw e
         }
@@ -54,7 +51,8 @@ class StepService(
                 val previousStep = pipeline.steps[stepIndex - 1]
                 val previousArtifact = previousStep.artifact
                 if (previousArtifact == null || previousArtifact.status != ArtifactStatus.APPROVED) {
-                    loggerService.log(pipeline,
+                    loggerService.log(
+                        pipeline,
                         "Pipeline [$pipelineName] paused at step [$stepIndex]. Previous artifact is not approved. Status: [${previousArtifact?.status}]"
                     )
                     return pipelineStatusService.toWaitingApproval(pipeline)

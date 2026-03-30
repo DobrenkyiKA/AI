@@ -33,7 +33,7 @@ abstract class AbstractPipelineStepService(
         pipelineArtifactStatusService.toInProgress(pipelineStep)
 
         if (pipelineStep.artifact == null) {
-            loggerService.log(pipelineStep, "Starting new [${pipelineStep.stepType}] Generation...")
+            loggerService.log(pipelineStep, "Initializing new artifact generation for [${pipelineStep.stepType}].")
             initializeArtifactInternal(pipelineStep)
         } else {
             loggerService.log(pipelineStep, "Resuming [${pipelineStep.stepType}] Generation...")

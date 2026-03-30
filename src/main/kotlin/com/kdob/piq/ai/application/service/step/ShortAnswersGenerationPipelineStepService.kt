@@ -56,8 +56,7 @@ class ShortAnswersGenerationPipelineStepService(
     }
 
     override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
-        val artifact = step.artifact as? AnswersArtifactEntity
-            ?: throw IllegalStateException("Answers artifact not found")
+        val artifact = step.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
         artifact.status = status
 
         val data = parseYaml(yamlContent)
