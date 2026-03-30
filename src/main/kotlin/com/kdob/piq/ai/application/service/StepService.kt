@@ -1,6 +1,7 @@
 package com.kdob.piq.ai.application.service
 
 import com.kdob.piq.ai.application.service.utility.LoggerService
+import com.kdob.piq.ai.application.service.utility.PipelineArtifactStatusService
 import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineEntity
@@ -12,7 +13,8 @@ class StepService(
     private val generationSteps: List<PipelineStepService>,
     private val pipelineService: PipelineService,
     private val pipelineStatusService: PipelineStatusService,
-    private val loggerService: LoggerService
+    private val loggerService: LoggerService,
+    private val pipelineArtifactStatusService: PipelineArtifactStatusService
 ) {
     fun getAvailableStepTypes(): List<PipelineStepService> = generationSteps
 
@@ -50,7 +52,7 @@ class StepService(
             if (stepIndex > startStep) {
                 val previousStep = pipeline.steps[stepIndex - 1]
                 val previousArtifact = previousStep.artifact
-                if (previousArtifact == null || previousArtifact.status != ArtifactStatus.APPROVED) {
+                if (pipelineArtifactStatusService.isNotApproved(previousStep)) {
                     loggerService.log(
                         pipeline,
                         "Pipeline [$pipelineName] paused at step [$stepIndex]. Previous artifact is not approved. Status: [${previousArtifact?.status}]"

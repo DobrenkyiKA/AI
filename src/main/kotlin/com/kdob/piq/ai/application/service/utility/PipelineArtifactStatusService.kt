@@ -21,6 +21,18 @@ class PipelineArtifactStatusService(
         changeArtifactStatus(pipelineStep, PENDING_FOR_APPROVAL)
     }
 
+    fun isApproved(pipelineStep: PipelineStepEntity): Boolean {
+        return isArtifactApproved(pipelineStep)
+    }
+
+    private fun isArtifactApproved(pipelineStep: PipelineStepEntity): Boolean {
+        return pipelineStep.artifact?.status == ArtifactStatus.APPROVED
+    }
+
+    fun isNotApproved(pipelineStep: PipelineStepEntity): Boolean {
+        return !isArtifactApproved(pipelineStep)
+    }
+
     private fun changeArtifactStatus(pipelineStep: PipelineStepEntity, status: ArtifactStatus) {
         val artifact = pipelineStep.artifact ?: return
         val oldStatus = artifact.status
