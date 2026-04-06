@@ -41,7 +41,9 @@ class TopicTreeGenerationPipelineStepService(
 
     override fun findNext(step: PipelineStepEntity): TopicTreeNode? {
         return transactionTemplate.execute {
-            val artifact = step.artifact as TopicTreeArtifactEntity
+            val pipeline = pipelineService.get(step.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == step.id }!!
+            val artifact = currentStep.artifact as TopicTreeArtifactEntity
             val allNodes = artifact.nodes.toList()
             val parentKeysWithChildren = allNodes.mapNotNull { it.parentTopicKey }.toSet()
 
@@ -55,7 +57,9 @@ class TopicTreeGenerationPipelineStepService(
         val node = item as TopicTreeNode
 
         val (systemPrompt, userPrompt, maxDepth) = transactionTemplate.execute {
-            val artifact = step.artifact as TopicTreeArtifactEntity
+            val pipeline = pipelineService.get(step.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == step.id }!!
+            val artifact = currentStep.artifact as TopicTreeArtifactEntity
             val allNodes = artifact.nodes.map { it.toTopicTreeNode() }
             val rootNode = allNodes.find { it.parentTopicKey == null }!!
 
@@ -64,8 +68,8 @@ class TopicTreeGenerationPipelineStepService(
                 .filter { it.parentTopicKey == node.parentTopicKey && it.key != node.key }
                 .joinToString("\n") { "- ${it.name}: ${it.coverageArea}" }
 
-            val sys = interpolate(step.systemPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
-            val usr = interpolate(step.userPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
+            val sys = interpolate(currentStep.systemPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
+            val usr = interpolate(currentStep.userPrompt?.content ?: "", node, parentChain, siblingTopics, artifact.maxDepth)
             Triple(sys, usr, artifact.maxDepth)
         }
 
@@ -74,24 +78,26 @@ class TopicTreeGenerationPipelineStepService(
         val subtopics = parseTopicTreeNodes(rawOutput, node.key, node.depth + 1)
 
         val yamlContent = transactionTemplate.execute {
-            val artifact = step.artifact as TopicTreeArtifactEntity
+            val pipeline = pipelineService.get(step.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == step.id }!!
+            val artifact = currentStep.artifact as TopicTreeArtifactEntity
             val existingKeys = artifact.nodes.map { it.key }.toSet()
             val validSubtopics = subtopics.filter { it.key !in existingKeys && it.key != node.key }
 
             if (validSubtopics.isEmpty()) {
                 val nodeInDb = artifact.nodes.find { it.key == node.key }!!
                 nodeInDb.leaf = true
-                loggerService.log(step, "No NEW subtopics found for ${node.name}. Marked as leaf.")
+                loggerService.log(currentStep, "No NEW subtopics found for ${node.name}. Marked as leaf.")
             } else {
                 for (sub in validSubtopics) {
                     val leaf = sub.leaf || sub.depth >= maxDepth
                     artifact.nodes.add(sub.copy(leaf = leaf).toTopicTreeNodeEntity(artifact))
                 }
-                loggerService.log(step, "Generated ${validSubtopics.size} subtopics for ${node.name}.")
+                loggerService.log(currentStep, "Generated ${validSubtopics.size} subtopics for ${node.name}.")
             }
 
-            pipelineService.saveAndFlush(step.pipeline)
-            prepareIncrementalYaml(step)
+            pipelineService.saveAndFlush(pipeline)
+            prepareIncrementalYaml(currentStep)
         }
 
         saveArtifactYaml(step, yamlContent)

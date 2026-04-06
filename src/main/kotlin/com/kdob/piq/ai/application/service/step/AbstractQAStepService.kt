@@ -75,23 +75,26 @@ abstract class AbstractQAStepService(
 
     override fun initializeArtifactInternal(pipelineStep: PipelineStepEntity) {
         transactionTemplate.execute {
-            val previousStep = pipelineStep.pipeline.steps.find { it.stepType == previousStepType() }
-                ?: throw IllegalStateException("${previousStepType().name} step not found for pipeline: ${pipelineStep.pipeline.name}")
+            val pipeline = pipelineService.get(pipelineStep.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == pipelineStep.id }!!
+
+            val previousStep = pipeline.steps.find { it.stepType == previousStepType() }
+                ?: throw IllegalStateException("${previousStepType().name} step not found for pipeline: ${pipeline.name}")
             val previousArtifact = previousStep.artifact
-                ?: throw IllegalStateException("Artifact not found for ${previousStepType().name} in pipeline: ${pipelineStep.pipeline.name}")
+                ?: throw IllegalStateException("Artifact not found for ${previousStepType().name} in pipeline: ${pipeline.name}")
 
             check(previousArtifact.status == ArtifactStatus.APPROVED) {
                 "${previousStepType().name} artifact is not APPROVED. Current status: ${previousArtifact.status}"
             }
 
-            val artifact = AnswersArtifactEntity(pipeline = pipelineStep.pipeline)
+            val artifact = AnswersArtifactEntity(pipeline = pipeline)
             artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
-            pipelineStep.artifact = artifact
+            currentStep.artifact = artifact
 
-            pipelineService.saveAndFlush(pipelineStep.pipeline)
+            pipelineService.saveAndFlush(pipeline)
             val yamlContent = prepareIncrementalYaml(artifact)
-            saveArtifactYaml(pipelineStep, yamlContent)
-            loggerService.log(pipelineStep, "Initialized ${getLabel()} Artifact.")
+            saveArtifactYaml(currentStep, yamlContent)
+            loggerService.log(currentStep, "Initialized ${getLabel()} Artifact.")
         }
     }
 

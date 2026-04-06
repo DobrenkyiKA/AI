@@ -35,8 +35,10 @@ abstract class AbstractAnswerGenerationStepService(
 
     override fun findNext(step: PipelineStepEntity): TopicQAEntity? {
         return transactionTemplate.execute {
-            val artifact = step.artifact as AnswersArtifactEntity
-            val inputStep = step.pipeline.steps.find { it.stepType == inputStepType() }!!
+            val pipeline = pipelineService.get(step.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == step.id }!!
+            val artifact = currentStep.artifact as AnswersArtifactEntity
+            val inputStep = pipeline.steps.find { it.stepType == inputStepType() }!!
             val inputArtifact = inputStep.artifact as AnswersArtifactEntity
 
             val generatedTopicMap = artifact.topicsWithQA.associateBy { it.key }
@@ -51,7 +53,9 @@ abstract class AbstractAnswerGenerationStepService(
     override fun processItem(step: PipelineStepEntity, item: Any) {
         val inputTopicQA = item as TopicQAEntity
         val missingEntries = transactionTemplate.execute {
-            val artifact = step.artifact as AnswersArtifactEntity
+            val pipeline = pipelineService.get(step.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == step.id }!!
+            val artifact = currentStep.artifact as AnswersArtifactEntity
             val generatedTopic = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
             val existingTexts = generatedTopic?.entries?.map { it.questionText }?.toSet() ?: emptySet()
             inputTopicQA.entries.filter { it.questionText !in existingTexts }
@@ -72,7 +76,9 @@ abstract class AbstractAnswerGenerationStepService(
             val answer = parseGeneratedAnswer(rawOutput)
 
             val yamlContent = transactionTemplate.execute {
-                val artifact = step.artifact as AnswersArtifactEntity
+                val pipeline = pipelineService.get(step.pipeline.name)
+                val currentStep = pipeline.steps.find { it.id == step.id }!!
+                val artifact = currentStep.artifact as AnswersArtifactEntity
 
                 var topicQA = artifact.topicsWithQA.find { it.key == inputTopicQA.key }
                 if (topicQA == null) {
@@ -85,7 +91,7 @@ abstract class AbstractAnswerGenerationStepService(
                 }
 
                 topicQA.entries.add(createEntry(entry, answer, topicQA))
-                pipelineService.saveAndFlush(step.pipeline)
+                pipelineService.saveAndFlush(pipeline)
                 prepareIncrementalYaml(artifact)
             }
 

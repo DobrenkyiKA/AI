@@ -62,15 +62,17 @@ class QuestionsGenerationPipelineStepService(
         val node = item as TopicTreeNodeEntity
 
         val (systemPrompt, userPrompt, parentChain) = transactionTemplate.execute {
-            val topicTreeStep = step.pipeline.steps.find { it.stepType == StepType.TOPIC_TREE_GENERATION }!!
+            val pipeline = pipelineService.get(step.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == step.id }!!
+            val topicTreeStep = pipeline.steps.find { it.stepType == StepType.TOPIC_TREE_GENERATION }!!
             val topicTreeArtifact = topicTreeStep.artifact as TopicTreeArtifactEntity
 
             val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
             val children = nodesByParent[node.key] ?: emptyList()
-            val chain = parentChainService.buildParentChainForQuestions(node, topicTreeArtifact.nodes, step.pipeline.topicKey)
+            val chain = parentChainService.buildParentChainForQuestions(node, topicTreeArtifact.nodes, pipeline.topicKey)
 
-            val sys = interpolateQuestionPrompt(step.systemPrompt?.content ?: "", node, children, chain)
-            val usr = interpolateQuestionPrompt(step.userPrompt?.content ?: "", node, children, chain)
+            val sys = interpolateQuestionPrompt(currentStep.systemPrompt?.content ?: "", node, children, chain)
+            val usr = interpolateQuestionPrompt(currentStep.userPrompt?.content ?: "", node, children, chain)
             Triple(sys, usr, chain)
         }
 
@@ -79,7 +81,9 @@ class QuestionsGenerationPipelineStepService(
         val questions = parseQuestionsWithLevels(rawOutput)
 
         val yamlContent = transactionTemplate.execute {
-            val artifact = step.artifact as AnswersArtifactEntity
+            val pipeline = pipelineService.get(step.pipeline.name)
+            val currentStep = pipeline.steps.find { it.id == step.id }!!
+            val artifact = currentStep.artifact as AnswersArtifactEntity
 
             if (questions.isNotEmpty()) {
                 val topicQA = TopicQAEntity(
@@ -93,7 +97,7 @@ class QuestionsGenerationPipelineStepService(
                 artifact.topicsWithQA.add(topicQA)
             }
 
-            pipelineService.saveAndFlush(step.pipeline)
+            pipelineService.saveAndFlush(pipeline)
             prepareIncrementalYaml(artifact)
         }
 
