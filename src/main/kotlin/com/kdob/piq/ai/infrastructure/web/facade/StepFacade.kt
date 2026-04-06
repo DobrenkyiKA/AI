@@ -11,7 +11,7 @@ class StepFacade(
     private val stepService: StepService
 ) {
     fun getAvailableStepTypes(): List<PipelineStepTypeResponse> {
-        return stepService.getAvailableStepTypes().map { PipelineStepTypeResponse(it.getStepType(), it.getLabel()) }
+        return stepService.getAvailableStepTypes().map { PipelineStepTypeResponse(it.getStepType().name, it.getLabel()) }
     }
 
     fun runStep(pipelineName: String, stepIndex: Int) {

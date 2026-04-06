@@ -1,13 +1,14 @@
 package com.kdob.piq.ai.application.service
 
 import com.kdob.piq.ai.domain.model.ArtifactStatus
+import com.kdob.piq.ai.domain.model.StepType
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
 
 interface PipelineStepService {
     fun generate(pipelineStep: PipelineStepEntity)
-    fun getStepType(): String
+    fun getStepType(): StepType
     fun getLabel(): String =
-        getStepType().split("_").joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
+        getStepType().name.split("_").joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
 
     fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus)
 }

@@ -20,7 +20,7 @@ class ArtifactService(
         val step =
             existing.steps.getOrNull(stepIndex) ?: throw IllegalArgumentException("Step at index $stepIndex not found")
         val generationStep = generationSteps.find { it.getStepType() == step.stepType }
-            ?: throw IllegalStateException("PipelineStepService for type ${step.stepType} not found")
+            ?: throw IllegalStateException("PipelineStepService for type ${step.stepType.name} not found")
         generationStep.updateArtifact(step, yamlContent, status)
         if (status == ArtifactStatus.APPROVED) {
             existing.status = PipelineStatus.ARTIFACT_APPROVED

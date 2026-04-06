@@ -29,16 +29,26 @@ abstract class AbstractPipelineStepService(
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     ).registerKotlinModule()
 
-    protected fun initializeArtifact(pipelineStep: PipelineStepEntity) {
-        pipelineArtifactStatusService.toInProgress(pipelineStep)
-
-        if (pipelineStep.artifact == null) {
-            loggerService.log(pipelineStep, "Initializing new artifact generation for [${pipelineStep.stepType}].")
-            initializeArtifactInternal(pipelineStep)
-        } else {
-            loggerService.log(pipelineStep, "Resuming [${pipelineStep.stepType}] Generation...")
+    override fun generate(pipelineStep: PipelineStepEntity) {
+        initializeArtifact(pipelineStep)
+        while (pipelineStatusService.isNotStopped(pipelineStep)) {
+            val next = findNext(pipelineStep) ?: run {
+                loggerService.log(pipelineStep, "${getLabel()} completed successfully.")
+                finalizeArtifact(pipelineStep)
+                return
+            }
+            try {
+                processItem(pipelineStep, next)
+            } catch (e: Exception) {
+                loggerService.log(pipelineStep, "Error during ${getLabel()}: ${e.message}")
+                throw e
+            }
         }
     }
+
+    protected abstract fun findNext(step: PipelineStepEntity): Any?
+
+    protected abstract fun processItem(step: PipelineStepEntity, item: Any)
 
     protected abstract fun initializeArtifactInternal(pipelineStep: PipelineStepEntity)
 
@@ -47,9 +57,29 @@ abstract class AbstractPipelineStepService(
         artifact.status = status
     }
 
+    protected fun initializeArtifact(pipelineStep: PipelineStepEntity) {
+        pipelineArtifactStatusService.toInProgress(pipelineStep)
+
+        if (pipelineStep.artifact == null) {
+            loggerService.log(pipelineStep, "Initializing new artifact generation for [${pipelineStep.stepType.name}].")
+            initializeArtifactInternal(pipelineStep)
+        } else {
+            loggerService.log(pipelineStep, "Resuming [${pipelineStep.stepType.name}] Generation...")
+        }
+    }
+
     protected fun finalizeArtifact(pipelineStep: PipelineStepEntity) {
         pipelineArtifactStatusService.toPendingApproval(pipelineStep)
         pipelineStatusService.toWaitingApproval(pipelineStep.pipeline)
+    }
+
+    protected fun saveArtifactYaml(pipelineStep: PipelineStepEntity, yamlContent: String) {
+        artifactStorage.saveArtifact(
+            pipelineStep.pipeline.topicKey,
+            pipelineStep.pipeline.name,
+            getStepType(),
+            yamlContent
+        )
     }
 
     protected fun parseYaml(rawOutput: String): Map<*, *> {

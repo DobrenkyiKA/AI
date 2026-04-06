@@ -3,6 +3,7 @@ package com.kdob.piq.ai.application.service
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.PipelineStatus
 import com.kdob.piq.ai.domain.model.PromptType
+import com.kdob.piq.ai.domain.model.StepType
 import com.kdob.piq.ai.infrastructure.persistence.GenerationLogRepository
 import com.kdob.piq.ai.domain.repository.PipelineRepository
 import com.kdob.piq.ai.infrastructure.persistence.entity.GenerationLogEntity
@@ -54,19 +55,20 @@ class PipelineService(
 
         if (steps != null) {
             val updatedSteps = steps.mapIndexed { index, stepRequest ->
+                val stepType = StepType.valueOf(stepRequest.type)
                 val existingStep = existing.steps.getOrNull(index)
-                if (existingStep != null && existingStep.stepType == stepRequest.type) {
+                if (existingStep != null && existingStep.stepType == stepType) {
                     existingStep.stepOrder = index
                     existingStep.systemPrompt = promptService.getOrCreatePrompt(
                         name,
-                        stepRequest.type,
+                        stepType.name,
                         PromptType.SYSTEM,
                         stepRequest.systemPromptName,
                         null
                     )
                     existingStep.userPrompt = promptService.getOrCreatePrompt(
                         name,
-                        stepRequest.type,
+                        stepType.name,
                         PromptType.USER,
                         stepRequest.userPromptName,
                         null
@@ -75,18 +77,18 @@ class PipelineService(
                 } else {
                     PipelineStepEntity(
                         pipeline = existing,
-                        stepType = stepRequest.type,
+                        stepType = stepType,
                         stepOrder = index,
                         systemPrompt = promptService.getOrCreatePrompt(
                             name,
-                            stepRequest.type,
+                            stepType.name,
                             PromptType.SYSTEM,
                             stepRequest.systemPromptName,
                             null
                         ),
                         userPrompt = promptService.getOrCreatePrompt(
                             name,
-                            stepRequest.type,
+                            stepType.name,
                             PromptType.USER,
                             stepRequest.userPromptName,
                             null
@@ -111,20 +113,21 @@ class PipelineService(
         val pipelineEntity = PipelineEntity(name = name, topicKey = topicKey)
 
         pipelineEntity.steps.addAll(steps.mapIndexed { index, stepRequest ->
+            val stepType = StepType.valueOf(stepRequest.type)
             PipelineStepEntity(
                 pipeline = pipelineEntity,
-                stepType = stepRequest.type,
+                stepType = stepType,
                 stepOrder = index,
                 systemPrompt = promptService.getOrCreatePrompt(
                     name,
-                    stepRequest.type,
+                    stepType.name,
                     PromptType.SYSTEM,
                     stepRequest.systemPromptName,
                     null
                 ),
                 userPrompt = promptService.getOrCreatePrompt(
                     name,
-                    stepRequest.type,
+                    stepType.name,
                     PromptType.USER,
                     stepRequest.userPromptName,
                     null

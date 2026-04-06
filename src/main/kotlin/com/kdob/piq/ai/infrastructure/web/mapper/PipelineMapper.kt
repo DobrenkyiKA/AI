@@ -19,7 +19,7 @@ object PipelineMapper {
             steps = steps.mapIndexed { index, step ->
                 PipelineStepResponse(
                     step = index,
-                    type = step.stepType,
+                    type = step.stepType.name,
                     status = step.artifact?.status,
                     systemPromptName = step.systemPrompt?.name,
                     systemPrompt = step.systemPrompt?.content ?: "",

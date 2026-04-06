@@ -1,5 +1,6 @@
 package com.kdob.piq.ai.infrastructure.persistence.entity
 
+import com.kdob.piq.ai.domain.model.StepType
 import jakarta.persistence.*
 
 @Entity
@@ -10,8 +11,9 @@ open class PipelineStepEntity(
     @JoinColumn(name = "pipeline_id", nullable = false)
     open val pipeline: PipelineEntity,
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "step_type", nullable = false)
-    open val stepType: String,
+    open val stepType: StepType,
 
     @Column(name = "step_order", nullable = false)
     open var stepOrder: Int,

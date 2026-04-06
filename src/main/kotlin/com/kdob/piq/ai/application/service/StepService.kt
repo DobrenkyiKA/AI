@@ -27,7 +27,7 @@ class StepService(
 
     private fun getPipelineStepService(pipelineStep: PipelineStepEntity): PipelineStepService =
         generationSteps.find { it.getStepType() == pipelineStep.stepType }
-            ?: throw IllegalStateException("PipelineStepService for type [${pipelineStep.stepType}] not found")
+            ?: throw IllegalStateException("PipelineStepService for type [${pipelineStep.stepType.name}] not found")
 
     private fun runGenerationStep(
         pipelineStepService: PipelineStepService,
