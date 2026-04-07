@@ -1,11 +1,9 @@
 package com.kdob.piq.ai.infrastructure.web.controller
 
-import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineResponse
 import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepTypeResponse
 import com.kdob.piq.ai.infrastructure.web.facade.PipelineFacade
 import com.kdob.piq.ai.infrastructure.web.facade.StepFacade
-import com.kdob.piq.ai.infrastructure.web.mapper.PipelineMapper.toResponse
 import com.kdob.piq.ai.infrastructure.web.validation.PipelineName
 import com.kdob.piq.ai.infrastructure.web.validation.StepNumber
 import org.springframework.validation.annotation.Validated

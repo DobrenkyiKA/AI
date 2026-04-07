@@ -6,16 +6,12 @@ import com.kdob.piq.ai.infrastructure.web.dto.PipelineStepResponse
 
 object PipelineMapper {
     fun PipelineEntity.toResponse(): PipelineResponse {
-//        val logs = generationLogRepository.findByPipelineNameOrderByCreatedAtAsc(name)
-//            .map { GenerationLogResponse(it.message, it.stepOrder, it.createdAt) }
-
         return PipelineResponse(
             pipelineName = name,
             topicKey = topicKey,
             status = status.name,
             createdAt = createdAt,
             updatedAt = updatedAt,
-//            logs = logs,
             steps = steps.mapIndexed { index, step ->
                 PipelineStepResponse(
                     step = index,
