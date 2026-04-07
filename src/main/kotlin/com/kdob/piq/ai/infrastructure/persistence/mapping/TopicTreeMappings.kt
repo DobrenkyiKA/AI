@@ -1,8 +1,8 @@
 package com.kdob.piq.ai.infrastructure.persistence.mapping
 
 import com.kdob.piq.ai.domain.model.TopicTreeNode
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeNodeEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.topic.TopicTreeArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.topic.TopicTreeNodeEntity
 
 fun TopicTreeNode.toTopicTreeNodeEntity(topicTreeArtifact: TopicTreeArtifactEntity): TopicTreeNodeEntity =
     TopicTreeNodeEntity(

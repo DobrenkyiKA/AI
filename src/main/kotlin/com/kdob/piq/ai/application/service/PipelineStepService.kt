@@ -10,5 +10,5 @@ interface PipelineStepService {
     fun getLabel(): String =
         getStepType().name.split("_").joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
 
-    fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus)
+    fun updateArtifact(pipelineStep: PipelineStepEntity, yamlContent: String, status: ArtifactStatus)
 }

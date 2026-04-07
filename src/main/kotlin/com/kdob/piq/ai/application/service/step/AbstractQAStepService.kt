@@ -9,6 +9,9 @@ import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.domain.model.ArtifactStatus
 import com.kdob.piq.ai.domain.model.StepType
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.answer.AnswersArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.answer.QAEntryEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.answer.TopicQAEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.transaction.PlatformTransactionManager
 
@@ -33,8 +36,11 @@ abstract class AbstractQAStepService(
 
     protected abstract fun totalCountLabel(): String
 
-    override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
-        val artifact = step.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
+    override fun updateArtifact(pipelineStep: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
+        if (pipelineStep.artifact == null) {
+            initializeArtifactInternal(pipelineStep)
+        }
+        val artifact = pipelineStep.artifact as? AnswersArtifactEntity ?: throw IllegalStateException("Answers artifact not found")
         artifact.status = status
 
         val data = parseYaml(yamlContent)
@@ -69,7 +75,7 @@ abstract class AbstractQAStepService(
             }
         }
 
-        saveArtifactYaml(step, yamlContent.trim())
+        saveArtifactYaml(pipelineStep, yamlContent.trim())
     }
 
     override fun initializeArtifactInternal(pipelineStep: PipelineStepEntity) {

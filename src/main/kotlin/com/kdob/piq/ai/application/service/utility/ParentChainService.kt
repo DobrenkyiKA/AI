@@ -2,8 +2,7 @@ package com.kdob.piq.ai.application.service.utility
 
 import com.kdob.piq.ai.domain.model.TopicTreeNode
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeNodeEntity
-import com.kdob.piq.ai.infrastructure.persistence.mapping.toTopicTreeNode
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.topic.TopicTreeNodeEntity
 import org.springframework.stereotype.Service
 import java.util.concurrent.ConcurrentHashMap
 

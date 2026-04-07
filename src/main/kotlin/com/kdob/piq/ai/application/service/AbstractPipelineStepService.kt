@@ -52,10 +52,10 @@ abstract class AbstractPipelineStepService(
 
     protected abstract fun initializeArtifactInternal(pipelineStep: PipelineStepEntity)
 
-    override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
-        val artifact = step.artifact ?: throw IllegalStateException("Artifact not found for step: ${step.id}")
-        artifact.status = status
-    }
+//    override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
+//        val artifact = step.artifact ?: throw IllegalStateException("Artifact not found for step: ${step.id}")
+//        artifact.status = status
+//    }
 
     protected fun initializeArtifact(pipelineStep: PipelineStepEntity) {
         pipelineArtifactStatusService.toInProgress(pipelineStep)

@@ -12,7 +12,7 @@ import com.kdob.piq.ai.domain.model.StepType
 import com.kdob.piq.ai.domain.model.TopicTreeNode
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
 import com.kdob.piq.ai.infrastructure.persistence.entity.PipelineStepEntity
-import com.kdob.piq.ai.infrastructure.persistence.entity.TopicTreeArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.topic.TopicTreeArtifactEntity
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toTopicTreeNode
 import com.kdob.piq.ai.infrastructure.persistence.mapping.toTopicTreeNodeEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
@@ -140,9 +140,11 @@ class TopicTreeGenerationPipelineStepService(
         }
     }
 
-    override fun updateArtifact(step: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
-        val artifact = step.artifact as? TopicTreeArtifactEntity
-            ?: throw IllegalStateException("Topic tree artifact not found")
+    override fun updateArtifact(pipelineStep: PipelineStepEntity, yamlContent: String, status: ArtifactStatus) {
+        if (pipelineStep.artifact == null) {
+            initializeArtifactInternal(pipelineStep)
+        }
+        val artifact = pipelineStep.artifact as? TopicTreeArtifactEntity ?: throw IllegalStateException("Topic tree artifact not found")
         artifact.status = status
 
         val data = parseYaml(yamlContent)
@@ -177,7 +179,7 @@ class TopicTreeGenerationPipelineStepService(
             }
         }
 
-        saveArtifactYaml(step, yamlContent.trim())
+        saveArtifactYaml(pipelineStep, yamlContent.trim())
     }
 
     private fun prepareIncrementalYaml(pipelineStep: PipelineStepEntity): String {

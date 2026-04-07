@@ -7,6 +7,9 @@ import com.kdob.piq.ai.application.service.utility.PipelineArtifactStatusService
 import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.domain.model.StepType
 import com.kdob.piq.ai.infrastructure.persistence.entity.*
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.answer.AnswersArtifactEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.answer.QAEntryEntity
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.answer.TopicQAEntity
 import com.kdob.piq.ai.infrastructure.storage.ArtifactStorage
 import org.springframework.transaction.PlatformTransactionManager
 
