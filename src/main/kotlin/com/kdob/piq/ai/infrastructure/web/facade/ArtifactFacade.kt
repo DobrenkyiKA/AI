@@ -17,4 +17,7 @@ class ArtifactFacade(
 
     fun remove(pipelineName: String, stepIndex: Int): PipelineResponse =
         artifactService.remove(pipelineName, stepIndex).toResponse()
+
+    fun load(pipelineName: String, stepIndex: Int): PipelineResponse =
+        artifactService.load(pipelineName, stepIndex).toResponse()
 }

@@ -31,6 +31,14 @@ class ArtifactController(
         return artifactFacade.update(pipelineName, step, request)
     }
 
+    @PostMapping("/{pipelineName}/artifacts/{step}/load")
+    fun load(
+        @PathVariable @PipelineName pipelineName: String,
+        @PathVariable @StepNumber step: Int
+    ): PipelineResponse {
+        return artifactFacade.load(pipelineName, step)
+    }
+
     @DeleteMapping("/{pipelineName}/artifacts/{step}")
     fun remove(
         @PathVariable @PipelineName pipelineName: String,
