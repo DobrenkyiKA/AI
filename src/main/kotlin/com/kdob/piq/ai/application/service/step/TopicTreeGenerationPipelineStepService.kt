@@ -40,6 +40,7 @@ class TopicTreeGenerationPipelineStepService(
     override fun getStepType(): StepType = StepType.TOPIC_TREE_GENERATION
 
     override fun findNext(step: PipelineStepEntity): TopicTreeNode? {
+        loggerService.log(step, "Finding next topic to expand...")
         return transactionTemplate.execute {
             val pipeline = pipelineService.get(step.pipeline.name)
             val currentStep = pipeline.steps.find { it.id == step.id }!!
@@ -50,6 +51,8 @@ class TopicTreeGenerationPipelineStepService(
             allNodes.find {
                 !it.leaf && it.depth < artifact.maxDepth && it.key !in parentKeysWithChildren
             }?.toTopicTreeNode()
+        }?.also {
+            loggerService.log(step, "Found next topic: ${it.name}")
         }
     }
 
@@ -74,7 +77,9 @@ class TopicTreeGenerationPipelineStepService(
         }
 
         loggerService.log(step, "Generating subtopics for: ${node.name} (depth: ${node.depth})")
+        loggerService.log(step, "Calling AI service...")
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
+        loggerService.log(step, "AI service response received.")
         val subtopics = parseTopicTreeNodes(rawOutput, node.key, node.depth + 1)
 
         val yamlContent = transactionTemplate.execute {
@@ -96,7 +101,9 @@ class TopicTreeGenerationPipelineStepService(
                 loggerService.log(currentStep, "Generated ${validSubtopics.size} subtopics for ${node.name}.")
             }
 
+            loggerService.log(currentStep, "Saving pipeline state to database...")
             pipelineService.saveAndFlush(pipeline)
+            loggerService.log(currentStep, "Pipeline state saved.")
             prepareIncrementalYaml(currentStep)
         }
 
@@ -105,7 +112,10 @@ class TopicTreeGenerationPipelineStepService(
 
     override fun initializeArtifactInternal(pipelineStep: PipelineStepEntity) {
         transactionTemplate.execute {
+            loggerService.log(pipelineStep, "Fetching topic detail from microservice for topic: ${pipelineStep.pipeline.topicKey}")
             val topicDetail = questionCatalogClient.findTopic(pipelineStep.pipeline.topicKey)!!
+            loggerService.log(pipelineStep, "Topic detail fetched: ${topicDetail.name}")
+            
             val artifact = TopicTreeArtifactEntity(pipeline = pipelineStep.pipeline, maxDepth = DEFAULT_MAX_DEPTH)
             pipelineArtifactStatusService.toInProgress(pipelineStep)
 
@@ -120,7 +130,10 @@ class TopicTreeGenerationPipelineStepService(
             artifact.nodes.add(rootNode.toTopicTreeNodeEntity(artifact))
             pipelineStep.artifact = artifact
 
+            loggerService.log(pipelineStep, "Saving initial artifact to database...")
             pipelineService.saveAndFlush(pipelineStep.pipeline)
+            loggerService.log(pipelineStep, "Initial artifact saved.")
+            
             val yamlContent = prepareIncrementalYaml(pipelineStep)
             saveArtifactYaml(pipelineStep, yamlContent)
             loggerService.log(pipelineStep, "Initialized Topic Tree with root: ${rootNode.name}")

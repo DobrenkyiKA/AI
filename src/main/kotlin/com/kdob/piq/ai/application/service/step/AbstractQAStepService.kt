@@ -80,18 +80,24 @@ abstract class AbstractQAStepService(
 
             val previousStep = pipeline.steps.find { it.stepType == previousStepType() }
                 ?: throw IllegalStateException("${previousStepType().name} step not found for pipeline: ${pipeline.name}")
+            
+            loggerService.log(currentStep, "Checking status of previous step: [${previousStep.stepType.name}]")
             val previousArtifact = previousStep.artifact
                 ?: throw IllegalStateException("Artifact not found for ${previousStepType().name} in pipeline: ${pipeline.name}")
 
             check(previousArtifact.status == ArtifactStatus.APPROVED) {
                 "${previousStepType().name} artifact is not APPROVED. Current status: ${previousArtifact.status}"
             }
+            loggerService.log(currentStep, "Previous artifact [${previousStep.stepType.name}] is APPROVED.")
 
             val artifact = AnswersArtifactEntity(pipeline = pipeline)
             artifact.status = ArtifactStatus.GENERATION_IN_PROGRESS
             currentStep.artifact = artifact
 
+            loggerService.log(currentStep, "Saving initial artifact to database...")
             pipelineService.saveAndFlush(pipeline)
+            loggerService.log(currentStep, "Initial artifact saved.")
+
             val yamlContent = prepareIncrementalYaml(artifact)
             saveArtifactYaml(currentStep, yamlContent)
             loggerService.log(currentStep, "Initialized ${getLabel()} Artifact.")

@@ -45,6 +45,7 @@ class QuestionsGenerationPipelineStepService(
     )
 
     override fun findNext(step: PipelineStepEntity): TopicTreeNodeEntity? {
+        loggerService.log(step, "Finding next topic to generate questions for...")
         return transactionTemplate.execute {
             val pipeline = pipelineService.get(step.pipeline.name)
             val currentStep = pipeline.steps.find { it.id == step.id }!!
@@ -55,6 +56,8 @@ class QuestionsGenerationPipelineStepService(
 
             val generatedTopicKeys = artifact.topicsWithQA.map { it.key }.toSet()
             topicTreeArtifact.nodes.find { it.key !in generatedTopicKeys }
+        }?.also {
+            loggerService.log(step, "Found next topic: ${it.name}")
         }
     }
 
@@ -77,7 +80,9 @@ class QuestionsGenerationPipelineStepService(
         }
 
         loggerService.log(step, "Generating questions for topic: ${node.name} (leaf: ${node.leaf})")
+        loggerService.log(step, "Calling AI service...")
         val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
+        loggerService.log(step, "AI service response received.")
         val questions = parseQuestionsWithLevels(rawOutput)
 
         val yamlContent = transactionTemplate.execute {
@@ -97,7 +102,9 @@ class QuestionsGenerationPipelineStepService(
                 artifact.topicsWithQA.add(topicQA)
             }
 
+            loggerService.log(currentStep, "Saving pipeline state to database...")
             pipelineService.saveAndFlush(pipeline)
+            loggerService.log(currentStep, "Pipeline state saved.")
             prepareIncrementalYaml(artifact)
         }
 

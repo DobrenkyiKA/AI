@@ -34,6 +34,7 @@ abstract class AbstractAnswerGenerationStepService(
     protected abstract fun interpolatePrompt(prompt: String, topicQA: TopicQAEntity, entry: QAEntryEntity): String
 
     override fun findNext(step: PipelineStepEntity): TopicQAEntity? {
+        loggerService.log(step, "Finding next topic to generate ${answerLabel()} for...")
         return transactionTemplate.execute {
             val pipeline = pipelineService.get(step.pipeline.name)
             val currentStep = pipeline.steps.find { it.id == step.id }!!
@@ -47,6 +48,8 @@ abstract class AbstractAnswerGenerationStepService(
                 val generatedTopic = generatedTopicMap[inputTopic.key]
                 generatedTopic == null || generatedTopic.entries.size < inputTopic.entries.size
             }?.also { it.entries.size }
+        }?.also {
+            loggerService.log(step, "Found next topic: ${it.name}")
         }
     }
 
@@ -72,7 +75,9 @@ abstract class AbstractAnswerGenerationStepService(
             val userPrompt = interpolatePrompt(step.userPrompt?.content ?: "", inputTopicQA, entry)
 
             loggerService.log(step, "Generating ${answerLabel()} for: [${entry.questionText.take(80)}] [${entry.level}]")
+            loggerService.log(step, "Calling AI service...")
             val rawOutput = generator.executePrompt(systemPrompt, userPrompt)
+            loggerService.log(step, "AI service response received.")
             val answer = parseGeneratedAnswer(rawOutput)
 
             val yamlContent = transactionTemplate.execute {
@@ -91,7 +96,10 @@ abstract class AbstractAnswerGenerationStepService(
                 }
 
                 topicQA.entries.add(createEntry(entry, answer, topicQA))
+                
+                loggerService.log(currentStep, "Saving pipeline state to database...")
                 pipelineService.saveAndFlush(pipeline)
+                loggerService.log(currentStep, "Pipeline state saved.")
                 prepareIncrementalYaml(artifact)
             }
 
