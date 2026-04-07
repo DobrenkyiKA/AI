@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface GenerationLogRepository : JpaRepository<GenerationLogEntity, Long> {
-    fun findByPipelineNameOrderByCreatedAtAsc(pipelineName: String): List<GenerationLogEntity>
+    fun findByPipelineNameAndStepOrderInOrderByCreatedAtAsc(pipelineName: String, stepOrders: List<Int?>): List<GenerationLogEntity>
 }

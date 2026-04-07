@@ -7,6 +7,7 @@ import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -16,8 +17,11 @@ class GenerationLogController(
     private val generationLogRepository: GenerationLogRepository
 ) {
     @GetMapping
-    fun getLogs(@PathVariable @PipelineName pipelineName: String): List<GenerationLogResponse> {
-        return generationLogRepository.findByPipelineNameOrderByCreatedAtAsc(pipelineName)
-            .map { GenerationLogResponse(it.message, it.stepOrder, it.createdAt) }
+    fun getLogs(
+        @PathVariable @PipelineName pipelineName: String,
+        @RequestParam step: Int
+    ): List<GenerationLogResponse> {
+        val logs = generationLogRepository.findByPipelineNameAndStepOrderInOrderByCreatedAtAsc(pipelineName, listOf(step, null))
+        return logs.map { GenerationLogResponse(it.message, it.stepOrder, it.createdAt) }
     }
 }
