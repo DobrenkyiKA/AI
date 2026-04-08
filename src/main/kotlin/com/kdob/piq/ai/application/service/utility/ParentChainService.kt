@@ -2,6 +2,7 @@ package com.kdob.piq.ai.application.service.utility
 
 import com.kdob.piq.ai.domain.model.TopicTreeNode
 import com.kdob.piq.ai.infrastructure.client.question.QuestionCatalogClient
+import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.answer.TopicQAEntity
 import com.kdob.piq.ai.infrastructure.persistence.entity.artifact.topic.TopicTreeNodeEntity
 import org.springframework.stereotype.Service
 import java.util.concurrent.ConcurrentHashMap
@@ -65,17 +66,52 @@ class ParentChainService(
         }
     }
 
-    fun buildParentChainForQuestions(
+    fun buildTopicParentsChain(
         node: TopicTreeNodeEntity,
-        allNodes: Set<TopicTreeNodeEntity>,
+        allNodes: Collection<TopicTreeNodeEntity>,
+        pipelineRootKey: String
+    ): String {
+        return buildTopicParentsChain(node.key, allNodes, pipelineRootKey)
+    }
+
+    fun buildTopicParentsChain(
+        topicKey: String,
+        allNodes: Collection<Any>,
         pipelineRootKey: String
     ): String {
         val chain = mutableListOf<String>()
-        var parentKey = node.parentTopicKey
-        while (parentKey != null) {
-            val parent = allNodes.find { it.key == parentKey } ?: break
-            chain.add(0, parent.name)
-            parentKey = parent.parentTopicKey
+        var currentKey: String? = topicKey
+
+        while (currentKey != null) {
+            val node = allNodes.find {
+                when (it) {
+                    is TopicTreeNodeEntity -> it.key == currentKey
+                    is TopicQAEntity -> it.key == currentKey
+                    else -> false
+                }
+            } ?: break
+
+            val parentKey = when (node) {
+                is TopicTreeNodeEntity -> node.parentTopicKey
+                is TopicQAEntity -> {
+                    // TopicQAEntity doesn't store parentTopicKey directly, 
+                    // we'd need to find it from the TopicTree if we want the full chain 
+                    // from within this structure. 
+                    // But usually parentChain is already set in TopicQAEntity.
+                    null 
+                }
+                else -> null
+            }
+
+            if (currentKey != topicKey) {
+                val name = when (node) {
+                    is TopicTreeNodeEntity -> node.name
+                    is TopicQAEntity -> node.name
+                    else -> ""
+                }
+                if (name.isNotEmpty()) chain.add(0, name)
+            }
+            currentKey = parentKey
         }
 
         val catalogNames = getCatalogParentChain(pipelineRootKey).map { it.name }

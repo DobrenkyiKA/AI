@@ -77,7 +77,7 @@ class QuestionsGenerationPipelineStepService(
 
             val nodesByParent = topicTreeArtifact.nodes.groupBy { it.parentTopicKey }
             val children = nodesByParent[node.key] ?: emptyList()
-            val chain = parentChainService.buildParentChainForQuestions(node, topicTreeArtifact.nodes, pipeline.topicKey)
+            val chain = parentChainService.buildTopicParentsChain(node, topicTreeArtifact.nodes, pipeline.topicKey)
 
             val sys = interpolateQuestionPrompt(currentStep.systemPrompt?.content ?: "", node, children, chain)
             val usr = interpolateQuestionPrompt(currentStep.userPrompt?.content ?: "", node, children, chain)

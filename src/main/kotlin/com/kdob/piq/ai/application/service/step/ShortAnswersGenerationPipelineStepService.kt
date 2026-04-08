@@ -3,6 +3,7 @@ package com.kdob.piq.ai.application.service.step
 import com.kdob.piq.ai.application.service.PipelineService
 import com.kdob.piq.ai.application.service.ai.GoogleAiChatService
 import com.kdob.piq.ai.application.service.utility.LoggerService
+import com.kdob.piq.ai.application.service.utility.ParentChainService
 import com.kdob.piq.ai.application.service.utility.PipelineArtifactStatusService
 import com.kdob.piq.ai.application.service.utility.PipelineStatusService
 import com.kdob.piq.ai.domain.model.StepType
@@ -20,7 +21,8 @@ class ShortAnswersGenerationPipelineStepService(
     transactionManager: PlatformTransactionManager,
     loggerService: LoggerService,
     generator: GoogleAiChatService,
-    pipelineArtifactStatusService: PipelineArtifactStatusService
+    pipelineArtifactStatusService: PipelineArtifactStatusService,
+    private val parentChainService: ParentChainService
 ) : AbstractAnswerGenerationStepService(
     pipelineService, artifactStorage, pipelineStatusService,
     transactionManager, loggerService, generator, pipelineArtifactStatusService
@@ -70,9 +72,15 @@ class ShortAnswersGenerationPipelineStepService(
     }
 
     override fun interpolatePrompt(prompt: String, topicQA: TopicQAEntity, entry: QAEntryEntity): String {
+        val chain = topicQA.parentChain ?: parentChainService.buildTopicParentsChain(
+            topicQA.key,
+            topicQA.answersArtifact.topicsWithQA,
+            topicQA.answersArtifact.pipeline.topicKey
+        )
+
         return prompt
             .replace("{{topicName}}", topicQA.name)
-            .replace("{{parentChain}}", topicQA.parentChain ?: "")
+            .replace("{{parentChain}}", chain.ifBlank { "Root" })
             .replace("{{coverageArea}}", "")
             .replace("{{level}}", entry.level)
             .replace("{{questionText}}", entry.questionText)
