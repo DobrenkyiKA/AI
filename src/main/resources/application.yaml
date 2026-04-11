@@ -1,65 +1,13 @@
-
 spring:
-  devtools:
-    restart:
-      enabled: false
   application:
     name: ai
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      model: gpt-4.1-nano
-    google:
-      genai:
-        project-id: ${GEMINI_FLASH_3_PROJECT_ID}
-        api-key: ${GEMINI_FLASH_3_API_KEY}
-        chat:
-          options:
-            model: gemini-3-flash-preview
-
-  liquibase:
-    enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yaml
-
-  datasource:
-    url: jdbc:postgresql://localhost:5434/ai_db
-    username: ai_user
-    password: ai_pass
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-    properties:
-      hibernate:
-        jdbc:
-          batch_size: 50
-        order_inserts: true
-        order_updates: true
-        generate_statistics: false
-        id:
-          new_generator_mappings: true
-        default_batch_fetch_size: 50
-
-storage:
-  url: http://localhost:8084
-
-logging:
-  level:
-    org:
-      springframework:
-        security: DEBUG # or trace
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql.BasicBinder: trace
-
-rsa:
-  public-key: classpath:keys/public.pem
-
-server:
-  port: 8083
+  config:
+    import: optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}
+  cloud:
+    config:
+      fail-fast: false
+      retry:
+        max-attempts: 5
+        initial-interval: 1500
+        max-interval: 5000
+        multiplier: 1.5
