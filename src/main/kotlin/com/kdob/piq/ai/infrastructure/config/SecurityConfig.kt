@@ -2,72 +2,34 @@ package com.kdob.piq.ai.infrastructure.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.task.TaskExecutor
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
-import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor
+import org.springframework.security.config.annotation.web.invoke
+import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.web.cors.CorsConfiguration
-import org.springframework.web.cors.CorsConfigurationSource
-import org.springframework.web.cors.CorsUtils
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 @Configuration
-class SecurityConfig {
+class SecurityConfig(
+    private val gatewayAuthFilter: GatewayAuthFilter
+) {
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
-        http
-            .cors(Customizer.withDefaults())
-            .csrf { it.disable() }
-            .authorizeHttpRequests {
-                it
-                    .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                    .requestMatchers("/health").permitAll()
-                    .requestMatchers("/admin/**").hasRole("ADMIN")
-                    .requestMatchers("/pipeline/**").hasRole("ADMIN")
-                    .anyRequest().authenticated()
+        http {
+            csrf { disable() }
+            cors { disable() }
+            sessionManagement { sessionCreationPolicy = SessionCreationPolicy.STATELESS }
+
+            addFilterBefore<UsernamePasswordAuthenticationFilter>(gatewayAuthFilter)
+
+            authorizeHttpRequests {
+                authorize("/actuator/health", permitAll)
+                authorize("/health", permitAll)
+                authorize("/admin/**", hasRole("ADMIN"))
+                authorize("/pipeline/**", hasRole("ADMIN"))
+                authorize(anyRequest, authenticated)
             }
-            .oauth2ResourceServer {
-                it.jwt {
-                    it.jwtAuthenticationConverter(JwtAuthConverter())
-                }
-            }
+        }
         return http.build()
-    }
-
-    @Bean
-    fun corsConfigurationSource(): CorsConfigurationSource {
-        val config = CorsConfiguration()
-
-        config.allowedOrigins = listOf(
-            "http://localhost:3000"
-        )
-
-        config.allowedMethods = listOf(
-            "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
-        )
-
-        config.allowedHeaders = listOf(
-            "Authorization",
-            "Content-Type"
-        )
-
-        config.allowCredentials = true
-
-        val source = UrlBasedCorsConfigurationSource()
-        source.registerCorsConfiguration("/**", config)
-        return source
-    }
-
-    @Bean
-    fun taskExecutor(): TaskExecutor {
-        val executor = ThreadPoolTaskExecutor()
-        executor.corePoolSize = 10
-        executor.maxPoolSize = 20
-        executor.setThreadNamePrefix("ai-async-")
-        executor.initialize()
-        return DelegatingSecurityContextAsyncTaskExecutor(executor)
     }
 }
